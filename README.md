@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/automatic-coding-agent/automatic-coding-agent/workflows/CI/badge.svg)](https://github.com/automatic-coding-agent/automatic-coding-agent/actions?query=workflow%3ACI)
 [![Security Audit](https://github.com/automatic-coding-agent/automatic-coding-agent/workflows/Security%20Audit/badge.svg)](https://github.com/automatic-coding-agent/automatic-coding-agent/actions?query=workflow%3A%22Security+Audit%22)
-[![codecov](https://codecov.io/gh/automatic-coding-agent/automatic-coding-agent/branch/master/graph/badge.svg)](https://codecov.io/gh/automatic-coding-agent/automatic-coding-agent)
 [![Crates.io](https://img.shields.io/crates/v/automatic-coding-agent.svg)](https://crates.io/crates/automatic-coding-agent)
 [![Documentation](https://docs.rs/automatic-coding-agent/badge.svg)](https://docs.rs/automatic-coding-agent)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -138,7 +137,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ```bash
 # Install development dependencies
-cargo install cargo-audit cargo-llvm-cov
+cargo install cargo-audit
 
 # Run full test suite
 cargo test

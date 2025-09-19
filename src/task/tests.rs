@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod task_tests {
     use crate::task::execution::{MockClaudeInterface, TaskExecutionResult};
     use crate::task::manager::*;
     use crate::task::scheduler::*;
@@ -255,8 +255,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_task_scheduler_selection() {
-        let mut config = SchedulerConfig::default();
-        config.selection_randomization = 0.0; // Pure scoring, no randomization
+        let config = SchedulerConfig {
+            selection_randomization: 0.0, // Pure scoring, no randomization
+            ..Default::default()
+        };
         let scheduler = TaskScheduler::new(config);
 
         let mut tree = TaskTree::new();
