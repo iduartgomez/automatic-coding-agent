@@ -108,7 +108,9 @@ impl SessionManager {
 
         // Attempt recovery if requested
         if let Some(checkpoint_id) = init_options.restore_from_checkpoint {
-            session_manager.restore_from_checkpoint(&checkpoint_id).await?;
+            session_manager
+                .restore_from_checkpoint(&checkpoint_id)
+                .await?;
         } else if config.enable_crash_recovery {
             // Try automatic recovery
             if let Ok(recovery_result) = session_manager.recovery.auto_recover().await {
@@ -180,7 +182,10 @@ impl SessionManager {
         if self.config.validate_on_save {
             let validation = self.recovery.validate_session_state(&session_state).await?;
             if !validation.is_valid {
-                warn!("Session validation failed before save: {:?}", validation.errors);
+                warn!(
+                    "Session validation failed before save: {:?}",
+                    validation.errors
+                );
                 // Continue with save but log warnings
             }
         }
@@ -237,10 +242,7 @@ impl SessionManager {
                 .await?;
         }
 
-        let recovery_result = self
-            .recovery
-            .recover_from_checkpoint(checkpoint_id)
-            .await?;
+        let recovery_result = self.recovery.recover_from_checkpoint(checkpoint_id).await?;
 
         if recovery_result.success {
             if let Some(state) = recovery_result.recovered_state {
@@ -450,9 +452,9 @@ impl SessionManager {
             // Update metadata to remove cleaned checkpoint references
             let remaining_checkpoints = self.persistence.list_checkpoints().await?;
             let mut metadata = self.metadata.write().await;
-            metadata.checkpoints.retain(|checkpoint| {
-                remaining_checkpoints.contains(&checkpoint.id)
-            });
+            metadata
+                .checkpoints
+                .retain(|checkpoint| remaining_checkpoints.contains(&checkpoint.id));
 
             info!("Cleaned up {} old checkpoints", cleaned_count);
         }

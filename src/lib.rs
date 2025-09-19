@@ -2,7 +2,7 @@ pub mod session;
 pub mod task;
 
 // Re-export main session types
-pub use session::{SessionManager, SessionManagerConfig, SessionInitOptions, SessionMetadata};
+pub use session::{SessionInitOptions, SessionManager, SessionManagerConfig, SessionMetadata};
 
 // Re-export main task types
-pub use task::{TaskManager, TaskManagerConfig, Task, TaskSpec, TaskStatus, TaskPriority};
+pub use task::{Task, TaskManager, TaskManagerConfig, TaskPriority, TaskSpec, TaskStatus};

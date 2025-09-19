@@ -97,7 +97,10 @@ async fn test_session_state_save_and_load() {
 
     let loaded_state = loaded_state.unwrap();
     assert_eq!(loaded_state.metadata.name, test_state.metadata.name);
-    assert_eq!(loaded_state.metadata.total_tasks, test_state.metadata.total_tasks);
+    assert_eq!(
+        loaded_state.metadata.total_tasks,
+        test_state.metadata.total_tasks
+    );
     assert_eq!(
         loaded_state.metadata.completed_tasks,
         test_state.metadata.completed_tasks
@@ -215,7 +218,8 @@ async fn test_recovery_from_checkpoint() {
     let session_dir = temp_dir.path().to_path_buf();
 
     let persistence_config = PersistenceConfig::default();
-    let persistence = PersistenceManager::new(session_dir.clone(), persistence_config.clone()).unwrap();
+    let persistence =
+        PersistenceManager::new(session_dir.clone(), persistence_config.clone()).unwrap();
 
     let recovery_config = RecoveryConfig::default();
     let recovery = RecoveryManager::new(
@@ -238,9 +242,7 @@ async fn test_recovery_from_checkpoint() {
         .unwrap();
 
     // Test recovery
-    let recovery_result = recovery
-        .recover_from_checkpoint(&checkpoint_info.id)
-        .await;
+    let recovery_result = recovery.recover_from_checkpoint(&checkpoint_info.id).await;
 
     assert!(recovery_result.is_ok());
     let recovery_result = recovery_result.unwrap();

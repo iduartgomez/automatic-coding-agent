@@ -356,16 +356,12 @@ mod tests {
         assert_eq!(context1.required_files.len(), 2);
         assert_eq!(context1.build_dependencies.len(), 2);
         assert_eq!(context1.environment_vars.len(), 1);
-        assert!(
-            context1
-                .required_files
-                .contains(&std::path::PathBuf::from("file1.rs"))
-        );
-        assert!(
-            context1
-                .required_files
-                .contains(&std::path::PathBuf::from("file2.rs"))
-        );
+        assert!(context1
+            .required_files
+            .contains(&std::path::PathBuf::from("file1.rs")));
+        assert!(context1
+            .required_files
+            .contains(&std::path::PathBuf::from("file2.rs")));
     }
 
     #[test]

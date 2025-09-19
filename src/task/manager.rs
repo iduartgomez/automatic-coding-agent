@@ -1,7 +1,7 @@
 use crate::task::scheduler::*;
 use crate::task::tree::*;
 use crate::task::types::*;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};

@@ -2,7 +2,7 @@ use crate::task::tree::*;
 use crate::task::types::*;
 use chrono::{DateTime, Duration, Utc};
 use rand::seq::SliceRandom;
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 

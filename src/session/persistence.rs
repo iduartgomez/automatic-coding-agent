@@ -26,8 +26,7 @@ pub struct ExecutionContext {
 }
 
 /// File system state tracking
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FileSystemState {
     pub tracked_files: std::collections::HashMap<PathBuf, FileMetadata>,
     pub workspace_files: Vec<PathBuf>,
@@ -113,10 +112,8 @@ impl PersistenceManager {
         let temp_dir = session_dir.join("temp");
 
         // Ensure directories exist
-        std::fs::create_dir_all(&session_dir)
-            .context("Failed to create session directory")?;
-        std::fs::create_dir_all(&temp_dir)
-            .context("Failed to create temp directory")?;
+        std::fs::create_dir_all(&session_dir).context("Failed to create session directory")?;
+        std::fs::create_dir_all(&temp_dir).context("Failed to create temp directory")?;
 
         Ok(Self {
             session_dir,
@@ -143,8 +140,7 @@ impl PersistenceManager {
                 self.commit_transaction(transaction).await?;
                 info!(
                     "Session saved successfully: {} bytes in {}ms",
-                    persistence_result.bytes_written,
-                    persistence_result.duration_ms
+                    persistence_result.bytes_written, persistence_result.duration_ms
                 );
                 Ok(persistence_result)
             }
@@ -167,7 +163,8 @@ impl PersistenceManager {
         let start_time = std::time::Instant::now();
 
         // Read and deserialize
-        let content = async_fs::read(&session_file).await
+        let content = async_fs::read(&session_file)
+            .await
             .context("Failed to read session file")?;
 
         let decompressed_content = if self.config.enable_compression {
@@ -178,7 +175,8 @@ impl PersistenceManager {
 
         // Validate checksum if enabled
         if self.config.checksum_validation {
-            self.validate_checksum(&decompressed_content, &session_file).await?;
+            self.validate_checksum(&decompressed_content, &session_file)
+                .await?;
         }
 
         let state: SessionState = serde_json::from_slice(&decompressed_content)
@@ -186,7 +184,10 @@ impl PersistenceManager {
 
         // Validate session compatibility
         if !state.metadata.is_compatible() {
-            warn!("Session version may be incompatible: {:?}", state.metadata.version);
+            warn!(
+                "Session version may be incompatible: {:?}",
+                state.metadata.version
+            );
         }
 
         let duration = start_time.elapsed();
@@ -223,8 +224,7 @@ impl PersistenceManager {
 
         info!(
             "Checkpoint created: {} ({} bytes)",
-            checkpoint_info.id,
-            checkpoint_info.size_bytes
+            checkpoint_info.id, checkpoint_info.size_bytes
         );
 
         Ok(checkpoint_info)
@@ -241,7 +241,8 @@ impl PersistenceManager {
         info!("Restoring from checkpoint: {}", checkpoint_id);
 
         // Load checkpoint data
-        let content = async_fs::read(&checkpoint_file).await
+        let content = async_fs::read(&checkpoint_file)
+            .await
             .context("Failed to read checkpoint file")?;
 
         let decompressed_content = if self.config.enable_compression {
@@ -261,7 +262,8 @@ impl PersistenceManager {
     pub async fn list_checkpoints(&self) -> Result<Vec<String>> {
         let mut checkpoints = Vec::new();
 
-        let mut entries = async_fs::read_dir(&self.session_dir).await
+        let mut entries = async_fs::read_dir(&self.session_dir)
+            .await
             .context("Failed to read session directory")?;
 
         while let Some(entry) = entries.next_entry().await? {
@@ -269,9 +271,7 @@ impl PersistenceManager {
             if let Some(file_name) = path.file_name() {
                 if let Some(name_str) = file_name.to_str() {
                     if name_str.starts_with("checkpoint_") && name_str.ends_with(".json") {
-                        let checkpoint_id = name_str
-                            .strip_suffix(".json")
-                            .unwrap();
+                        let checkpoint_id = name_str.strip_suffix(".json").unwrap();
                         checkpoints.push(checkpoint_id.to_string());
                     }
                 }
@@ -295,7 +295,9 @@ impl PersistenceManager {
         let mut cleaned_count = 0;
 
         for checkpoint_id in checkpoints {
-            let checkpoint_file = self.session_dir.join(format!("checkpoint_{}.json", checkpoint_id));
+            let checkpoint_file = self
+                .session_dir
+                .join(format!("checkpoint_{}.json", checkpoint_id));
 
             if let Ok(metadata) = async_fs::metadata(&checkpoint_file).await {
                 if let Ok(modified) = metadata.modified() {
@@ -336,7 +338,8 @@ impl PersistenceManager {
         // Move temp files to final locations
         for temp_file in transaction.temp_files {
             if let Some(final_path) = self.get_final_path_for_temp(&temp_file) {
-                async_fs::rename(&temp_file, &final_path).await
+                async_fs::rename(&temp_file, &final_path)
+                    .await
                     .context("Failed to commit transaction file")?;
             }
         }
@@ -384,12 +387,15 @@ impl PersistenceManager {
         state: &SessionState,
         transaction: &PersistenceTransaction,
     ) -> Result<PersistenceResult> {
-        let temp_file = self.temp_dir.join(format!("session_{}.json", transaction.transaction_id));
+        let temp_file = self
+            .temp_dir
+            .join(format!("session_{}.json", transaction.transaction_id));
         let result = self.save_to_file(state, &temp_file).await?;
 
         // In this simplified implementation, we'll just copy to the final location
         let final_file = self.session_dir.join("session.json");
-        async_fs::copy(&temp_file, &final_file).await
+        async_fs::copy(&temp_file, &final_file)
+            .await
             .context("Failed to copy temp file to final location")?;
 
         Ok(result)
@@ -402,12 +408,16 @@ impl PersistenceManager {
     }
 
     /// Save state to a specific file
-    async fn save_to_file(&self, state: &SessionState, file_path: &Path) -> Result<PersistenceResult> {
+    async fn save_to_file(
+        &self,
+        state: &SessionState,
+        file_path: &Path,
+    ) -> Result<PersistenceResult> {
         let start_time = std::time::Instant::now();
 
         // Serialize the state
-        let serialized = serde_json::to_vec_pretty(state)
-            .context("Failed to serialize session state")?;
+        let serialized =
+            serde_json::to_vec_pretty(state).context("Failed to serialize session state")?;
 
         // Compress if enabled
         let (final_data, compression_ratio) = if self.config.enable_compression {
@@ -422,19 +432,23 @@ impl PersistenceManager {
         let checksum = self.calculate_checksum(&final_data);
 
         // Write to file
-        let mut file = async_fs::File::create(file_path).await
+        let mut file = async_fs::File::create(file_path)
+            .await
             .context("Failed to create session file")?;
 
-        file.write_all(&final_data).await
+        file.write_all(&final_data)
+            .await
             .context("Failed to write session data")?;
 
-        file.sync_all().await
+        file.sync_all()
+            .await
             .context("Failed to sync session file")?;
 
         // Write checksum file if validation enabled
         if self.config.checksum_validation {
             let checksum_file = file_path.with_extension("checksum");
-            async_fs::write(&checksum_file, &checksum).await
+            async_fs::write(&checksum_file, &checksum)
+                .await
                 .context("Failed to write checksum file")?;
         }
 
@@ -490,7 +504,8 @@ impl PersistenceManager {
         let checksum_file = file_path.with_extension("checksum");
 
         if checksum_file.exists() {
-            let stored_checksum = async_fs::read_to_string(&checksum_file).await
+            let stored_checksum = async_fs::read_to_string(&checksum_file)
+                .await
                 .context("Failed to read checksum file")?;
 
             let calculated_checksum = self.calculate_checksum(data);
@@ -520,14 +535,14 @@ impl Default for PersistenceConfig {
 impl Default for ExecutionContext {
     fn default() -> Self {
         Self {
-            current_working_directory: std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/")),
+            current_working_directory: std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("/")),
             environment_variables: std::collections::HashMap::new(),
             active_file_watchers: Vec::new(),
             resource_usage: ResourceUsageSnapshot::default(),
         }
     }
 }
-
 
 impl Default for ResourceUsageSnapshot {
     fn default() -> Self {

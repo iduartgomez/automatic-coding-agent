@@ -88,7 +88,10 @@ pub enum CorrectableIssue {
 impl RecoveryManager {
     /// Create a new recovery manager
     pub fn new(persistence: PersistenceManager, config: RecoveryConfig) -> Self {
-        Self { persistence, config }
+        Self {
+            persistence,
+            config,
+        }
     }
 
     /// Attempt automatic recovery from the most recent valid state
@@ -179,7 +182,10 @@ impl RecoveryManager {
                             recovery_info.source_checkpoint = Some(checkpoint_id.clone());
                             recovery_info.recovered_tasks = state.task_tree.tasks.len() as u32;
 
-                            info!("Recovered from checkpoint: {} (no validation)", checkpoint_id);
+                            info!(
+                                "Recovered from checkpoint: {} (no validation)",
+                                checkpoint_id
+                            );
 
                             return Ok(RecoveryResult {
                                 success: true,
@@ -370,7 +376,10 @@ impl RecoveryManager {
                     }
                 }
                 CorrectableIssue::DuplicateTaskIds { duplicates } => {
-                    warn!("Found duplicate task IDs (cannot auto-correct): {:?}", duplicates);
+                    warn!(
+                        "Found duplicate task IDs (cannot auto-correct): {:?}",
+                        duplicates
+                    );
                     // This would require more complex logic to merge or remove duplicates
                 }
                 CorrectableIssue::OutdatedTimestamps { tasks } => {
