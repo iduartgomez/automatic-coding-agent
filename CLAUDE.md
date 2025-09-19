@@ -1,5 +1,3 @@
-# CLAUDE.md
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build and Development Commands
@@ -44,12 +42,14 @@ This is a Rust-based agentic tool that automates coding tasks using Claude Code 
 ### Key Architecture Details
 
 The system uses Docker containers with volume mounts:
+
 - `/repos` (RO) - Source repositories
 - `/workspace` (RW) - Working directory
 - `/session` (RW) - Persistent session data
 - `/logs` (RW) - Session logs and outputs
 
 Tasks are managed in a hierarchical tree structure with support for:
+
 - Dynamic subtask creation
 - Dependency resolution
 - Context inheritance
@@ -68,4 +68,8 @@ The agent interfaces with Claude Code in headless mode with rate limiting, adapt
 ## Current State
 
 This is an early-stage project with basic Rust project structure. The main implementation is planned but not yet built - currently contains only a "Hello, world!" main.rs file. The comprehensive design document in `docs/sessions/0-initial-design.md` outlines the full architecture and implementation plan.
+
+# Instructions
+
 - Ensure clippy passes, and that tests pass, before commiting some work.
+- Use conventional commits standard for commit messages.

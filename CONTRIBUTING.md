@@ -77,17 +77,17 @@ cargo audit
 
 ### Commit Messages
 
-We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+We strictly follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
 ```
-<type>(<scope>): <description>
+<type>[optional scope]: <description>
 
 [optional body]
 
 [optional footer(s)]
 ```
 
-Types:
+**Required Types:**
 - `feat`: New features
 - `fix`: Bug fixes
 - `docs`: Documentation changes
@@ -95,8 +95,26 @@ Types:
 - `refactor`: Code refactoring
 - `test`: Adding or updating tests
 - `chore`: Maintenance tasks
+- `ci`: CI/CD changes
+- `perf`: Performance improvements
+- `build`: Build system changes
 
-Examples:
+**Optional Scopes:**
+- `task`: Task management system
+- `session`: Session persistence system
+- `cli`: Command line interface
+- `docker`: Docker-related changes
+- `ci`: CI/CD workflows
+
+**Breaking Changes:**
+Use `!` after type/scope for breaking changes:
+```
+feat(task)!: change task API to support new scheduling algorithm
+
+BREAKING CHANGE: The TaskSpec structure now requires a priority field
+```
+
+**Examples:**
 ```
 feat(task): add intelligent task scheduling with weighted scoring
 
@@ -105,6 +123,26 @@ including priority, dependencies, context similarity, and resource
 availability.
 
 Closes #123
+
+feat(session): implement atomic persistence with transaction support
+
+- Add PersistenceManager with atomic operations
+- Implement rollback capability for failed transactions
+- Add comprehensive error handling and validation
+
+ci: add comprehensive GitHub Actions workflow
+
+- Multi-platform testing across Linux/Windows/macOS
+- Code quality checks with clippy and formatting
+- Security auditing and coverage reporting
+
+fix(scheduler): resolve deadlock in task selection algorithm
+
+The task selection was causing deadlocks when multiple tasks had
+circular dependencies. This fix implements proper dependency resolution
+with cycle detection.
+
+Fixes #456
 ```
 
 ## Testing
