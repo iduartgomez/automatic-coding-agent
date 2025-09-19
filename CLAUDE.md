@@ -63,7 +63,14 @@ The agent interfaces with Claude Code in headless mode with rate limiting, adapt
 - **Core design documents**: Located in `docs/design/` directory
 - **Session documentation**: Located in `docs/sessions/` directory
 
-**IMPORTANT**: Always maintain session documentation by creating new dated session files in `docs/sessions/` when starting work on new dates. This ensures continuity and proper tracking of development progress across sessions.
+**CRITICAL SESSION DOCUMENTATION REQUIREMENT**:
+- **ALWAYS** create or update session documentation in `docs/sessions/` directory
+- **MUST** create a new session file `docs/sessions/YYYY-MM-DD-session-topic.md` when starting work on any new date
+- **MUST** document objectives, progress, implementation details, and outcomes for each session
+- **MUST** update the session log throughout the work session, not just at the end
+- This ensures continuity and proper tracking of development progress across sessions
+
+Example: `docs/sessions/2025-09-19-llm-abstraction-implementation.md`
 
 ## Current State
 

@@ -6,7 +6,7 @@
 [![Documentation](https://docs.rs/automatic-coding-agent/badge.svg)](https://docs.rs/automatic-coding-agent)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Rust-based agentic tool that automates coding tasks using Claude Code in headless mode. The system operates with dynamic task trees, comprehensive session persistence, and full resumability for long-running automated coding sessions.
+A Rust-based agentic tool that automates coding tasks using multiple LLM providers. The system operates with dynamic task trees, comprehensive session persistence, and full resumability for long-running automated coding sessions. Features a provider-agnostic LLM interface supporting Claude, OpenAI, and local models.
 
 ## Features
 
@@ -30,6 +30,13 @@ A Rust-based agentic tool that automates coding tasks using Claude Code in headl
 - **Thread-Safe**: Concurrent operations using Arc/RwLock patterns
 - **Event-Driven**: Comprehensive event system for monitoring and automation
 - **Resource Management**: Memory, CPU, and storage constraint enforcement
+
+### 🤖 **LLM Provider Abstraction**
+- **Multi-Provider Support**: Claude, OpenAI, Anthropic API, local models (Ollama)
+- **Provider-Agnostic Interface**: Unified API across all LLM providers
+- **Automatic Fallback**: Seamless fallback between providers for reliability
+- **Rate Limiting**: Provider-specific rate limiting and cost optimization
+- **Capability Detection**: Automatic detection of provider features (streaming, function calling, etc.)
 
 ## Quick Start
 

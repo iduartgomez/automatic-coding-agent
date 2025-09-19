@@ -1,6 +1,7 @@
 use crate::task::types::*;
 use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
+use futures::future::BoxFuture;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -90,42 +91,46 @@ pub struct ExecutorConfig {
 }
 
 /// Mock Claude Code interface for now
-#[async_trait::async_trait]
 pub trait ClaudeCodeInterface: Send + Sync {
-    async fn execute_task_with_context(
+    fn execute_task_with_context(
         &self,
         prompt: String,
         context: &TaskExecutionContext,
-    ) -> Result<String>;
+    ) -> BoxFuture<'_, Result<String>>;
 
-    async fn create_session(&self) -> Result<ClaudeSessionId>;
-    async fn close_session(&self, session_id: ClaudeSessionId) -> Result<()>;
+    fn create_session(&self) -> BoxFuture<'_, Result<ClaudeSessionId>>;
+    fn close_session(&self, session_id: ClaudeSessionId) -> BoxFuture<'_, Result<()>>;
 }
 
 /// Simple mock implementation
 pub struct MockClaudeInterface;
 
-#[async_trait::async_trait]
 impl ClaudeCodeInterface for MockClaudeInterface {
-    async fn execute_task_with_context(
+    fn execute_task_with_context(
         &self,
         prompt: String,
         _context: &TaskExecutionContext,
-    ) -> Result<String> {
-        // Mock implementation - just returns a success message
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        Ok(format!(
-            "Task executed successfully with prompt: {}",
-            prompt.chars().take(50).collect::<String>()
-        ))
+    ) -> BoxFuture<'_, Result<String>> {
+        Box::pin(async move {
+            // Mock implementation - just returns a success message
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            Ok(format!(
+                "Task executed successfully with prompt: {}",
+                prompt.chars().take(50).collect::<String>()
+            ))
+        })
     }
 
-    async fn create_session(&self) -> Result<ClaudeSessionId> {
-        Ok(uuid::Uuid::new_v4())
+    fn create_session(&self) -> BoxFuture<'_, Result<ClaudeSessionId>> {
+        Box::pin(async move {
+            Ok(uuid::Uuid::new_v4())
+        })
     }
 
-    async fn close_session(&self, _session_id: ClaudeSessionId) -> Result<()> {
-        Ok(())
+    fn close_session(&self, _session_id: ClaudeSessionId) -> BoxFuture<'_, Result<()>> {
+        Box::pin(async move {
+            Ok(())
+        })
     }
 }
 
