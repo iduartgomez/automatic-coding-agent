@@ -1,8 +1,8 @@
-use crate::task::types::*;
 use crate::task::tree::*;
+use crate::task::types::*;
 use chrono::{DateTime, Duration, Utc};
-use rand::{thread_rng, Rng};
 use rand::seq::SliceRandom;
+use rand::{Rng, thread_rng};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
@@ -119,14 +119,18 @@ impl TaskScheduler {
         let selection = if self.config.selection_randomization > 0.0 {
             self.weighted_random_selection(scored_tasks).await
         } else {
-            scored_tasks.into_iter().max_by(|a, b|
-                a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal)
-            )
+            scored_tasks.into_iter().max_by(|a, b| {
+                a.score
+                    .partial_cmp(&b.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
         };
 
         if let Some(ref selection) = selection {
-            info!("Selected task {} with score {:.2}: {}",
-                  selection.task_id, selection.score, selection.selection_reason);
+            info!(
+                "Selected task {} with score {:.2}: {}",
+                selection.task_id, selection.score, selection.selection_reason
+            );
         }
 
         selection
@@ -167,10 +171,10 @@ impl TaskScheduler {
         }
 
         // Check resource availability if enabled
-        if self.config.resource_check_enabled
-            && !self.resource_monitor.can_execute_task(task).await {
-                return false;
-            }
+        if self.config.resource_check_enabled && !self.resource_monitor.can_execute_task(task).await
+        {
+            return false;
+        }
 
         // Check for exclusive dependencies
         if self.has_conflicting_active_tasks(task, tree).await {
@@ -216,7 +220,9 @@ impl TaskScheduler {
         let mut score = 0.0;
 
         // Count how many tasks depend on this one
-        let dependent_count = tree.tasks.values()
+        let dependent_count = tree
+            .tasks
+            .values()
             .filter(|t| t.dependencies.contains(&task.id))
             .count() as f64;
 
@@ -232,14 +238,11 @@ impl TaskScheduler {
 
     /// Calculate context similarity score
     fn calculate_context_score(&self, task: &Task) -> f64 {
-        let task_files: std::collections::HashSet<_> = task.metadata.file_refs
-            .iter()
-            .map(|f| &f.path)
-            .collect();
+        let task_files: std::collections::HashSet<_> =
+            task.metadata.file_refs.iter().map(|f| &f.path).collect();
 
-        let recent_files: std::collections::HashSet<_> = self.context_cache.recent_files
-            .iter()
-            .collect();
+        let recent_files: std::collections::HashSet<_> =
+            self.context_cache.recent_files.iter().collect();
 
         if task_files.is_empty() || recent_files.is_empty() {
             return 0.0;
@@ -260,10 +263,10 @@ impl TaskScheduler {
         let requirements = self.estimate_task_resources(task);
 
         // Score based on how well current resources match requirements
-        let memory_ratio = self.resource_monitor.current_usage.max_memory_mb as f64 /
-                          (requirements.memory_mb as f64).max(1.0);
-        let cpu_ratio = self.resource_monitor.current_usage.cpu_time_seconds /
-                       requirements.cpu_percent.max(0.1);
+        let memory_ratio = self.resource_monitor.current_usage.max_memory_mb as f64
+            / (requirements.memory_mb as f64).max(1.0);
+        let cpu_ratio = self.resource_monitor.current_usage.cpu_time_seconds
+            / requirements.cpu_percent.max(0.1);
 
         // Lower resource usage = higher score
         let resource_efficiency = (2.0 - memory_ratio.min(2.0)) + (2.0 - cpu_ratio.min(2.0));
@@ -274,7 +277,8 @@ impl TaskScheduler {
     fn calculate_history_score(&self, task: &Task) -> f64 {
         let mut score = 0.0;
 
-        let failure_count = task.execution_history
+        let failure_count = task
+            .execution_history
             .iter()
             .filter(|record| matches!(record.status, TaskStatus::Failed { .. }))
             .count() as f64;
@@ -283,7 +287,8 @@ impl TaskScheduler {
         score -= (failure_count * 2.0).min(8.0);
 
         // Bonus for successful completions in similar tasks
-        let success_count = task.execution_history
+        let success_count = task
+            .execution_history
             .iter()
             .filter(|record| matches!(record.status, TaskStatus::Completed { .. }))
             .count() as f64;
@@ -326,7 +331,9 @@ impl TaskScheduler {
     fn is_on_critical_path(&self, task: &Task, tree: &TaskTree) -> bool {
         // Simplified critical path detection
         // In practice, this would use more sophisticated graph analysis
-        let dependent_count = tree.tasks.values()
+        let dependent_count = tree
+            .tasks
+            .values()
             .filter(|t| t.dependencies.contains(&task.id))
             .count();
 
@@ -347,11 +354,12 @@ impl TaskScheduler {
             None => 1.5,
         };
 
-        let duration = task.metadata.estimated_duration
-            .unwrap_or_else(|| match task.metadata.estimated_complexity {
+        let duration = task.metadata.estimated_duration.unwrap_or_else(|| {
+            match task.metadata.estimated_complexity {
                 Some(ref complexity) => complexity.estimated_duration(),
                 None => Duration::minutes(30),
-            });
+            }
+        });
 
         ResourceRequirement {
             memory_mb: (base_memory as f64 * complexity_multiplier) as u64,
@@ -372,13 +380,20 @@ impl TaskScheduler {
     }
 
     /// Weighted random selection from scored tasks
-    async fn weighted_random_selection(&self, mut selections: Vec<TaskSelection>) -> Option<TaskSelection> {
+    async fn weighted_random_selection(
+        &self,
+        mut selections: Vec<TaskSelection>,
+    ) -> Option<TaskSelection> {
         if selections.is_empty() {
             return None;
         }
 
         // Sort by score for debugging
-        selections.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        selections.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let randomization = self.config.selection_randomization;
 
@@ -416,10 +431,15 @@ impl TaskScheduler {
         let mut reasons = Vec::new();
 
         if task.priority_value() >= 8 {
-            reasons.push(format!("high priority ({})", task.metadata.priority.clone() as u8));
+            reasons.push(format!(
+                "high priority ({})",
+                task.metadata.priority.clone() as u8
+            ));
         }
 
-        let dependent_count = tree.tasks.values()
+        let dependent_count = tree
+            .tasks
+            .values()
             .filter(|t| t.dependencies.contains(&task.id))
             .count();
 
@@ -433,9 +453,13 @@ impl TaskScheduler {
         }
 
         if let Some(complexity) = &task.metadata.estimated_complexity
-            && matches!(complexity, ComplexityLevel::Trivial | ComplexityLevel::Simple) {
-                reasons.push("quick win".to_string());
-            }
+            && matches!(
+                complexity,
+                ComplexityLevel::Trivial | ComplexityLevel::Simple
+            )
+        {
+            reasons.push("quick win".to_string());
+        }
 
         if reasons.is_empty() {
             format!("score {:.1}", score)
@@ -452,7 +476,9 @@ impl TaskScheduler {
 
         // Limit cache size
         if self.context_cache.recent_files.len() > self.config.context_window_size {
-            self.context_cache.recent_files.truncate(self.config.context_window_size);
+            self.context_cache
+                .recent_files
+                .truncate(self.config.context_window_size);
         }
     }
 }

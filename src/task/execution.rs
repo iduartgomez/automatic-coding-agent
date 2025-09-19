@@ -114,7 +114,10 @@ impl ClaudeCodeInterface for MockClaudeInterface {
     ) -> Result<String> {
         // Mock implementation - just returns a success message
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        Ok(format!("Task executed successfully with prompt: {}", prompt.chars().take(50).collect::<String>()))
+        Ok(format!(
+            "Task executed successfully with prompt: {}",
+            prompt.chars().take(50).collect::<String>()
+        ))
     }
 
     async fn create_session(&self) -> Result<ClaudeSessionId> {
@@ -144,12 +147,17 @@ impl TaskExecutor {
         let execution_start = Utc::now();
 
         // Set up execution context
-        let context = self.prepare_execution_context(task, execution_start).await?;
+        let context = self
+            .prepare_execution_context(task, execution_start)
+            .await?;
 
         info!("Starting execution of task {}: {}", task.id, task.title);
 
         // Execute the task through Claude Code
-        let result = match self.execute_with_claude(task, &context, claude_interface).await {
+        let result = match self
+            .execute_with_claude(task, &context, claude_interface)
+            .await
+        {
             Ok(result) => result,
             Err(error) => {
                 error!("Task execution failed: {}", error);
@@ -210,7 +218,9 @@ impl TaskExecutor {
             environment.insert(key.clone(), value.clone());
         }
 
-        let timeout = task.metadata.estimated_duration
+        let timeout = task
+            .metadata
+            .estimated_duration
             .or(Some(self.config.default_timeout));
 
         Ok(TaskExecutionContext {
@@ -246,7 +256,11 @@ impl TaskExecutor {
     }
 
     /// Build a comprehensive prompt for Claude Code
-    async fn build_task_prompt(&self, task: &Task, context: &TaskExecutionContext) -> Result<String> {
+    async fn build_task_prompt(
+        &self,
+        task: &Task,
+        context: &TaskExecutionContext,
+    ) -> Result<String> {
         let mut prompt = String::new();
 
         prompt.push_str(&format!("# Task: {}\n\n", task.title));
@@ -258,13 +272,17 @@ impl TaskExecutor {
         if let Some(complexity) = &task.metadata.estimated_complexity {
             prompt.push_str(&format!("- Complexity: {:?}\n", complexity));
         }
-        prompt.push_str(&format!("- Created: {}\n\n", task.created_at.format("%Y-%m-%d %H:%M:%S")));
+        prompt.push_str(&format!(
+            "- Created: {}\n\n",
+            task.created_at.format("%Y-%m-%d %H:%M:%S")
+        ));
 
         // Add file references
         if !task.metadata.file_refs.is_empty() {
             prompt.push_str("## Relevant Files\n");
             for file_ref in &task.metadata.file_refs {
-                prompt.push_str(&format!("- {} ({})\n",
+                prompt.push_str(&format!(
+                    "- {} ({})\n",
                     file_ref.path.display(),
                     format!("{:?}", file_ref.importance).to_lowercase()
                 ));
@@ -306,12 +324,21 @@ impl TaskExecutor {
         }
 
         // Add working directory information
-        prompt.push_str(&format!("## Working Directory\n{}\n\n", context.working_directory.display()));
+        prompt.push_str(&format!(
+            "## Working Directory\n{}\n\n",
+            context.working_directory.display()
+        ));
 
         // Add execution constraints
         prompt.push_str("## Execution Constraints\n");
-        prompt.push_str(&format!("- Max Memory: {} MB\n", context.resource_allocation.max_memory_mb));
-        prompt.push_str(&format!("- Max CPU: {:.1}%\n", context.resource_allocation.max_cpu_percent));
+        prompt.push_str(&format!(
+            "- Max Memory: {} MB\n",
+            context.resource_allocation.max_memory_mb
+        ));
+        prompt.push_str(&format!(
+            "- Max CPU: {:.1}%\n",
+            context.resource_allocation.max_cpu_percent
+        ));
         if let Some(timeout) = context.timeout {
             prompt.push_str(&format!("- Timeout: {} minutes\n", timeout.num_minutes()));
         }
@@ -320,7 +347,8 @@ impl TaskExecutor {
         prompt.push_str("Please execute this task according to the requirements above. ");
         prompt.push_str("If the task is complex and needs to be broken down, ");
         prompt.push_str("provide subtask specifications in your response. ");
-        prompt.push_str("Report any files you modify and provide a summary of the work completed.\n");
+        prompt
+            .push_str("Report any files you modify and provide a summary of the work completed.\n");
 
         Ok(prompt)
     }
@@ -336,7 +364,9 @@ impl TaskExecutor {
         debug!("Processing Claude response length: {}", response.len());
 
         // Check for blocking conditions
-        if response.to_lowercase().contains("blocked") || response.to_lowercase().contains("cannot proceed") {
+        if response.to_lowercase().contains("blocked")
+            || response.to_lowercase().contains("cannot proceed")
+        {
             return Ok(TaskExecutionResult::Blocked {
                 reason: "Task reported as blocked by Claude Code".to_string(),
                 required_resources: vec!["Manual intervention".to_string()],
@@ -346,24 +376,24 @@ impl TaskExecutor {
         }
 
         // Check for subtask creation indicators
-        if response.to_lowercase().contains("subtask") || response.to_lowercase().contains("break down") {
+        if response.to_lowercase().contains("subtask")
+            || response.to_lowercase().contains("break down")
+        {
             // In practice, would parse actual subtask specifications from response
-            let subtasks = vec![
-                TaskSpec {
-                    title: format!("Subtask for {}", task.title),
-                    description: "Auto-generated subtask based on task decomposition".to_string(),
-                    metadata: TaskMetadata {
-                        priority: task.metadata.priority.clone(),
-                        estimated_complexity: Some(ComplexityLevel::Simple),
-                        estimated_duration: Some(Duration::minutes(15)),
-                        repository_refs: task.metadata.repository_refs.clone(),
-                        file_refs: Vec::new(),
-                        tags: task.metadata.tags.clone(),
-                        context_requirements: ContextRequirements::new(),
-                    },
-                    dependencies: Vec::new(),
-                }
-            ];
+            let subtasks = vec![TaskSpec {
+                title: format!("Subtask for {}", task.title),
+                description: "Auto-generated subtask based on task decomposition".to_string(),
+                metadata: TaskMetadata {
+                    priority: task.metadata.priority.clone(),
+                    estimated_complexity: Some(ComplexityLevel::Simple),
+                    estimated_duration: Some(Duration::minutes(15)),
+                    repository_refs: task.metadata.repository_refs.clone(),
+                    file_refs: Vec::new(),
+                    tags: task.metadata.tags.clone(),
+                    context_requirements: ContextRequirements::new(),
+                },
+                dependencies: Vec::new(),
+            }];
 
             return Ok(TaskExecutionResult::CompletedWithSubtasks {
                 result: serde_json::json!({
@@ -402,11 +432,12 @@ impl TaskExecutor {
             None => 1.5,
         };
 
-        let duration = task.metadata.estimated_duration
-            .unwrap_or_else(|| match task.metadata.estimated_complexity {
+        let duration = task.metadata.estimated_duration.unwrap_or_else(|| {
+            match task.metadata.estimated_complexity {
                 Some(ref complexity) => complexity.estimated_duration(),
                 None => Duration::minutes(30),
-            });
+            }
+        });
 
         ResourceAllocation {
             max_memory_mb: (base_memory as f64 * complexity_multiplier) as u64,
@@ -444,8 +475,5 @@ impl Default for ResourceAllocation {
 
 /// Helper function to create a mock executor for testing
 pub fn create_mock_executor() -> TaskExecutor {
-    TaskExecutor::new(
-        ExecutorConfig::default(),
-        ResourceAllocation::default(),
-    )
+    TaskExecutor::new(ExecutorConfig::default(), ResourceAllocation::default())
 }

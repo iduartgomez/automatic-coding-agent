@@ -85,11 +85,11 @@ pub enum TaskPriority {
 /// Complexity estimation for resource planning
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ComplexityLevel {
-    Trivial,    // < 5 minutes
-    Simple,     // 5-15 minutes
-    Moderate,   // 15-60 minutes
-    Complex,    // 1-4 hours
-    Epic,       // > 4 hours
+    Trivial,  // < 5 minutes
+    Simple,   // 5-15 minutes
+    Moderate, // 15-60 minutes
+    Complex,  // 1-4 hours
+    Epic,     // > 4 hours
 }
 
 /// Repository reference for VCS operations
@@ -113,10 +113,10 @@ pub struct FileRef {
 /// Importance level for file references
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FileImportance {
-    Critical,  // Core implementation files
-    High,      // Important supporting files
-    Medium,    // Related files
-    Low,       // Reference files
+    Critical, // Core implementation files
+    High,     // Important supporting files
+    Medium,   // Related files
+    Low,      // Reference files
 }
 
 /// Context requirements for task execution
@@ -331,11 +331,20 @@ impl ContextRequirements {
 
     /// Merge with another context requirements
     pub fn merge_with(&mut self, other: &ContextRequirements) {
-        self.required_files.extend(other.required_files.iter().cloned());
-        self.required_repositories.extend(other.required_repositories.iter().cloned());
-        self.build_dependencies.extend(other.build_dependencies.iter().cloned());
-        self.environment_vars.extend(other.environment_vars.iter().map(|(k, v)| (k.clone(), v.clone())));
-        self.claude_context_keys.extend(other.claude_context_keys.iter().cloned());
+        self.required_files
+            .extend(other.required_files.iter().cloned());
+        self.required_repositories
+            .extend(other.required_repositories.iter().cloned());
+        self.build_dependencies
+            .extend(other.build_dependencies.iter().cloned());
+        self.environment_vars.extend(
+            other
+                .environment_vars
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone())),
+        );
+        self.claude_context_keys
+            .extend(other.claude_context_keys.iter().cloned());
 
         // Remove duplicates
         self.required_files.sort();

@@ -1,5 +1,5 @@
 use crate::task::types::*;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -94,9 +94,10 @@ impl TaskTree {
 
             // Add this task to parent's children
             if let Some(parent) = self.tasks.get_mut(&parent_id)
-                && !parent.children.contains(&task_id) {
-                    parent.children.push(task_id);
-                }
+                && !parent.children.contains(&task_id)
+            {
+                parent.children.push(task_id);
+            }
         } else {
             // This is a root task
             if !self.roots.contains(&task_id) {
@@ -107,7 +108,10 @@ impl TaskTree {
         // Validate dependencies exist
         for &dep_id in &task.dependencies {
             if !self.tasks.contains_key(&dep_id) {
-                warn!("Task {} has dependency {} that doesn't exist yet", task_id, dep_id);
+                warn!(
+                    "Task {} has dependency {} that doesn't exist yet",
+                    task_id, dep_id
+                );
             }
         }
 
@@ -121,19 +125,27 @@ impl TaskTree {
     }
 
     /// Create a task from a specification
-    pub fn create_task_from_spec(&mut self, spec: TaskSpec, parent_id: Option<TaskId>) -> Result<TaskId> {
+    pub fn create_task_from_spec(
+        &mut self,
+        spec: TaskSpec,
+        parent_id: Option<TaskId>,
+    ) -> Result<TaskId> {
         let task = Task::new(spec, parent_id);
         self.add_task(task)
     }
 
     /// Get a task by ID
     pub fn get_task(&self, task_id: TaskId) -> Result<&Task> {
-        self.tasks.get(&task_id).ok_or_else(|| anyhow!("Task {} not found", task_id))
+        self.tasks
+            .get(&task_id)
+            .ok_or_else(|| anyhow!("Task {} not found", task_id))
     }
 
     /// Get a mutable reference to a task by ID
     pub fn get_task_mut(&mut self, task_id: TaskId) -> Result<&mut Task> {
-        self.tasks.get_mut(&task_id).ok_or_else(|| anyhow!("Task {} not found", task_id))
+        self.tasks
+            .get_mut(&task_id)
+            .ok_or_else(|| anyhow!("Task {} not found", task_id))
     }
 
     /// Get all task IDs
@@ -197,7 +209,11 @@ impl TaskTree {
         self.recalculate_dependencies().await?;
         self.rebuild_statistics();
 
-        info!("Created {} subtasks for parent {}", created_tasks.len(), parent_id);
+        info!(
+            "Created {} subtasks for parent {}",
+            created_tasks.len(),
+            parent_id
+        );
         Ok(created_tasks)
     }
 
@@ -271,9 +287,10 @@ impl TaskTree {
         for (&task_id, task) in &self.tasks {
             if task.is_runnable()
                 && let Ok(deps_satisfied) = self.are_dependencies_satisfied(task_id)
-                && deps_satisfied {
-                    eligible.push(task_id);
-                }
+                && deps_satisfied
+            {
+                eligible.push(task_id);
+            }
         }
 
         eligible
@@ -294,11 +311,13 @@ impl TaskTree {
 
             // Find similar tasks
             for (&other_id, other_task) in &self.tasks {
-                if other_id != task_id && !processed.contains(&other_id)
-                    && self.tasks_are_similar(task, other_task) {
-                        cluster.push(other_id);
-                        processed.insert(other_id);
-                    }
+                if other_id != task_id
+                    && !processed.contains(&other_id)
+                    && self.tasks_are_similar(task, other_task)
+                {
+                    cluster.push(other_id);
+                    processed.insert(other_id);
+                }
             }
 
             if cluster.len() > 1 {
@@ -334,7 +353,11 @@ impl TaskTree {
     }
 
     /// Merge a cluster of duplicate tasks
-    pub async fn merge_task_cluster(&mut self, primary_id: TaskId, duplicate_ids: &[TaskId]) -> Result<()> {
+    pub async fn merge_task_cluster(
+        &mut self,
+        primary_id: TaskId,
+        duplicate_ids: &[TaskId],
+    ) -> Result<()> {
         let _primary = self.get_task(primary_id)?.clone();
 
         for &duplicate_id in duplicate_ids {
@@ -357,7 +380,12 @@ impl TaskTree {
 
             // Merge file references
             for file_ref in duplicate.metadata.file_refs {
-                if !primary_task.metadata.file_refs.iter().any(|f| f.path == file_ref.path) {
+                if !primary_task
+                    .metadata
+                    .file_refs
+                    .iter()
+                    .any(|f| f.path == file_ref.path)
+                {
                     primary_task.metadata.file_refs.push(file_ref);
                 }
             }
@@ -433,16 +461,20 @@ impl TaskTree {
             failed_tasks: stats.failed_tasks,
             estimated_completion: self.estimate_total_completion(),
             current_throughput: self.calculate_throughput(),
-            completion_percentage: if total > 0.0 { (completed / total) * 100.0 } else { 0.0 },
+            completion_percentage: if total > 0.0 {
+                (completed / total) * 100.0
+            } else {
+                0.0
+            },
         }
     }
 
     /// Estimate when all tasks will be completed
     fn estimate_total_completion(&self) -> Option<DateTime<Utc>> {
-        let remaining_tasks = self.metadata.statistics.total_tasks -
-                              self.metadata.statistics.completed_tasks -
-                              self.metadata.statistics.failed_tasks -
-                              self.metadata.statistics.skipped_tasks;
+        let remaining_tasks = self.metadata.statistics.total_tasks
+            - self.metadata.statistics.completed_tasks
+            - self.metadata.statistics.failed_tasks
+            - self.metadata.statistics.skipped_tasks;
 
         if remaining_tasks == 0 {
             return Some(Utc::now());
@@ -460,7 +492,12 @@ impl TaskTree {
     /// Calculate current task completion throughput (tasks per hour)
     fn calculate_throughput(&self) -> f64 {
         // Simple implementation - in practice would use sliding window
-        let elapsed_hours = self.metadata.created_at.signed_duration_since(Utc::now()).num_hours().abs() as f64;
+        let elapsed_hours = self
+            .metadata
+            .created_at
+            .signed_duration_since(Utc::now())
+            .num_hours()
+            .abs() as f64;
         if elapsed_hours > 0.0 {
             self.metadata.statistics.completed_tasks as f64 / elapsed_hours
         } else {
@@ -539,10 +576,11 @@ impl Task {
         let mut context = self.metadata.context_requirements.clone();
 
         if let Some(parent_id) = self.parent_id
-            && let Ok(parent) = tree.get_task(parent_id) {
-                let parent_context = parent.effective_context(tree);
-                context.merge_with(&parent_context);
-            }
+            && let Ok(parent) = tree.get_task(parent_id)
+        {
+            let parent_context = parent.effective_context(tree);
+            context.merge_with(&parent_context);
+        }
 
         context
     }

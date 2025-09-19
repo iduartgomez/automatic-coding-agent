@@ -1,7 +1,7 @@
-use crate::task::types::*;
-use crate::task::tree::*;
 use crate::task::scheduler::*;
-use anyhow::{anyhow, Result};
+use crate::task::tree::*;
+use crate::task::types::*;
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -30,13 +30,34 @@ pub struct TaskManagerConfig {
 /// Events that can occur during task management
 #[derive(Debug, Clone)]
 pub enum TaskEvent {
-    TaskCreated { task_id: TaskId, parent_id: Option<TaskId> },
-    TaskStatusChanged { task_id: TaskId, old_status: TaskStatus, new_status: TaskStatus },
-    TaskCompleted { task_id: TaskId, result: TaskResult },
-    TaskFailed { task_id: TaskId, error: TaskError },
-    SubtasksCreated { parent_id: TaskId, subtask_ids: Vec<TaskId> },
-    TasksDeduped { primary_id: TaskId, merged_ids: Vec<TaskId> },
-    TreeStatisticsUpdated { statistics: TaskTreeStatistics },
+    TaskCreated {
+        task_id: TaskId,
+        parent_id: Option<TaskId>,
+    },
+    TaskStatusChanged {
+        task_id: TaskId,
+        old_status: TaskStatus,
+        new_status: TaskStatus,
+    },
+    TaskCompleted {
+        task_id: TaskId,
+        result: TaskResult,
+    },
+    TaskFailed {
+        task_id: TaskId,
+        error: TaskError,
+    },
+    SubtasksCreated {
+        parent_id: TaskId,
+        subtask_ids: Vec<TaskId>,
+    },
+    TasksDeduped {
+        primary_id: TaskId,
+        merged_ids: Vec<TaskId>,
+    },
+    TreeStatisticsUpdated {
+        statistics: TaskTreeStatistics,
+    },
 }
 
 /// Handler for task events
@@ -73,10 +94,14 @@ impl TaskManager {
             self.emit_event(TaskEvent::TaskCreated {
                 task_id,
                 parent_id: None,
-            }).await?;
+            })
+            .await?;
         }
 
-        info!("Initialized task manager with {} root tasks", created_tasks.len());
+        info!(
+            "Initialized task manager with {} root tasks",
+            created_tasks.len()
+        );
         Ok(created_tasks)
     }
 
@@ -85,7 +110,8 @@ impl TaskManager {
         let mut tree = self.tree.write().await;
         let task_id = tree.create_task_from_spec(spec, parent_id)?;
 
-        self.emit_event(TaskEvent::TaskCreated { task_id, parent_id }).await?;
+        self.emit_event(TaskEvent::TaskCreated { task_id, parent_id })
+            .await?;
 
         debug!("Created task {} with parent {:?}", task_id, parent_id);
         Ok(task_id)
@@ -103,9 +129,14 @@ impl TaskManager {
         self.emit_event(TaskEvent::SubtasksCreated {
             parent_id,
             subtask_ids: subtask_ids.clone(),
-        }).await?;
+        })
+        .await?;
 
-        info!("Created {} subtasks for parent {}", subtask_ids.len(), parent_id);
+        info!(
+            "Created {} subtasks for parent {}",
+            subtask_ids.len(),
+            parent_id
+        );
         Ok(subtask_ids)
     }
 
@@ -126,7 +157,8 @@ impl TaskManager {
             task_id,
             old_status,
             new_status,
-        }).await?;
+        })
+        .await?;
 
         debug!("Updated task {} status", task_id);
         Ok(())
@@ -141,7 +173,8 @@ impl TaskManager {
 
         self.update_task_status(task_id, completed_status).await?;
 
-        self.emit_event(TaskEvent::TaskCompleted { task_id, result }).await?;
+        self.emit_event(TaskEvent::TaskCompleted { task_id, result })
+            .await?;
 
         // Check if parent task should be updated
         self.check_parent_completion(task_id).await?;
@@ -158,7 +191,10 @@ impl TaskManager {
         {
             let tree = self.tree.read().await;
             let task = tree.get_task(task_id)?;
-            if let TaskStatus::Failed { retry_count: count, .. } = task.status {
+            if let TaskStatus::Failed {
+                retry_count: count, ..
+            } = task.status
+            {
                 retry_count = count;
             }
         }
@@ -171,7 +207,11 @@ impl TaskManager {
 
         self.update_task_status(task_id, failed_status).await?;
 
-        self.emit_event(TaskEvent::TaskFailed { task_id, error: error.clone() }).await?;
+        self.emit_event(TaskEvent::TaskFailed {
+            task_id,
+            error: error.clone(),
+        })
+        .await?;
 
         // Check if we should auto-retry
         if self.config.auto_retry_failed_tasks && retry_count < self.config.max_retry_attempts {
@@ -183,7 +223,12 @@ impl TaskManager {
     }
 
     /// Block task with reason
-    pub async fn block_task(&self, task_id: TaskId, reason: String, retry_after: Option<DateTime<Utc>>) -> Result<()> {
+    pub async fn block_task(
+        &self,
+        task_id: TaskId,
+        reason: String,
+        retry_after: Option<DateTime<Utc>>,
+    ) -> Result<()> {
         let blocked_status = TaskStatus::Blocked {
             reason: reason.clone(),
             blocked_at: Utc::now(),
@@ -227,7 +272,8 @@ impl TaskManager {
             return Ok(Vec::new());
         }
 
-        let cutoff_time = Utc::now() - chrono::Duration::hours(self.config.cleanup_after_hours as i64);
+        let cutoff_time =
+            Utc::now() - chrono::Duration::hours(self.config.cleanup_after_hours as i64);
         let mut cleaned_tasks = Vec::new();
 
         let task_ids: Vec<TaskId>;
@@ -296,13 +342,15 @@ impl TaskManager {
 
     /// Schedule a retry for a failed task
     async fn schedule_retry(&self, task_id: TaskId) -> Result<()> {
-        let retry_time = Utc::now() + chrono::Duration::minutes(self.config.retry_delay_minutes as i64);
+        let retry_time =
+            Utc::now() + chrono::Duration::minutes(self.config.retry_delay_minutes as i64);
 
         self.block_task(
             task_id,
             "Scheduled for automatic retry".to_string(),
             Some(retry_time),
-        ).await?;
+        )
+        .await?;
 
         debug!("Scheduled retry for task {} at {}", task_id, retry_time);
         Ok(())
@@ -340,7 +388,10 @@ impl TaskManager {
 
                 // Use Box::pin to avoid recursion issue
                 Box::pin(self.complete_task(parent_id, success_result)).await?;
-                info!("Auto-completed parent task {} (all children finished)", parent_id);
+                info!(
+                    "Auto-completed parent task {} (all children finished)",
+                    parent_id
+                );
             }
         }
 
@@ -374,9 +425,13 @@ impl TaskManager {
     }
 
     /// Get tasks in a specific status
-    pub async fn get_tasks_by_status(&self, status_filter: fn(&TaskStatus) -> bool) -> Result<Vec<TaskId>> {
+    pub async fn get_tasks_by_status(
+        &self,
+        status_filter: fn(&TaskStatus) -> bool,
+    ) -> Result<Vec<TaskId>> {
         let tree = self.tree.read().await;
-        let matching_tasks = tree.tasks
+        let matching_tasks = tree
+            .tasks
             .iter()
             .filter(|(_, task)| status_filter(&task.status))
             .map(|(&id, _)| id)
@@ -388,7 +443,8 @@ impl TaskManager {
     /// Get tasks by priority
     pub async fn get_tasks_by_priority(&self, min_priority: TaskPriority) -> Result<Vec<TaskId>> {
         let tree = self.tree.read().await;
-        let matching_tasks = tree.tasks
+        let matching_tasks = tree
+            .tasks
             .iter()
             .filter(|(_, task)| task.metadata.priority >= min_priority)
             .map(|(&id, _)| id)
@@ -405,8 +461,8 @@ impl TaskManager {
 
     /// Import task tree from JSON
     pub async fn import_from_json(&self, json_data: &str) -> Result<()> {
-        let imported_tree: TaskTree = serde_json::from_str(json_data)
-            .map_err(|e| anyhow!("Deserialization error: {}", e))?;
+        let imported_tree: TaskTree =
+            serde_json::from_str(json_data).map_err(|e| anyhow!("Deserialization error: {}", e))?;
 
         let mut tree = self.tree.write().await;
         *tree = imported_tree;
@@ -423,9 +479,13 @@ impl TaskManager {
         // Check for orphaned tasks
         for (&task_id, task) in &tree.tasks {
             if let Some(parent_id) = task.parent_id
-                && !tree.tasks.contains_key(&parent_id) {
-                    issues.push(format!("Task {} has non-existent parent {}", task_id, parent_id));
-                }
+                && !tree.tasks.contains_key(&parent_id)
+            {
+                issues.push(format!(
+                    "Task {} has non-existent parent {}",
+                    task_id, parent_id
+                ));
+            }
         }
 
         // Check for circular dependencies
@@ -439,7 +499,10 @@ impl TaskManager {
         for (&task_id, task) in &tree.tasks {
             for &child_id in &task.children {
                 if !tree.tasks.contains_key(&child_id) {
-                    issues.push(format!("Task {} references non-existent child {}", task_id, child_id));
+                    issues.push(format!(
+                        "Task {} references non-existent child {}",
+                        task_id, child_id
+                    ));
                 }
             }
         }
@@ -471,8 +534,15 @@ impl TaskEventHandler for LoggingEventHandler {
             TaskEvent::TaskCreated { task_id, parent_id } => {
                 info!("Task created: {} (parent: {:?})", task_id, parent_id);
             }
-            TaskEvent::TaskStatusChanged { task_id, old_status, new_status } => {
-                info!("Task {} status: {:?} -> {:?}", task_id, old_status, new_status);
+            TaskEvent::TaskStatusChanged {
+                task_id,
+                old_status,
+                new_status,
+            } => {
+                info!(
+                    "Task {} status: {:?} -> {:?}",
+                    task_id, old_status, new_status
+                );
             }
             TaskEvent::TaskCompleted { task_id, .. } => {
                 info!("Task completed: {}", task_id);
@@ -480,10 +550,20 @@ impl TaskEventHandler for LoggingEventHandler {
             TaskEvent::TaskFailed { task_id, error } => {
                 warn!("Task failed: {} - {:?}", task_id, error);
             }
-            TaskEvent::SubtasksCreated { parent_id, subtask_ids } => {
-                info!("Subtasks created for {}: {} tasks", parent_id, subtask_ids.len());
+            TaskEvent::SubtasksCreated {
+                parent_id,
+                subtask_ids,
+            } => {
+                info!(
+                    "Subtasks created for {}: {} tasks",
+                    parent_id,
+                    subtask_ids.len()
+                );
             }
-            TaskEvent::TasksDeduped { primary_id, merged_ids } => {
+            TaskEvent::TasksDeduped {
+                primary_id,
+                merged_ids,
+            } => {
                 info!("Tasks merged into {}: {:?}", primary_id, merged_ids);
             }
             TaskEvent::TreeStatisticsUpdated { .. } => {

@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use crate::task::types::*;
-    use crate::task::tree::*;
+    use crate::task::execution::{MockClaudeInterface, TaskExecutionResult};
     use crate::task::manager::*;
     use crate::task::scheduler::*;
-    use crate::task::execution::{MockClaudeInterface, TaskExecutionResult};
+    use crate::task::tree::*;
+    use crate::task::types::*;
     use chrono::{Duration, Utc};
 
     // Helper function to create a task spec for testing
@@ -136,7 +136,9 @@ mod tests {
             },
             dependencies: vec![],
         };
-        let child_id = tree.create_task_from_spec(child_spec, Some(parent_id)).unwrap();
+        let child_id = tree
+            .create_task_from_spec(child_spec, Some(parent_id))
+            .unwrap();
 
         // Verify relationships
         let parent = tree.get_task(parent_id).unwrap();
@@ -193,20 +195,24 @@ mod tests {
         assert!(!eligible.contains(&task_b_id));
 
         // Complete task A
-        tree.update_task_status(task_a_id, TaskStatus::Completed {
-            completed_at: Utc::now(),
-            result: TaskResult::Success {
-                output: serde_json::json!({}),
-                files_created: vec![],
-                files_modified: vec![],
-                build_artifacts: vec![],
+        tree.update_task_status(
+            task_a_id,
+            TaskStatus::Completed {
+                completed_at: Utc::now(),
+                result: TaskResult::Success {
+                    output: serde_json::json!({}),
+                    files_created: vec![],
+                    files_modified: vec![],
+                    build_artifacts: vec![],
+                },
             },
-        }).unwrap();
+        )
+        .unwrap();
 
         // Now B should be eligible
         let eligible = tree.get_eligible_tasks();
         assert!(!eligible.contains(&task_a_id)); // A is completed
-        assert!(eligible.contains(&task_b_id));   // B is now eligible
+        assert!(eligible.contains(&task_b_id)); // B is now eligible
     }
 
     #[tokio::test]
@@ -270,7 +276,9 @@ mod tests {
             },
             dependencies: vec![],
         };
-        let high_priority_id = tree.create_task_from_spec(high_priority_spec, None).unwrap();
+        let _ = tree
+            .create_task_from_spec(high_priority_spec, None)
+            .unwrap();
 
         let low_priority_spec = TaskSpec {
             title: "Low Priority Task".to_string(),
@@ -299,7 +307,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_task_execution() {
-        use crate::task::execution::{TaskExecutor, ExecutorConfig, ResourceAllocation};
+        use crate::task::execution::{ExecutorConfig, ResourceAllocation, TaskExecutor};
 
         let config = ExecutorConfig::default();
         let resources = ResourceAllocation::default();
@@ -307,10 +315,18 @@ mod tests {
         let claude_interface = MockClaudeInterface;
 
         let task = create_test_task();
-        let result = executor.execute_task(&task, &claude_interface).await.unwrap();
+        let result = executor
+            .execute_task(&task, &claude_interface)
+            .await
+            .unwrap();
 
         match result {
-            TaskExecutionResult::Completed { result: _, files_modified, execution_metrics, .. } => {
+            TaskExecutionResult::Completed {
+                result: _,
+                files_modified,
+                execution_metrics,
+                ..
+            } => {
                 assert!(!files_modified.is_empty());
                 assert!(execution_metrics.duration.num_seconds() >= 0);
             }
@@ -321,21 +337,35 @@ mod tests {
     #[test]
     fn test_context_requirements_merge() {
         let mut context1 = ContextRequirements::new();
-        context1.required_files.push(std::path::PathBuf::from("file1.rs"));
+        context1
+            .required_files
+            .push(std::path::PathBuf::from("file1.rs"));
         context1.build_dependencies.push("dep1".to_string());
 
         let mut context2 = ContextRequirements::new();
-        context2.required_files.push(std::path::PathBuf::from("file2.rs"));
+        context2
+            .required_files
+            .push(std::path::PathBuf::from("file2.rs"));
         context2.build_dependencies.push("dep2".to_string());
-        context2.environment_vars.insert("KEY".to_string(), "value".to_string());
+        context2
+            .environment_vars
+            .insert("KEY".to_string(), "value".to_string());
 
         context1.merge_with(&context2);
 
         assert_eq!(context1.required_files.len(), 2);
         assert_eq!(context1.build_dependencies.len(), 2);
         assert_eq!(context1.environment_vars.len(), 1);
-        assert!(context1.required_files.contains(&std::path::PathBuf::from("file1.rs")));
-        assert!(context1.required_files.contains(&std::path::PathBuf::from("file2.rs")));
+        assert!(
+            context1
+                .required_files
+                .contains(&std::path::PathBuf::from("file1.rs"))
+        );
+        assert!(
+            context1
+                .required_files
+                .contains(&std::path::PathBuf::from("file2.rs"))
+        );
     }
 
     #[test]
@@ -346,7 +376,10 @@ mod tests {
         assert_eq!(ComplexityLevel::Complex.value(), 3);
         assert_eq!(ComplexityLevel::Epic.value(), 4);
 
-        assert!(ComplexityLevel::Trivial.estimated_duration() < ComplexityLevel::Epic.estimated_duration());
+        assert!(
+            ComplexityLevel::Trivial.estimated_duration()
+                < ComplexityLevel::Epic.estimated_duration()
+        );
     }
 
     #[test]
@@ -360,4 +393,3 @@ mod tests {
         assert!(TaskPriority::Critical > TaskPriority::Low);
     }
 }
-
