@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "automatic-coding-agent-team"
+    assignees:
+      - "automatic-coding-agent-team"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "rust"
+    ignore:
+      # Ignore major version updates for stable dependencies
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

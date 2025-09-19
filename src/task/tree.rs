@@ -93,10 +93,10 @@ impl TaskTree {
             }
 
             // Add this task to parent's children
-            if let Some(parent) = self.tasks.get_mut(&parent_id)
-                && !parent.children.contains(&task_id)
-            {
-                parent.children.push(task_id);
+            if let Some(parent) = self.tasks.get_mut(&parent_id) {
+                if !parent.children.contains(&task_id) {
+                    parent.children.push(task_id);
+                }
             }
         } else {
             // This is a root task
@@ -285,11 +285,12 @@ impl TaskTree {
         let mut eligible = Vec::new();
 
         for (&task_id, task) in &self.tasks {
-            if task.is_runnable()
-                && let Ok(deps_satisfied) = self.are_dependencies_satisfied(task_id)
-                && deps_satisfied
-            {
-                eligible.push(task_id);
+            if task.is_runnable() {
+                if let Ok(deps_satisfied) = self.are_dependencies_satisfied(task_id) {
+                    if deps_satisfied {
+                        eligible.push(task_id);
+                    }
+                }
             }
         }
 
@@ -575,11 +576,11 @@ impl Task {
     pub fn effective_context(&self, tree: &TaskTree) -> ContextRequirements {
         let mut context = self.metadata.context_requirements.clone();
 
-        if let Some(parent_id) = self.parent_id
-            && let Ok(parent) = tree.get_task(parent_id)
-        {
-            let parent_context = parent.effective_context(tree);
-            context.merge_with(&parent_context);
+        if let Some(parent_id) = self.parent_id {
+            if let Ok(parent) = tree.get_task(parent_id) {
+                let parent_context = parent.effective_context(tree);
+                context.merge_with(&parent_context);
+            }
         }
 
         context

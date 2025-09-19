@@ -452,13 +452,13 @@ impl TaskScheduler {
             reasons.push(format!("aged {} hours", age_hours));
         }
 
-        if let Some(complexity) = &task.metadata.estimated_complexity
-            && matches!(
+        if let Some(complexity) = &task.metadata.estimated_complexity {
+            if matches!(
                 complexity,
                 ComplexityLevel::Trivial | ComplexityLevel::Simple
-            )
-        {
-            reasons.push("quick win".to_string());
+            ) {
+                reasons.push("quick win".to_string());
+            }
         }
 
         if reasons.is_empty() {

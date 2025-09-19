@@ -478,13 +478,13 @@ impl TaskManager {
 
         // Check for orphaned tasks
         for (&task_id, task) in &tree.tasks {
-            if let Some(parent_id) = task.parent_id
-                && !tree.tasks.contains_key(&parent_id)
-            {
-                issues.push(format!(
-                    "Task {} has non-existent parent {}",
-                    task_id, parent_id
-                ));
+            if let Some(parent_id) = task.parent_id {
+                if !tree.tasks.contains_key(&parent_id) {
+                    issues.push(format!(
+                        "Task {} has non-existent parent {}",
+                        task_id, parent_id
+                    ));
+                }
             }
         }
 

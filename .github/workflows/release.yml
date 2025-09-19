@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: ${{ steps.get_version.outputs.VERSION }}
+        body: |
+          Release ${{ steps.get_version.outputs.VERSION }}
+
+          See CHANGELOG.md for details.
+        draft: false
+        prerelease: false
+
+  build-and-upload:
+    name: Build and Upload
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build:
+          - linux-x86_64
+          - linux-aarch64
+          - windows-x86_64
+          - macos-x86_64
+          - macos-aarch64
+        include:
+          - build: linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - build: linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - build: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            extension: .exe
+          - build: macos-x86_64
+            os: macos-latest
+            target: x86_64-apple-darwin
+          - build: macos-aarch64
+            os: macos-latest
+            target: aarch64-apple-darwin
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Install cross-compilation tools
+      if: matrix.target == 'aarch64-unknown-linux-gnu'
+      run: |
+        sudo apt-get update
+        sudo apt-get install gcc-aarch64-linux-gnu
+
+    - name: Configure cross-compilation
+      if: matrix.target == 'aarch64-unknown-linux-gnu'
+      run: |
+        echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
+        echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
+
+    - name: Build release binary
+      run: cargo build --release --target ${{ matrix.target }}
+
+    - name: Prepare binary
+      shell: bash
+      run: |
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          BIN_NAME="automatic-coding-agent${{ matrix.extension }}"
+          mv "target/${{ matrix.target }}/release/automatic-coding-agent${{ matrix.extension }}" "$BIN_NAME"
+        else
+          BIN_NAME="automatic-coding-agent"
+          mv "target/${{ matrix.target }}/release/automatic-coding-agent" "$BIN_NAME"
+        fi
+        echo "BIN_NAME=$BIN_NAME" >> $GITHUB_ENV
+
+    - name: Create archive
+      shell: bash
+      run: |
+        ARCHIVE_NAME="automatic-coding-agent-${{ matrix.build }}"
+        if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          7z a "${ARCHIVE_NAME}.zip" "${{ env.BIN_NAME }}"
+          echo "ARCHIVE=${ARCHIVE_NAME}.zip" >> $GITHUB_ENV
+        else
+          tar czf "${ARCHIVE_NAME}.tar.gz" "${{ env.BIN_NAME }}"
+          echo "ARCHIVE=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
+        fi
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ${{ env.ARCHIVE }}
+        asset_name: ${{ env.ARCHIVE }}
+        asset_content_type: application/octet-stream
+
+  publish-crate:
+    name: Publish to crates.io
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Publish to crates.io
+      run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+      continue-on-error: true  # Allow failure if already published

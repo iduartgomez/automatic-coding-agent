@@ -1,0 +1,25 @@
+# Global ownership
+* @automatic-coding-agent-team
+
+# Core architecture and design
+/docs/design/ @automatic-coding-agent-team
+/docs/sessions/ @automatic-coding-agent-team
+
+# Task management system
+/src/task/ @automatic-coding-agent-team
+
+# Session persistence system
+/src/session/ @automatic-coding-agent-team
+
+# CI/CD and GitHub workflows
+/.github/ @automatic-coding-agent-team
+
+# Configuration files
+/Cargo.toml @automatic-coding-agent-team
+/Cargo.lock @automatic-coding-agent-team
+/.cargo/ @automatic-coding-agent-team
+
+# Documentation
+/README.md @automatic-coding-agent-team
+/CHANGELOG.md @automatic-coding-agent-team
+/LICENSE @automatic-coding-agent-team

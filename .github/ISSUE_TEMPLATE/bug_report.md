@@ -1,0 +1,41 @@
+---
+name: Bug report
+about: Create a report to help us improve
+title: '[BUG] '
+labels: 'bug'
+assignees: ''
+
+---
+
+## Bug Description
+A clear and concise description of what the bug is.
+
+## To Reproduce
+Steps to reproduce the behavior:
+1. Go to '...'
+2. Run command '....'
+3. See error
+
+## Expected Behavior
+A clear and concise description of what you expected to happen.
+
+## Actual Behavior
+A clear and concise description of what actually happened.
+
+## Environment
+- OS: [e.g. Ubuntu 22.04, macOS 13.0, Windows 11]
+- Rust version: [e.g. 1.75.0]
+- Project version: [e.g. 0.1.0]
+
+## Error Output
+If applicable, add error messages or logs to help explain your problem.
+
+```
+Paste error output here
+```
+
+## Additional Context
+Add any other context about the problem here.
+
+## Possible Solution
+If you have ideas on how to fix this, please share them here.
