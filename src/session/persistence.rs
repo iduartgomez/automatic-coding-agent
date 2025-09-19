@@ -270,10 +270,12 @@ impl PersistenceManager {
             let path = entry.path();
             if let Some(file_name) = path.file_name()
                 && let Some(name_str) = file_name.to_str()
-                    && name_str.starts_with("checkpoint_") && name_str.ends_with(".json") {
-                        let checkpoint_id = name_str.strip_suffix(".json").unwrap();
-                        checkpoints.push(checkpoint_id.to_string());
-                    }
+                && name_str.starts_with("checkpoint_")
+                && name_str.ends_with(".json")
+            {
+                let checkpoint_id = name_str.strip_suffix(".json").unwrap();
+                checkpoints.push(checkpoint_id.to_string());
+            }
         }
 
         checkpoints.sort();
@@ -298,18 +300,19 @@ impl PersistenceManager {
                 .join(format!("checkpoint_{}.json", checkpoint_id));
 
             if let Ok(metadata) = async_fs::metadata(&checkpoint_file).await
-                && let Ok(modified) = metadata.modified() {
-                    let modified_utc: chrono::DateTime<chrono::Utc> = modified.into();
+                && let Ok(modified) = metadata.modified()
+            {
+                let modified_utc: chrono::DateTime<chrono::Utc> = modified.into();
 
-                    if modified_utc < cutoff_time {
-                        if let Err(e) = async_fs::remove_file(&checkpoint_file).await {
-                            warn!("Failed to remove old checkpoint {}: {}", checkpoint_id, e);
-                        } else {
-                            debug!("Removed old checkpoint: {}", checkpoint_id);
-                            cleaned_count += 1;
-                        }
+                if modified_utc < cutoff_time {
+                    if let Err(e) = async_fs::remove_file(&checkpoint_file).await {
+                        warn!("Failed to remove old checkpoint {}: {}", checkpoint_id, e);
+                    } else {
+                        debug!("Removed old checkpoint: {}", checkpoint_id);
+                        cleaned_count += 1;
                     }
                 }
+            }
         }
 
         if cleaned_count > 0 {
@@ -464,9 +467,10 @@ impl PersistenceManager {
     fn get_final_path_for_temp(&self, temp_path: &Path) -> Option<PathBuf> {
         if let Some(file_name) = temp_path.file_name()
             && let Some(name_str) = file_name.to_str()
-                && name_str.starts_with("session_") {
-                    return Some(self.session_dir.join("session.json"));
-                }
+            && name_str.starts_with("session_")
+        {
+            return Some(self.session_dir.join("session.json"));
+        }
         None
     }
 

@@ -2,7 +2,7 @@ use crate::task::tree::*;
 use crate::task::types::*;
 use chrono::{DateTime, Duration, Utc};
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
@@ -456,9 +456,10 @@ impl TaskScheduler {
             && matches!(
                 complexity,
                 ComplexityLevel::Trivial | ComplexityLevel::Simple
-            ) {
-                reasons.push("quick win".to_string());
-            }
+            )
+        {
+            reasons.push("quick win".to_string());
+        }
 
         if reasons.is_empty() {
             format!("score {:.1}", score)

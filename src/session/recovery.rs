@@ -302,9 +302,10 @@ impl RecoveryManager {
         let mut orphaned_tasks = Vec::new();
         for (&task_id, task) in &task_tree.tasks {
             if let Some(parent_id) = task.parent_id
-                && !task_tree.tasks.contains_key(&parent_id) {
-                    orphaned_tasks.push(task_id.to_string());
-                }
+                && !task_tree.tasks.contains_key(&parent_id)
+            {
+                orphaned_tasks.push(task_id.to_string());
+            }
         }
 
         if !orphaned_tasks.is_empty() {
@@ -368,9 +369,10 @@ impl RecoveryManager {
                     // Remove orphaned tasks or attach them to root
                     for task_id_str in task_ids {
                         if let Ok(task_id) = task_id_str.parse()
-                            && let Some(task) = state.task_tree.tasks.get_mut(&task_id) {
-                                task.parent_id = None; // Make it a root task
-                            }
+                            && let Some(task) = state.task_tree.tasks.get_mut(&task_id)
+                        {
+                            task.parent_id = None; // Make it a root task
+                        }
                     }
                 }
                 CorrectableIssue::DuplicateTaskIds { duplicates } => {
@@ -384,9 +386,10 @@ impl RecoveryManager {
                     info!("Updating outdated timestamps for {} tasks", tasks.len());
                     for task_id_str in tasks {
                         if let Ok(task_id) = task_id_str.parse()
-                            && let Some(task) = state.task_tree.tasks.get_mut(&task_id) {
-                                task.updated_at = Utc::now();
-                            }
+                            && let Some(task) = state.task_tree.tasks.get_mut(&task_id)
+                        {
+                            task.updated_at = Utc::now();
+                        }
                     }
                 }
                 CorrectableIssue::MissingTaskMetadata { tasks } => {

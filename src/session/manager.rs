@@ -9,7 +9,7 @@ use chrono::{DateTime, Duration, Utc};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
-use tokio::time::{interval, Duration as TokioDuration};
+use tokio::time::{Duration as TokioDuration, interval};
 use tracing::{debug, error, info, warn};
 
 /// Central session manager that coordinates persistence, recovery, and task management
@@ -115,10 +115,11 @@ impl SessionManager {
             // Try automatic recovery
             if let Ok(recovery_result) = session_manager.recovery.auto_recover().await
                 && recovery_result.success
-                    && let Some(state) = recovery_result.recovered_state {
-                        session_manager.restore_session_state(state).await?;
-                        info!("Automatically recovered session from previous state");
-                    }
+                && let Some(state) = recovery_result.recovered_state
+            {
+                session_manager.restore_session_state(state).await?;
+                info!("Automatically recovered session from previous state");
+            }
         }
 
         // Start automatic operations

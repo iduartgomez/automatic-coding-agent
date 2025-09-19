@@ -1,7 +1,7 @@
 use crate::task::scheduler::*;
 use crate::task::tree::*;
 use crate::task::types::*;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -479,12 +479,13 @@ impl TaskManager {
         // Check for orphaned tasks
         for (&task_id, task) in &tree.tasks {
             if let Some(parent_id) = task.parent_id
-                && !tree.tasks.contains_key(&parent_id) {
-                    issues.push(format!(
-                        "Task {} has non-existent parent {}",
-                        task_id, parent_id
-                    ));
-                }
+                && !tree.tasks.contains_key(&parent_id)
+            {
+                issues.push(format!(
+                    "Task {} has non-existent parent {}",
+                    task_id, parent_id
+                ));
+            }
         }
 
         // Check for circular dependencies

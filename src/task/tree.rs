@@ -1,5 +1,5 @@
 use crate::task::types::*;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -94,9 +94,10 @@ impl TaskTree {
 
             // Add this task to parent's children
             if let Some(parent) = self.tasks.get_mut(&parent_id)
-                && !parent.children.contains(&task_id) {
-                    parent.children.push(task_id);
-                }
+                && !parent.children.contains(&task_id)
+            {
+                parent.children.push(task_id);
+            }
         } else {
             // This is a root task
             if !self.roots.contains(&task_id) {
@@ -286,9 +287,10 @@ impl TaskTree {
         for (&task_id, task) in &self.tasks {
             if task.is_runnable()
                 && let Ok(deps_satisfied) = self.are_dependencies_satisfied(task_id)
-                    && deps_satisfied {
-                        eligible.push(task_id);
-                    }
+                && deps_satisfied
+            {
+                eligible.push(task_id);
+            }
         }
 
         eligible
@@ -574,10 +576,11 @@ impl Task {
         let mut context = self.metadata.context_requirements.clone();
 
         if let Some(parent_id) = self.parent_id
-            && let Ok(parent) = tree.get_task(parent_id) {
-                let parent_context = parent.effective_context(tree);
-                context.merge_with(&parent_context);
-            }
+            && let Ok(parent) = tree.get_task(parent_id)
+        {
+            let parent_context = parent.effective_context(tree);
+            context.merge_with(&parent_context);
+        }
 
         context
     }
