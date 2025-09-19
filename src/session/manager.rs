@@ -111,14 +111,12 @@ impl SessionManager {
             session_manager.restore_from_checkpoint(&checkpoint_id).await?;
         } else if config.enable_crash_recovery {
             // Try automatic recovery
-            if let Ok(recovery_result) = session_manager.recovery.auto_recover().await {
-                if recovery_result.success {
-                    if let Some(state) = recovery_result.recovered_state {
+            if let Ok(recovery_result) = session_manager.recovery.auto_recover().await
+                && recovery_result.success
+                    && let Some(state) = recovery_result.recovered_state {
                         session_manager.restore_session_state(state).await?;
                         info!("Automatically recovered session from previous state");
                     }
-                }
-            }
         }
 
         // Start automatic operations

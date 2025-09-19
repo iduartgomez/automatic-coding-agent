@@ -295,11 +295,10 @@ impl RecoveryManager {
         // Check for orphaned tasks
         let mut orphaned_tasks = Vec::new();
         for (&task_id, task) in &task_tree.tasks {
-            if let Some(parent_id) = task.parent_id {
-                if !task_tree.tasks.contains_key(&parent_id) {
+            if let Some(parent_id) = task.parent_id
+                && !task_tree.tasks.contains_key(&parent_id) {
                     orphaned_tasks.push(task_id.to_string());
                 }
-            }
         }
 
         if !orphaned_tasks.is_empty() {
@@ -334,7 +333,7 @@ impl RecoveryManager {
         }
 
         // Check file system state
-        for (file_path, _metadata) in &state.file_system_state.tracked_files {
+        for file_path in state.file_system_state.tracked_files.keys() {
             if !file_path.exists() {
                 warnings.push(format!("Tracked file missing: {}", file_path.display()));
             }
@@ -362,11 +361,10 @@ impl RecoveryManager {
                     info!("Correcting orphaned tasks: {:?}", task_ids);
                     // Remove orphaned tasks or attach them to root
                     for task_id_str in task_ids {
-                        if let Ok(task_id) = task_id_str.parse() {
-                            if let Some(task) = state.task_tree.tasks.get_mut(&task_id) {
+                        if let Ok(task_id) = task_id_str.parse()
+                            && let Some(task) = state.task_tree.tasks.get_mut(&task_id) {
                                 task.parent_id = None; // Make it a root task
                             }
-                        }
                     }
                 }
                 CorrectableIssue::DuplicateTaskIds { duplicates } => {
@@ -376,11 +374,10 @@ impl RecoveryManager {
                 CorrectableIssue::OutdatedTimestamps { tasks } => {
                     info!("Updating outdated timestamps for {} tasks", tasks.len());
                     for task_id_str in tasks {
-                        if let Ok(task_id) = task_id_str.parse() {
-                            if let Some(task) = state.task_tree.tasks.get_mut(&task_id) {
+                        if let Ok(task_id) = task_id_str.parse()
+                            && let Some(task) = state.task_tree.tasks.get_mut(&task_id) {
                                 task.updated_at = Utc::now();
                             }
-                        }
                     }
                 }
                 CorrectableIssue::MissingTaskMetadata { tasks } => {

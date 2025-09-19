@@ -27,6 +27,7 @@ pub struct ExecutionContext {
 
 /// File system state tracking
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct FileSystemState {
     pub tracked_files: std::collections::HashMap<PathBuf, FileMetadata>,
     pub workspace_files: Vec<PathBuf>,
@@ -90,6 +91,7 @@ pub struct PersistenceTransaction {
 
 /// Rollback information for transaction recovery
 #[derive(Debug)]
+#[allow(dead_code)] // Transaction system is simplified in this implementation
 struct RollbackEntry {
     file_path: PathBuf,
     operation: RollbackOperation,
@@ -98,6 +100,7 @@ struct RollbackEntry {
 
 /// Types of operations that can be rolled back
 #[derive(Debug)]
+#[allow(dead_code)] // Transaction system is simplified in this implementation
 enum RollbackOperation {
     Create,
     Modify { original_content: Vec<u8> },
@@ -263,16 +266,14 @@ impl PersistenceManager {
 
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            if let Some(file_name) = path.file_name() {
-                if let Some(name_str) = file_name.to_str() {
-                    if name_str.starts_with("checkpoint_") && name_str.ends_with(".json") {
+            if let Some(file_name) = path.file_name()
+                && let Some(name_str) = file_name.to_str()
+                    && name_str.starts_with("checkpoint_") && name_str.ends_with(".json") {
                         let checkpoint_id = name_str
                             .strip_suffix(".json")
                             .unwrap();
                         checkpoints.push(checkpoint_id.to_string());
                     }
-                }
-            }
         }
 
         checkpoints.sort();
@@ -294,8 +295,8 @@ impl PersistenceManager {
         for checkpoint_id in checkpoints {
             let checkpoint_file = self.session_dir.join(format!("checkpoint_{}.json", checkpoint_id));
 
-            if let Ok(metadata) = async_fs::metadata(&checkpoint_file).await {
-                if let Ok(modified) = metadata.modified() {
+            if let Ok(metadata) = async_fs::metadata(&checkpoint_file).await
+                && let Ok(modified) = metadata.modified() {
                     let modified_utc: chrono::DateTime<chrono::Utc> = modified.into();
 
                     if modified_utc < cutoff_time {
@@ -307,7 +308,6 @@ impl PersistenceManager {
                         }
                     }
                 }
-            }
         }
 
         if cleaned_count > 0 {
@@ -448,13 +448,11 @@ impl PersistenceManager {
 
     /// Get final path for a temp file (simplified implementation)
     fn get_final_path_for_temp(&self, temp_path: &Path) -> Option<PathBuf> {
-        if let Some(file_name) = temp_path.file_name() {
-            if let Some(name_str) = file_name.to_str() {
-                if name_str.starts_with("session_") {
+        if let Some(file_name) = temp_path.file_name()
+            && let Some(name_str) = file_name.to_str()
+                && name_str.starts_with("session_") {
                     return Some(self.session_dir.join("session.json"));
                 }
-            }
-        }
         None
     }
 
@@ -525,16 +523,6 @@ impl Default for ExecutionContext {
     }
 }
 
-impl Default for FileSystemState {
-    fn default() -> Self {
-        Self {
-            tracked_files: std::collections::HashMap::new(),
-            workspace_files: Vec::new(),
-            temp_files: Vec::new(),
-            created_directories: Vec::new(),
-        }
-    }
-}
 
 impl Default for ResourceUsageSnapshot {
     fn default() -> Self {
