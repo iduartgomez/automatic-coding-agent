@@ -1,4 +1,4 @@
-use crate::claude::types::{ClaudeMessage, ConversationContext, ContextConfig, SessionId};
+use crate::claude::types::{ClaudeMessage, ContextConfig, ConversationContext, SessionId};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -29,16 +29,23 @@ impl ContextManager {
     pub async fn get_or_create_context(&self, session_id: SessionId) -> ConversationContext {
         let mut contexts = self.contexts.lock().await;
 
-        contexts.entry(session_id).or_insert_with(|| ConversationContext {
-            session_id,
-            messages: Vec::new(),
-            total_tokens: 0,
-            last_activity: chrono::Utc::now(),
-            context_summary: None,
-        }).clone()
+        contexts
+            .entry(session_id)
+            .or_insert_with(|| ConversationContext {
+                session_id,
+                messages: Vec::new(),
+                total_tokens: 0,
+                last_activity: chrono::Utc::now(),
+                context_summary: None,
+            })
+            .clone()
     }
 
-    pub async fn add_message(&self, session_id: SessionId, message: ClaudeMessage) -> Result<(), anyhow::Error> {
+    pub async fn add_message(
+        &self,
+        session_id: SessionId,
+        message: ClaudeMessage,
+    ) -> Result<(), anyhow::Error> {
         let mut contexts = self.contexts.lock().await;
 
         if let Some(context) = contexts.get_mut(&session_id) {
@@ -49,8 +56,9 @@ impl ContextManager {
             context.last_activity = chrono::Utc::now();
 
             // Check if we need to optimize the context
-            if context.messages.len() > self.config.max_history_length as usize ||
-               context.total_tokens > (self.config.compression_threshold * 100000.0) as u64 {
+            if context.messages.len() > self.config.max_history_length as usize
+                || context.total_tokens > (self.config.compression_threshold * 100000.0) as u64
+            {
                 self.optimize_context_internal(context).await?;
             }
         }
@@ -58,17 +66,26 @@ impl ContextManager {
         Ok(())
     }
 
-    pub async fn optimize_context(&self, session_id: SessionId) -> Result<OptimizedContext, anyhow::Error> {
+    pub async fn optimize_context(
+        &self,
+        session_id: SessionId,
+    ) -> Result<OptimizedContext, anyhow::Error> {
         let mut contexts = self.contexts.lock().await;
 
         if let Some(context) = contexts.get_mut(&session_id) {
             self.optimize_context_internal(context).await
         } else {
-            Err(anyhow::anyhow!("Context not found for session {}", session_id))
+            Err(anyhow::anyhow!(
+                "Context not found for session {}",
+                session_id
+            ))
         }
     }
 
-    async fn optimize_context_internal(&self, context: &mut ConversationContext) -> Result<OptimizedContext, anyhow::Error> {
+    async fn optimize_context_internal(
+        &self,
+        context: &mut ConversationContext,
+    ) -> Result<OptimizedContext, anyhow::Error> {
         let original_message_count = context.messages.len();
         let original_token_count = context.total_tokens;
 
@@ -76,8 +93,10 @@ impl ContextManager {
         let relevance_scores = self.calculate_relevance_scores(&context.messages).await?;
 
         // Sort messages by relevance (keep most relevant ones)
-        let mut message_relevance: Vec<(usize, f64)> = relevance_scores.into_iter().enumerate().collect();
-        message_relevance.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        let mut message_relevance: Vec<(usize, f64)> =
+            relevance_scores.into_iter().enumerate().collect();
+        message_relevance
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         // Keep the most recent messages and most relevant ones
         let keep_count = (self.config.max_history_length as usize).min(context.messages.len());
@@ -129,7 +148,10 @@ impl ContextManager {
         })
     }
 
-    async fn calculate_relevance_scores(&self, messages: &[ClaudeMessage]) -> Result<Vec<f64>, anyhow::Error> {
+    async fn calculate_relevance_scores(
+        &self,
+        messages: &[ClaudeMessage],
+    ) -> Result<Vec<f64>, anyhow::Error> {
         let mut scores = Vec::with_capacity(messages.len());
 
         for (idx, message) in messages.iter().enumerate() {
@@ -163,9 +185,26 @@ impl ContextManager {
 
     fn calculate_keyword_relevance(&self, content: &str) -> f64 {
         let important_keywords = [
-            "error", "warning", "issue", "problem", "solution", "fix", "implement",
-            "create", "build", "test", "debug", "critical", "important", "task",
-            "function", "class", "method", "variable", "module", "package"
+            "error",
+            "warning",
+            "issue",
+            "problem",
+            "solution",
+            "fix",
+            "implement",
+            "create",
+            "build",
+            "test",
+            "debug",
+            "critical",
+            "important",
+            "task",
+            "function",
+            "class",
+            "method",
+            "variable",
+            "module",
+            "package",
         ];
 
         let content_lower = content.to_lowercase();

@@ -1,7 +1,4 @@
-use crate::claude::{
-    ContextManager, ErrorRecoveryManager, RateLimiter, UsageTracker,
-    types::*,
-};
+use crate::claude::{ContextManager, ErrorRecoveryManager, RateLimiter, UsageTracker, types::*};
 use crate::task::types::{Task, TaskStatus};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
@@ -103,7 +100,9 @@ impl ClaudeCodeInterface {
             metadata: request.context.clone(),
         };
 
-        self.context_manager.add_message(session.id, user_message).await
+        self.context_manager
+            .add_message(session.id, user_message)
+            .await
             .map_err(|e| ClaudeError::Unknown(e.to_string()))?;
 
         // Mock Claude response generation
@@ -119,20 +118,28 @@ impl ClaudeCodeInterface {
             metadata: std::collections::HashMap::new(),
         };
 
-        self.context_manager.add_message(session.id, assistant_message).await
+        self.context_manager
+            .add_message(session.id, assistant_message)
+            .await
             .map_err(|e| ClaudeError::Unknown(e.to_string()))?;
 
         Ok(response)
     }
 
-    async fn generate_mock_response(&self, request: &TaskRequest) -> Result<TaskResponse, ClaudeError> {
+    async fn generate_mock_response(
+        &self,
+        request: &TaskRequest,
+    ) -> Result<TaskResponse, ClaudeError> {
         // Simulate processing time
         let processing_time = Duration::from_millis(100 + (rand::random::<u64>() % 900));
         tokio::time::sleep(processing_time).await;
 
         // Simulate occasional errors for testing
-        if rand::random::<f64>() < 0.05 { // 5% error rate
-            return Err(ClaudeError::ServiceUnavailable("Mock service temporarily unavailable".to_string()));
+        if rand::random::<f64>() < 0.05 {
+            // 5% error rate
+            return Err(ClaudeError::ServiceUnavailable(
+                "Mock service temporarily unavailable".to_string(),
+            ));
         }
 
         let input_tokens = self.estimate_tokens(&request.description);
@@ -164,7 +171,10 @@ impl ClaudeCodeInterface {
             ),
         };
 
-        let estimated_cost = self.usage_tracker.estimate_cost_for_tokens(input_tokens, output_tokens).await;
+        let estimated_cost = self
+            .usage_tracker
+            .estimate_cost_for_tokens(input_tokens, output_tokens)
+            .await;
 
         Ok(TaskResponse {
             task_id: request.id,
@@ -196,9 +206,10 @@ impl ClaudeCodeInterface {
         }
 
         // Check if we can create a new session
-        if pool.active_sessions.len() >= self.config.session_config.max_concurrent_sessions as usize {
+        if pool.active_sessions.len() >= self.config.session_config.max_concurrent_sessions as usize
+        {
             return Err(ClaudeError::ServiceUnavailable(
-                "Maximum number of concurrent sessions reached".to_string()
+                "Maximum number of concurrent sessions reached".to_string(),
             ));
         }
 
@@ -225,14 +236,20 @@ impl ClaudeCodeInterface {
 
             // Check if session should be moved to idle pool
             let idle_threshold = Duration::from_secs(300); // 5 minutes
-            if Utc::now().signed_duration_since(active_session.last_used) > chrono::Duration::from_std(idle_threshold).unwrap_or_default() {
+            if Utc::now().signed_duration_since(active_session.last_used)
+                > chrono::Duration::from_std(idle_threshold).unwrap_or_default()
+            {
                 let session = pool.active_sessions.remove(&session.id).unwrap();
                 pool.idle_sessions.push_back(session);
             }
         }
     }
 
-    pub async fn create_task_from_description(&self, description: &str, task_type: &str) -> TaskRequest {
+    pub async fn create_task_from_description(
+        &self,
+        description: &str,
+        task_type: &str,
+    ) -> TaskRequest {
         TaskRequest {
             id: Uuid::new_v4(),
             task_type: task_type.to_string(),
@@ -268,7 +285,7 @@ impl ClaudeCodeInterface {
                 files_created: Vec::new(),
                 files_modified: Vec::new(),
                 build_artifacts: Vec::new(),
-            }
+            },
         };
         updated_task.updated_at = Utc::now();
 

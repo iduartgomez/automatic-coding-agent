@@ -1,6 +1,9 @@
 use crate::claude::ClaudeCodeInterface;
 use crate::llm::provider::LLMProvider;
-use crate::llm::types::{LLMRequest, LLMResponse, LLMError, ProviderCapabilities, ProviderStatus, ProviderConfig, RateLimitStatus};
+use crate::llm::types::{
+    LLMError, LLMRequest, LLMResponse, ProviderCapabilities, ProviderConfig, ProviderStatus,
+    RateLimitStatus,
+};
 use chrono::Utc;
 use futures::future::BoxFuture;
 use std::collections::HashMap;
@@ -51,8 +54,9 @@ impl ClaudeProvider {
             },
         };
 
-        let claude_interface = ClaudeCodeInterface::new(claude_config).await
-            .map_err(|e| LLMError::ProviderSpecific(format!("Failed to initialize Claude: {}", e)))?;
+        let claude_interface = ClaudeCodeInterface::new(claude_config).await.map_err(|e| {
+            LLMError::ProviderSpecific(format!("Failed to initialize Claude: {}", e))
+        })?;
 
         Ok(Self {
             claude_interface,
@@ -75,13 +79,24 @@ impl LLMProvider for ClaudeProvider {
             };
 
             // Execute via Claude interface
-            let claude_response = self.claude_interface.execute_task_request(claude_request).await
+            let claude_response = self
+                .claude_interface
+                .execute_task_request(claude_request)
+                .await
                 .map_err(|e| match e {
-                    crate::claude::ClaudeError::RateLimit { message, reset_time } => {
-                        LLMError::RateLimit { message, reset_time: Some(reset_time) }
+                    crate::claude::ClaudeError::RateLimit {
+                        message,
+                        reset_time,
+                    } => LLMError::RateLimit {
+                        message,
+                        reset_time: Some(reset_time),
+                    },
+                    crate::claude::ClaudeError::AuthenticationFailure(msg) => {
+                        LLMError::Authentication(msg)
                     }
-                    crate::claude::ClaudeError::AuthenticationFailure(msg) => LLMError::Authentication(msg),
-                    crate::claude::ClaudeError::InvalidRequest(msg) => LLMError::InvalidRequest(msg),
+                    crate::claude::ClaudeError::InvalidRequest(msg) => {
+                        LLMError::InvalidRequest(msg)
+                    }
                     crate::claude::ClaudeError::ContextTooLarge { current, max } => {
                         LLMError::ContextTooLarge { current, max }
                     }
@@ -91,8 +106,14 @@ impl LLMProvider for ClaudeProvider {
 
             // Convert Claude response to LLMResponse
             let mut provider_metadata = HashMap::new();
-            provider_metadata.insert("model_used".to_string(), serde_json::json!(claude_response.model_used));
-            provider_metadata.insert("tool_uses".to_string(), serde_json::json!(claude_response.tool_uses));
+            provider_metadata.insert(
+                "model_used".to_string(),
+                serde_json::json!(claude_response.model_used),
+            );
+            provider_metadata.insert(
+                "tool_uses".to_string(),
+                serde_json::json!(claude_response.tool_uses),
+            );
 
             Ok(LLMResponse {
                 request_id: request.id,
@@ -151,7 +172,9 @@ impl LLMProvider for ClaudeProvider {
             if status.is_healthy {
                 Ok(())
             } else {
-                Err(LLMError::ProviderUnavailable("Claude provider is unhealthy".to_string()))
+                Err(LLMError::ProviderUnavailable(
+                    "Claude provider is unhealthy".to_string(),
+                ))
             }
         })
     }

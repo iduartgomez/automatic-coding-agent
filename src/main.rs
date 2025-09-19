@@ -1,6 +1,6 @@
-use automatic_coding_agent::{AgentSystem, AgentConfig};
+use automatic_coding_agent::{AgentConfig, AgentSystem};
 use std::io::{self, Write};
-use tracing::{info, error};
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -69,14 +69,25 @@ async fn show_system_status(agent: &AgentSystem) -> Result<(), Box<dyn std::erro
     let status = agent.get_system_status().await?;
 
     println!("\n📊 System Status:");
-    println!("  Health: {}", if status.is_healthy { "✅ Healthy" } else { "❌ Unhealthy" });
+    println!(
+        "  Health: {}",
+        if status.is_healthy {
+            "✅ Healthy"
+        } else {
+            "❌ Unhealthy"
+        }
+    );
     println!("  Tasks: {} total", status.task_stats.total_tasks);
-    println!("  Claude: {} available tokens, {} requests",
-             status.claude_status.rate_limiter.available_tokens,
-             status.claude_status.rate_limiter.available_requests);
-    println!("  Sessions: {} active, {} idle",
-             status.claude_status.session_stats.active_sessions,
-             status.claude_status.session_stats.idle_sessions);
+    println!(
+        "  Claude: {} available tokens, {} requests",
+        status.claude_status.rate_limiter.available_tokens,
+        status.claude_status.rate_limiter.available_requests
+    );
+    println!(
+        "  Sessions: {} active, {} idle",
+        status.claude_status.session_stats.active_sessions,
+        status.claude_status.session_stats.idle_sessions
+    );
 
     Ok(())
 }

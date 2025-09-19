@@ -67,20 +67,23 @@ impl UsageTracker {
 
         let mut data = self.usage_data.lock().await;
 
-        data.sessions.insert(session_id, SessionUsage {
+        data.sessions.insert(
             session_id,
-            start_time: Utc::now(),
-            last_activity: Utc::now(),
-            token_usage: TokenUsage {
-                input_tokens: 0,
-                output_tokens: 0,
-                total_tokens: 0,
-                estimated_cost: 0.0,
+            SessionUsage {
+                session_id,
+                start_time: Utc::now(),
+                last_activity: Utc::now(),
+                token_usage: TokenUsage {
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    total_tokens: 0,
+                    estimated_cost: 0.0,
+                },
+                request_count: 0,
+                total_cost: 0.0,
+                average_response_time: Duration::from_millis(0),
             },
-            request_count: 0,
-            total_cost: 0.0,
-            average_response_time: Duration::from_millis(0),
-        });
+        );
 
         data.total_usage.total_sessions += 1;
     }
@@ -111,18 +114,23 @@ impl UsageTracker {
 
             if self.config.track_performance {
                 // Update average response time
-                let total_time = session.average_response_time.as_millis() as u64 * (session.request_count - 1) as u64
+                let total_time = session.average_response_time.as_millis() as u64
+                    * (session.request_count - 1) as u64
                     + response.execution_time.as_millis() as u64;
-                session.average_response_time = Duration::from_millis(total_time / session.request_count as u64);
+                session.average_response_time =
+                    Duration::from_millis(total_time / session.request_count as u64);
             }
         }
 
         // Update daily usage
         let date_key = now.format("%Y-%m-%d").to_string();
-        let daily = data.daily_usage.entry(date_key.clone()).or_insert_with(|| DailyUsage {
-            date: date_key,
-            ..Default::default()
-        });
+        let daily = data
+            .daily_usage
+            .entry(date_key.clone())
+            .or_insert_with(|| DailyUsage {
+                date: date_key,
+                ..Default::default()
+            });
 
         daily.request_count += 1;
         if self.config.track_tokens {
@@ -160,7 +168,8 @@ impl UsageTracker {
         let cutoff = now - self.config.history_retention;
 
         // Remove old sessions
-        data.sessions.retain(|_, session| session.last_activity > cutoff);
+        data.sessions
+            .retain(|_, session| session.last_activity > cutoff);
 
         // Remove old daily usage
         data.daily_usage.retain(|date_str, _| {
@@ -218,13 +227,16 @@ impl UsageTracker {
         }
 
         // Count unique sessions in the period
-        summary.unique_sessions = data.sessions.values()
+        summary.unique_sessions = data
+            .sessions
+            .values()
             .filter(|session| session.last_activity >= cutoff)
             .count() as u32;
 
         // Calculate averages
         if summary.total_requests > 0 {
-            summary.average_tokens_per_request = summary.total_tokens as f64 / summary.total_requests as f64;
+            summary.average_tokens_per_request =
+                summary.total_tokens as f64 / summary.total_requests as f64;
             summary.average_cost_per_request = summary.total_cost / summary.total_requests as f64;
         }
 
@@ -239,7 +251,8 @@ impl UsageTracker {
         const INPUT_COST_PER_TOKEN: f64 = 0.000003; // $3 per million tokens
         const OUTPUT_COST_PER_TOKEN: f64 = 0.000015; // $15 per million tokens
 
-        (input_tokens as f64 * INPUT_COST_PER_TOKEN) + (output_tokens as f64 * OUTPUT_COST_PER_TOKEN)
+        (input_tokens as f64 * INPUT_COST_PER_TOKEN)
+            + (output_tokens as f64 * OUTPUT_COST_PER_TOKEN)
     }
 }
 

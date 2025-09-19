@@ -122,15 +122,11 @@ impl ClaudeCodeInterface for MockClaudeInterface {
     }
 
     fn create_session(&self) -> BoxFuture<'_, Result<ClaudeSessionId>> {
-        Box::pin(async move {
-            Ok(uuid::Uuid::new_v4())
-        })
+        Box::pin(async move { Ok(uuid::Uuid::new_v4()) })
     }
 
     fn close_session(&self, _session_id: ClaudeSessionId) -> BoxFuture<'_, Result<()>> {
-        Box::pin(async move {
-            Ok(())
-        })
+        Box::pin(async move { Ok(()) })
     }
 }
 

@@ -24,9 +24,13 @@ pub struct CircuitBreaker {
 #[derive(Debug, Clone)]
 pub enum CircuitBreakerState {
     Closed,
-    Open { opened_at: DateTime<Utc> },
+    Open {
+        opened_at: DateTime<Utc>,
+    },
     #[allow(dead_code)]
-    HalfOpen { test_requests: u32 },
+    HalfOpen {
+        test_requests: u32,
+    },
 }
 
 #[derive(Debug, Default)]
@@ -50,10 +54,7 @@ impl ErrorRecoveryManager {
         }
     }
 
-    pub async fn execute_with_recovery<F, T, E>(
-        &self,
-        operation: F,
-    ) -> Result<T, ClaudeError>
+    pub async fn execute_with_recovery<F, T, E>(&self, operation: F) -> Result<T, ClaudeError>
     where
         F: Fn() -> BoxFuture<'static, Result<T, E>> + Send + Sync,
         T: Send + Sync,
@@ -123,7 +124,7 @@ impl ErrorRecoveryManager {
                 let now = Utc::now();
                 if *reset_time > now {
                     Some(Duration::from_secs(
-                        (reset_time.signed_duration_since(now).num_seconds() as u64).min(300)
+                        (reset_time.signed_duration_since(now).num_seconds() as u64).min(300),
                     ))
                 } else {
                     Some(Duration::from_secs(60)) // Default 1 minute wait
@@ -192,7 +193,9 @@ impl CircuitBreaker {
             CircuitBreakerState::Closed => true,
             CircuitBreakerState::Open { opened_at } => {
                 let elapsed = Utc::now().signed_duration_since(*opened_at);
-                elapsed >= chrono::Duration::from_std(self.config.circuit_breaker_timeout).unwrap_or_default()
+                elapsed
+                    >= chrono::Duration::from_std(self.config.circuit_breaker_timeout)
+                        .unwrap_or_default()
             }
             CircuitBreakerState::HalfOpen { test_requests } => {
                 *test_requests < 3 // Allow a few test requests
@@ -204,10 +207,11 @@ impl CircuitBreaker {
         let mut state = self.state.lock().await;
 
         if let CircuitBreakerState::HalfOpen { test_requests } = &*state
-            && *test_requests >= 2 {
-                // Enough successful test requests, close the circuit
-                *state = CircuitBreakerState::Closed;
-            }
+            && *test_requests >= 2
+        {
+            // Enough successful test requests, close the circuit
+            *state = CircuitBreakerState::Closed;
+        }
     }
 
     pub async fn record_failure(&self) {

@@ -1,4 +1,4 @@
-use crate::llm::types::{LLMRequest, LLMResponse, LLMError, ProviderCapabilities, ProviderStatus};
+use crate::llm::types::{LLMError, LLMRequest, LLMResponse, ProviderCapabilities, ProviderStatus};
 use futures::future::BoxFuture;
 use std::sync::Arc;
 
@@ -36,27 +36,33 @@ pub struct LLMProviderFactory;
 
 impl LLMProviderFactory {
     pub async fn create_provider(
-        config: crate::llm::types::ProviderConfig
+        config: crate::llm::types::ProviderConfig,
     ) -> Result<Arc<dyn LLMProvider>, LLMError> {
         match config.provider_type {
-            crate::llm::types::ProviderType::Claude => {
-                Ok(Arc::new(crate::llm::claude_provider::ClaudeProvider::new(config).await?))
-            }
+            crate::llm::types::ProviderType::Claude => Ok(Arc::new(
+                crate::llm::claude_provider::ClaudeProvider::new(config).await?,
+            )),
             crate::llm::types::ProviderType::OpenAI => {
                 // TODO: Implement OpenAI provider
-                Err(LLMError::ProviderUnavailable("OpenAI provider not yet implemented".to_string()))
+                Err(LLMError::ProviderUnavailable(
+                    "OpenAI provider not yet implemented".to_string(),
+                ))
             }
             crate::llm::types::ProviderType::Anthropic => {
                 // TODO: Implement direct Anthropic API provider
-                Err(LLMError::ProviderUnavailable("Anthropic provider not yet implemented".to_string()))
+                Err(LLMError::ProviderUnavailable(
+                    "Anthropic provider not yet implemented".to_string(),
+                ))
             }
             crate::llm::types::ProviderType::LocalModel => {
                 // TODO: Implement local model provider (e.g., Ollama)
-                Err(LLMError::ProviderUnavailable("Local model provider not yet implemented".to_string()))
+                Err(LLMError::ProviderUnavailable(
+                    "Local model provider not yet implemented".to_string(),
+                ))
             }
-            crate::llm::types::ProviderType::Custom(name) => {
-                Err(LLMError::ProviderUnavailable(format!("Custom provider '{}' not implemented", name)))
-            }
+            crate::llm::types::ProviderType::Custom(name) => Err(LLMError::ProviderUnavailable(
+                format!("Custom provider '{}' not implemented", name),
+            )),
         }
     }
 }

@@ -1,8 +1,8 @@
+pub mod claude;
+pub mod integration;
+pub mod llm;
 pub mod session;
 pub mod task;
-pub mod claude;
-pub mod llm;
-pub mod integration;
 
 // Re-export main session types
 pub use session::{SessionInitOptions, SessionManager, SessionManagerConfig, SessionMetadata};
@@ -17,4 +17,4 @@ pub use claude::{ClaudeCodeInterface, ClaudeConfig};
 pub use llm::{LLMProvider, LLMRequest, LLMResponse, ProviderConfig, ProviderType};
 
 // Re-export integration types
-pub use integration::{AgentSystem, AgentConfig, SystemStatus};
+pub use integration::{AgentConfig, AgentSystem, SystemStatus};

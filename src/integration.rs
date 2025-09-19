@@ -1,5 +1,5 @@
 use crate::claude::{ClaudeCodeInterface, ClaudeConfig};
-use crate::session::{SessionManager, SessionManagerConfig, SessionInitOptions};
+use crate::session::{SessionInitOptions, SessionManager, SessionManagerConfig};
 use crate::task::{TaskManager, TaskManagerConfig, TaskSpec, TaskStatus};
 use anyhow::Result;
 use std::sync::Arc;
@@ -27,8 +27,9 @@ impl AgentSystem {
             SessionManager::new(
                 config.workspace_path,
                 config.session_config,
-                SessionInitOptions::default()
-            ).await?
+                SessionInitOptions::default(),
+            )
+            .await?,
         );
 
         // Initialize task manager
@@ -36,8 +37,9 @@ impl AgentSystem {
 
         // Initialize Claude interface
         let claude_interface = Arc::new(
-            ClaudeCodeInterface::new(config.claude_config).await
-                .map_err(|e| anyhow::anyhow!("Failed to initialize Claude interface: {}", e))?
+            ClaudeCodeInterface::new(config.claude_config)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to initialize Claude interface: {}", e))?,
         );
 
         Ok(Self {
@@ -55,13 +57,15 @@ impl AgentSystem {
         tracing::info!("Processing task: {} - {}", task.id, task.title);
 
         // Update task status to in progress
-        self.task_manager.update_task_status(
-            task_id,
-            TaskStatus::InProgress {
-                started_at: chrono::Utc::now(),
-                estimated_completion: None,
-            }
-        ).await?;
+        self.task_manager
+            .update_task_status(
+                task_id,
+                TaskStatus::InProgress {
+                    started_at: chrono::Utc::now(),
+                    estimated_completion: None,
+                },
+            )
+            .await?;
 
         // Save current state
         self.save_session_state().await?;
@@ -72,10 +76,9 @@ impl AgentSystem {
         match result {
             Ok(completed_task) => {
                 // Update task status to completed
-                self.task_manager.update_task_status(
-                    task_id,
-                    completed_task.status
-                ).await?;
+                self.task_manager
+                    .update_task_status(task_id, completed_task.status)
+                    .await?;
 
                 // Save session state
                 self.save_session_state().await?;
@@ -85,18 +88,20 @@ impl AgentSystem {
             }
             Err(e) => {
                 // Mark task as failed
-                self.task_manager.update_task_status(
-                    task_id,
-                    TaskStatus::Failed {
-                        failed_at: chrono::Utc::now(),
-                        error: crate::task::types::TaskError::ClaudeError {
-                            message: format!("Failed: {}", e),
-                            error_code: None,
-                            retry_possible: true,
+                self.task_manager
+                    .update_task_status(
+                        task_id,
+                        TaskStatus::Failed {
+                            failed_at: chrono::Utc::now(),
+                            error: crate::task::types::TaskError::ClaudeError {
+                                message: format!("Failed: {}", e),
+                                error_code: None,
+                                retry_possible: true,
+                            },
+                            retry_count: 0,
                         },
-                        retry_count: 0,
-                    }
-                ).await?;
+                    )
+                    .await?;
 
                 self.save_session_state().await?;
 
@@ -116,7 +121,9 @@ impl AgentSystem {
             metadata: crate::task::types::TaskMetadata {
                 priority: crate::task::types::TaskPriority::Normal,
                 estimated_complexity: Some(crate::task::types::ComplexityLevel::Moderate),
-                estimated_duration: Some(chrono::Duration::from_std(std::time::Duration::from_secs(300)).unwrap()),
+                estimated_duration: Some(
+                    chrono::Duration::from_std(std::time::Duration::from_secs(300)).unwrap(),
+                ),
                 repository_refs: Vec::new(),
                 file_refs: Vec::new(),
                 tags: vec!["auto-generated".to_string()],
@@ -160,7 +167,9 @@ impl AgentSystem {
     async fn save_session_state(&self) -> Result<()> {
         // Save session
         self.session_manager.save_session().await?;
-        self.session_manager.create_checkpoint("auto_save".to_string()).await?;
+        self.session_manager
+            .create_checkpoint("auto_save".to_string())
+            .await?;
 
         Ok(())
     }

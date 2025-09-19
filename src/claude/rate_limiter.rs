@@ -80,8 +80,10 @@ impl RateLimiter {
         if state.token_bucket.current_tokens < estimated_tokens {
             let reset_time = state.token_bucket.last_refill + Duration::from_secs(60);
             return Err(ClaudeError::RateLimit {
-                message: format!("Token rate limit exceeded. Need {} tokens, have {}",
-                               estimated_tokens, state.token_bucket.current_tokens),
+                message: format!(
+                    "Token rate limit exceeded. Need {} tokens, have {}",
+                    estimated_tokens, state.token_bucket.current_tokens
+                ),
                 reset_time,
             });
         }
@@ -115,14 +117,17 @@ impl RateLimiter {
 
         // Refill token bucket
         let token_elapsed = now.signed_duration_since(state.token_bucket.last_refill);
-        if token_elapsed >= chrono::Duration::from_std(Duration::from_secs(60)).unwrap_or_default() {
+        if token_elapsed >= chrono::Duration::from_std(Duration::from_secs(60)).unwrap_or_default()
+        {
             state.token_bucket.current_tokens = self.config.max_tokens_per_minute;
             state.token_bucket.last_refill = now;
         }
 
         // Refill request bucket
         let request_elapsed = now.signed_duration_since(state.request_bucket.last_refill);
-        if request_elapsed >= chrono::Duration::from_std(Duration::from_secs(60)).unwrap_or_default() {
+        if request_elapsed
+            >= chrono::Duration::from_std(Duration::from_secs(60)).unwrap_or_default()
+        {
             state.request_bucket.current_requests = 0;
             state.request_bucket.last_refill = now;
         }
@@ -146,14 +151,16 @@ impl RateLimiter {
 
         // Calculate exponential backoff with jitter
         let base_delay = Duration::from_secs(1);
-        let multiplier = self.config.backoff_multiplier.powi(state.failure_count.min(5) as i32);
+        let multiplier = self
+            .config
+            .backoff_multiplier
+            .powi(state.failure_count.min(5) as i32);
         let delay = Duration::from_millis((base_delay.as_millis() as f64 * multiplier) as u64);
 
         // Add jitter (±10%)
         let jitter = (rand::random::<f64>() - 0.5) * 0.2;
-        let jittered_delay = Duration::from_millis(
-            ((delay.as_millis() as f64) * (1.0 + jitter)) as u64
-        );
+        let jittered_delay =
+            Duration::from_millis(((delay.as_millis() as f64) * (1.0 + jitter)) as u64);
 
         Some(jittered_delay.min(self.config.max_backoff_delay))
     }
@@ -162,7 +169,8 @@ impl RateLimiter {
         let state = self.state.lock().await;
         RateLimiterStatus {
             available_tokens: state.token_bucket.current_tokens,
-            available_requests: self.config.max_requests_per_minute as u32 - state.request_bucket.current_requests,
+            available_requests: self.config.max_requests_per_minute as u32
+                - state.request_bucket.current_requests,
             failure_count: state.failure_count,
             last_failure: state.last_failure,
         }

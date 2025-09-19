@@ -1,5 +1,5 @@
-use automatic_coding_agent::llm::{LLMProvider, LLMRequest, ProviderConfig, ProviderType};
 use automatic_coding_agent::llm::claude_provider::ClaudeProvider;
+use automatic_coding_agent::llm::{LLMProvider, LLMRequest, ProviderConfig, ProviderType};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -49,7 +49,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nExecuting request...");
     let response = provider.execute_request(request).await?;
 
-    println!("Response from {}: \n{}", response.model_used, response.content);
+    println!(
+        "Response from {}: \n{}",
+        response.model_used, response.content
+    );
     println!("Token usage: {:?}", response.token_usage);
     println!("Execution time: {:?}", response.execution_time);
 

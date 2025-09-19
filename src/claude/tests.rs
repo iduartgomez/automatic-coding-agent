@@ -76,7 +76,10 @@ async fn test_rate_limiting() {
 
     let response3 = interface.execute_task_request(request3).await;
     assert!(response3.is_err());
-    assert!(matches!(response3.unwrap_err(), ClaudeError::RateLimit { .. }));
+    assert!(matches!(
+        response3.unwrap_err(),
+        ClaudeError::RateLimit { .. }
+    ));
 }
 
 #[tokio::test]
@@ -98,7 +101,10 @@ async fn test_context_management() {
         metadata: std::collections::HashMap::new(),
     };
 
-    context_manager.add_message(session_id, message).await.unwrap();
+    context_manager
+        .add_message(session_id, message)
+        .await
+        .unwrap();
 
     let updated_context = context_manager.get_context(session_id).await.unwrap();
     assert_eq!(updated_context.messages.len(), 1);
@@ -161,7 +167,9 @@ async fn test_simple_task_creation() {
     let config = ClaudeConfig::default();
     let interface = ClaudeCodeInterface::new(config).await.unwrap();
 
-    let task_request = interface.create_task_from_description("Create a test function", "code_generation").await;
+    let task_request = interface
+        .create_task_from_description("Create a test function", "code_generation")
+        .await;
 
     assert_eq!(task_request.task_type, "code_generation");
     assert_eq!(task_request.description, "Create a test function");
