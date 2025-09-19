@@ -11,7 +11,7 @@ readme = "README.md"
 keywords = ["ai", "automation", "coding", "agent", "claude"]
 categories = ["development-tools", "command-line-utilities"]
 authors = ["Automatic Coding Agent Team"]
-rust-version = "1.89.0"
+rust-version = "1.90.0"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

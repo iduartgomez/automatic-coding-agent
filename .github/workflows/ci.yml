@@ -179,10 +179,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install Rust 1.75 (minimum supported)
+    - name: Install Rust 1.90 (minimum supported)
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: 1.75.0
+        toolchain: 1.90.0
 
     - name: Check with minimum Rust version
       run: cargo check --verbose
