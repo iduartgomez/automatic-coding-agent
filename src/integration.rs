@@ -82,7 +82,10 @@
 
 use crate::claude::{ClaudeCodeInterface, ClaudeConfig};
 use crate::session::{SessionInitOptions, SessionManager, SessionManagerConfig};
-use crate::task::{TaskManager, TaskManagerConfig, TaskSpec, TaskStatus, SetupCommand, SetupResult, ErrorHandler, ErrorStrategy, OutputCondition};
+use crate::task::{
+    ErrorHandler, ErrorStrategy, OutputCondition, SetupCommand, SetupResult, TaskManager,
+    TaskManagerConfig, TaskSpec, TaskStatus,
+};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
@@ -295,19 +298,28 @@ impl AgentSystem {
         info!("Running {} setup commands...", commands.len());
 
         for (index, cmd) in commands.iter().enumerate() {
-            info!("Executing setup command {}/{}: {}", index + 1, commands.len(), cmd.name);
+            info!(
+                "Executing setup command {}/{}: {}",
+                index + 1,
+                commands.len(),
+                cmd.name
+            );
 
             let result = Self::execute_shell_command(cmd).await?;
 
             if !result.success {
-                info!("Setup command '{}' failed with exit code: {}", cmd.name, result.exit_code);
+                info!(
+                    "Setup command '{}' failed with exit code: {}",
+                    cmd.name, result.exit_code
+                );
 
                 if let Some(handler) = &cmd.error_handler {
                     if let Err(e) = Self::handle_command_error(cmd, &result, handler).await {
                         if cmd.required {
                             return Err(anyhow::anyhow!(
                                 "Required setup command '{}' failed: {}",
-                                cmd.name, e
+                                cmd.name,
+                                e
                             ));
                         } else {
                             warn!("Optional setup command '{}' failed: {}", cmd.name, e);
@@ -316,10 +328,14 @@ impl AgentSystem {
                 } else if cmd.required {
                     return Err(anyhow::anyhow!(
                         "Required setup command '{}' failed: {}",
-                        cmd.name, result.stderr
+                        cmd.name,
+                        result.stderr
                     ));
                 } else {
-                    warn!("Optional setup command '{}' failed: {}", cmd.name, result.stderr);
+                    warn!(
+                        "Optional setup command '{}' failed: {}",
+                        cmd.name, result.stderr
+                    );
                 }
             } else {
                 info!("Setup command '{}' completed successfully", cmd.name);
@@ -342,14 +358,15 @@ impl AgentSystem {
             command.current_dir(working_dir);
         }
 
-        command.stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
 
         // Execute with timeout
         let result = if let Some(timeout) = cmd.timeout {
-            let timeout_std = timeout.to_std()
+            let timeout_std = timeout
+                .to_std()
                 .map_err(|_| anyhow::anyhow!("Invalid timeout duration: {:?}", timeout))?;
-            tokio::time::timeout(timeout_std, command.output()).await
+            tokio::time::timeout(timeout_std, command.output())
+                .await
                 .map_err(|_| anyhow::anyhow!("Command timed out after {:?}", timeout))?
         } else {
             command.output().await
@@ -388,25 +405,46 @@ impl AgentSystem {
                 warn!("Skipping failed command: {}", cmd.name);
                 Ok(())
             }
-            ErrorStrategy::Retry { max_attempts, delay } => {
-                info!("Retrying command '{}' (max {} attempts)", cmd.name, max_attempts);
+            ErrorStrategy::Retry {
+                max_attempts,
+                delay,
+            } => {
+                info!(
+                    "Retrying command '{}' (max {} attempts)",
+                    cmd.name, max_attempts
+                );
                 Self::retry_command(cmd, *max_attempts, *delay).await
             }
-            ErrorStrategy::Backup { condition, backup_command, backup_args } => {
+            ErrorStrategy::Backup {
+                condition,
+                backup_command,
+                backup_args,
+            } => {
                 if Self::should_run_backup(result, condition) {
                     info!("Running backup command for: {}", cmd.name);
-                    Self::execute_backup_command(backup_command, backup_args, &cmd.working_dir).await
+                    Self::execute_backup_command(backup_command, backup_args, &cmd.working_dir)
+                        .await
                 } else {
-                    Err(anyhow::anyhow!("Backup condition not met for: {}", cmd.name))
+                    Err(anyhow::anyhow!(
+                        "Backup condition not met for: {}",
+                        cmd.name
+                    ))
                 }
             }
         }
     }
 
     /// Retry a command with delay
-    async fn retry_command(cmd: &SetupCommand, max_attempts: u32, delay: chrono::Duration) -> Result<()> {
+    async fn retry_command(
+        cmd: &SetupCommand,
+        max_attempts: u32,
+        delay: chrono::Duration,
+    ) -> Result<()> {
         for attempt in 1..=max_attempts {
-            info!("Retry attempt {}/{} for command: {}", attempt, max_attempts, cmd.name);
+            info!(
+                "Retry attempt {}/{} for command: {}",
+                attempt, max_attempts, cmd.name
+            );
 
             if let Ok(delay_std) = delay.to_std() {
                 tokio::time::sleep(delay_std).await;
@@ -414,14 +452,19 @@ impl AgentSystem {
 
             let result = Self::execute_shell_command(cmd).await?;
             if result.success {
-                info!("Command '{}' succeeded on retry attempt {}", cmd.name, attempt);
+                info!(
+                    "Command '{}' succeeded on retry attempt {}",
+                    cmd.name, attempt
+                );
                 return Ok(());
             }
 
             if attempt == max_attempts {
                 return Err(anyhow::anyhow!(
                     "Command '{}' failed after {} attempts. Last error: {}",
-                    cmd.name, max_attempts, result.stderr
+                    cmd.name,
+                    max_attempts,
+                    result.stderr
                 ));
             }
         }
@@ -441,8 +484,7 @@ impl AgentSystem {
             command.current_dir(working_dir);
         }
 
-        command.stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        command.stdout(Stdio::piped()).stderr(Stdio::piped());
 
         let output = command.output().await?;
 
@@ -459,13 +501,18 @@ impl AgentSystem {
     fn should_run_backup(result: &SetupResult, condition: &OutputCondition) -> bool {
         // Check exit code range first
         if let Some((min, max)) = condition.exit_code_range
-            && (result.exit_code < min || result.exit_code > max) {
-                return false;
-            }
+            && (result.exit_code < min || result.exit_code > max)
+        {
+            return false;
+        }
 
         // Check for required text in output
         if let Some(must_contain) = &condition.contains {
-            let output = if condition.check_stdout { &result.stdout } else { &result.stderr };
+            let output = if condition.check_stdout {
+                &result.stdout
+            } else {
+                &result.stderr
+            };
             if !output.contains(must_contain) {
                 return false;
             }
@@ -473,7 +520,11 @@ impl AgentSystem {
 
         // Check for forbidden text in output
         if let Some(must_not_contain) = &condition.not_contains {
-            let output = if condition.check_stdout { &result.stdout } else { &result.stderr };
+            let output = if condition.check_stdout {
+                &result.stdout
+            } else {
+                &result.stderr
+            };
             if output.contains(must_not_contain) {
                 return false;
             }
@@ -531,8 +582,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_setup_command_with_working_directory() {
-        let setup_command = SetupCommand::new("test_pwd", "pwd")
-            .with_working_dir(PathBuf::from("/tmp"));
+        let setup_command =
+            SetupCommand::new("test_pwd", "pwd").with_working_dir(PathBuf::from("/tmp"));
 
         let result = AgentSystem::execute_shell_command(&setup_command).await;
         assert!(result.is_ok());
@@ -599,32 +650,39 @@ mod tests {
     async fn test_setup_commands_execution_with_optional_failure() {
         let setup_commands = vec![
             // This should succeed
-            SetupCommand::new("success_command", "echo")
-                .with_args(vec!["success".to_string()]),
-
+            SetupCommand::new("success_command", "echo").with_args(vec!["success".to_string()]),
             // This should fail but is optional
             SetupCommand::new("optional_fail", "false")
                 .optional()
                 .with_error_handler(ErrorHandler::skip("skip_false")),
-
             // This should succeed after the optional failure
-            SetupCommand::new("final_success", "echo")
-                .with_args(vec!["final".to_string()]),
+            SetupCommand::new("final_success", "echo").with_args(vec!["final".to_string()]),
         ];
 
         let result = AgentSystem::execute_setup_commands(&setup_commands).await;
-        assert!(result.is_ok(), "Setup commands should succeed even with optional failures");
+        assert!(
+            result.is_ok(),
+            "Setup commands should succeed even with optional failures"
+        );
     }
 
     #[tokio::test]
     async fn test_setup_commands_required_failure() {
         let setup_commands = vec![
-            SetupCommand::new("required_fail", "false") // This is required and will fail
+            SetupCommand::new("required_fail", "false"), // This is required and will fail
         ];
 
         let result = AgentSystem::execute_setup_commands(&setup_commands).await;
-        assert!(result.is_err(), "Required command failure should cause setup to fail");
-        assert!(result.unwrap_err().to_string().contains("Required setup command"));
+        assert!(
+            result.is_err(),
+            "Required command failure should cause setup to fail"
+        );
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Required setup command")
+        );
     }
 
     #[tokio::test]
@@ -633,7 +691,8 @@ mod tests {
             "echo",
             &vec!["backup executed".to_string()],
             &None,
-        ).await;
+        )
+        .await;
 
         assert!(result.is_ok());
     }
@@ -645,7 +704,8 @@ mod tests {
         // For now, we'll test the basic retry structure exists
         let setup_command = SetupCommand::new("test_retry", "true"); // 'true' always succeeds
 
-        let result = AgentSystem::retry_command(&setup_command, 2, Duration::milliseconds(10)).await;
+        let result =
+            AgentSystem::retry_command(&setup_command, 2, Duration::milliseconds(10)).await;
         assert!(result.is_ok());
     }
 
@@ -691,7 +751,13 @@ mod tests {
 
         let handler = ErrorHandler::retry("test_retry", 3, Duration::seconds(1));
         assert_eq!(handler.name, "test_retry");
-        assert!(matches!(handler.strategy, ErrorStrategy::Retry { max_attempts: 3, .. }));
+        assert!(matches!(
+            handler.strategy,
+            ErrorStrategy::Retry {
+                max_attempts: 3,
+                ..
+            }
+        ));
 
         let handler = ErrorHandler::backup(
             "test_backup",
@@ -725,17 +791,22 @@ mod tests {
         let config = AgentConfig::default();
 
         // Test serialization to TOML string
-        let toml_str = config.to_toml_string().expect("Failed to serialize to TOML");
+        let toml_str = config
+            .to_toml_string()
+            .expect("Failed to serialize to TOML");
         assert!(!toml_str.is_empty());
         assert!(toml_str.contains("workspace_path"));
 
         // Test deserialization from TOML string
-        let deserialized = AgentConfig::from_toml_str(&toml_str)
-            .expect("Failed to deserialize from TOML");
+        let deserialized =
+            AgentConfig::from_toml_str(&toml_str).expect("Failed to deserialize from TOML");
 
         // Compare some key fields
         assert_eq!(config.workspace_path, deserialized.workspace_path);
-        assert_eq!(config.setup_commands.len(), deserialized.setup_commands.len());
+        assert_eq!(
+            config.setup_commands.len(),
+            deserialized.setup_commands.len()
+        );
     }
 
     #[test]
@@ -749,15 +820,20 @@ mod tests {
         let temp_path = temp_file.path();
 
         // Test saving to file
-        config.to_toml_file(temp_path).expect("Failed to save config to file");
+        config
+            .to_toml_file(temp_path)
+            .expect("Failed to save config to file");
 
         // Test loading from file
-        let loaded_config = AgentConfig::from_toml_file(temp_path)
-            .expect("Failed to load config from file");
+        let loaded_config =
+            AgentConfig::from_toml_file(temp_path).expect("Failed to load config from file");
 
         // Verify the loaded config matches the original
         assert_eq!(config.workspace_path, loaded_config.workspace_path);
-        assert_eq!(config.setup_commands.len(), loaded_config.setup_commands.len());
+        assert_eq!(
+            config.setup_commands.len(),
+            loaded_config.setup_commands.len()
+        );
     }
 }
 
@@ -772,28 +848,24 @@ pub struct SystemStatus {
 impl AgentConfig {
     /// Load configuration from a TOML file
     pub fn from_toml_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
-        let content = std::fs::read_to_string(path)
-            .context("Failed to read config file")?;
+        let content = std::fs::read_to_string(path).context("Failed to read config file")?;
         Self::from_toml_str(&content)
     }
 
     /// Load configuration from a TOML string
     pub fn from_toml_str(content: &str) -> Result<Self> {
-        toml::from_str(content)
-            .context("Failed to parse TOML configuration")
+        toml::from_str(content).context("Failed to parse TOML configuration")
     }
 
     /// Save configuration to a TOML file
     pub fn to_toml_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
         let content = self.to_toml_string()?;
-        std::fs::write(path, content)
-            .context("Failed to write config file")
+        std::fs::write(path, content).context("Failed to write config file")
     }
 
     /// Convert configuration to a TOML string
     pub fn to_toml_string(&self) -> Result<String> {
-        toml::to_string_pretty(self)
-            .context("Failed to serialize configuration to TOML")
+        toml::to_string_pretty(self).context("Failed to serialize configuration to TOML")
     }
 }
 

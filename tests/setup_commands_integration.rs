@@ -1,14 +1,12 @@
+use automatic_coding_agent::task::{ErrorHandler, OutputCondition, SetupCommand};
 use automatic_coding_agent::{AgentConfig, AgentSystem};
-use automatic_coding_agent::task::{SetupCommand, ErrorHandler, OutputCondition};
 use chrono::Duration;
 use std::path::PathBuf;
 
 #[tokio::test]
 async fn test_simple_successful_command() {
-    let setup_commands = vec![
-        SetupCommand::new("check_rust", "rustc")
-            .with_args(vec!["--version".to_string()]),
-    ];
+    let setup_commands =
+        vec![SetupCommand::new("check_rust", "rustc").with_args(vec!["--version".to_string()])];
 
     let config = AgentConfig {
         workspace_path: std::env::temp_dir().join("simple_success_test"),
@@ -60,7 +58,10 @@ async fn test_optional_command_with_skip_strategy() {
     };
 
     let result = AgentSystem::new(config).await;
-    assert!(result.is_ok(), "Optional command with skip strategy should allow initialization");
+    assert!(
+        result.is_ok(),
+        "Optional command with skip strategy should allow initialization"
+    );
 }
 
 #[tokio::test]
@@ -72,7 +73,7 @@ async fn test_command_with_retry_strategy() {
             .with_error_handler(ErrorHandler::retry(
                 "retry_failing",
                 2,
-                Duration::milliseconds(100)
+                Duration::milliseconds(100),
             )),
     ];
 
@@ -83,7 +84,10 @@ async fn test_command_with_retry_strategy() {
     };
 
     let result = AgentSystem::new(config).await;
-    assert!(result.is_ok(), "Command with retry strategy should eventually succeed or be handled");
+    assert!(
+        result.is_ok(),
+        "Command with retry strategy should eventually succeed or be handled"
+    );
 }
 
 #[tokio::test]
@@ -96,7 +100,7 @@ async fn test_command_with_backup_strategy() {
                 "docker_backup",
                 OutputCondition::stderr_contains("command not found"),
                 "echo",
-                vec!["Docker not available - using alternative approach".to_string()]
+                vec!["Docker not available - using alternative approach".to_string()],
             )),
     ];
 
@@ -107,7 +111,10 @@ async fn test_command_with_backup_strategy() {
     };
 
     let result = AgentSystem::new(config).await;
-    assert!(result.is_ok(), "Command with backup strategy should handle missing commands");
+    assert!(
+        result.is_ok(),
+        "Command with backup strategy should handle missing commands"
+    );
 }
 
 #[tokio::test]
@@ -135,7 +142,10 @@ async fn test_file_creation_command() {
     assert!(result.is_ok(), "File creation command should succeed");
 
     // Verify file was created
-    assert!(temp_file.exists(), "Temporary file should have been created");
+    assert!(
+        temp_file.exists(),
+        "Temporary file should have been created"
+    );
 
     // Cleanup
     std::fs::remove_file(&temp_file).ok();
@@ -154,21 +164,15 @@ async fn test_multiple_setup_commands() {
 
     let setup_commands = vec![
         // Successful command
-        SetupCommand::new("echo_test", "echo")
-            .with_args(vec!["Hello Setup".to_string()]),
-
+        SetupCommand::new("echo_test", "echo").with_args(vec!["Hello Setup".to_string()]),
         // Command with working directory
-        SetupCommand::new("pwd_test", "pwd")
-            .with_working_dir(temp_dir.clone()),
-
+        SetupCommand::new("pwd_test", "pwd").with_working_dir(temp_dir.clone()),
         // Optional command that might fail
         SetupCommand::new("optional_fail", "false")
             .optional()
             .with_error_handler(ErrorHandler::skip("skip_false")),
-
         // Another successful command
-        SetupCommand::new("date_test", "date")
-            .with_timeout(Duration::seconds(5)),
+        SetupCommand::new("date_test", "date").with_timeout(Duration::seconds(5)),
     ];
 
     let config = AgentConfig {
@@ -178,7 +182,10 @@ async fn test_multiple_setup_commands() {
     };
 
     let result = AgentSystem::new(config).await;
-    assert!(result.is_ok(), "Multiple setup commands should work together");
+    assert!(
+        result.is_ok(),
+        "Multiple setup commands should work together"
+    );
 
     // Cleanup
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -186,14 +193,11 @@ async fn test_multiple_setup_commands() {
 
 #[tokio::test]
 async fn test_command_args_handling() {
-    let setup_commands = vec![
-        SetupCommand::new("args_test", "echo")
-            .with_args(vec![
-                "first".to_string(),
-                "second".to_string(),
-                "third argument".to_string()
-            ]),
-    ];
+    let setup_commands = vec![SetupCommand::new("args_test", "echo").with_args(vec![
+        "first".to_string(),
+        "second".to_string(),
+        "third argument".to_string(),
+    ])];
 
     let config = AgentConfig {
         workspace_path: std::env::temp_dir().join("args_test"),
@@ -202,7 +206,10 @@ async fn test_command_args_handling() {
     };
 
     let result = AgentSystem::new(config).await;
-    assert!(result.is_ok(), "Command with multiple arguments should work");
+    assert!(
+        result.is_ok(),
+        "Command with multiple arguments should work"
+    );
 }
 
 #[tokio::test]

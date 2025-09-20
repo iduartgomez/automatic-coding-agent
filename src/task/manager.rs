@@ -361,15 +361,9 @@ pub enum TaskEvent {
         new_status: TaskStatus,
     },
     /// A task has completed successfully
-    TaskCompleted {
-        task_id: TaskId,
-        result: TaskResult,
-    },
+    TaskCompleted { task_id: TaskId, result: TaskResult },
     /// A task has failed with an error
-    TaskFailed {
-        task_id: TaskId,
-        error: TaskError,
-    },
+    TaskFailed { task_id: TaskId, error: TaskError },
     /// New subtasks have been created for a parent task
     SubtasksCreated {
         parent_id: TaskId,
@@ -381,9 +375,7 @@ pub enum TaskEvent {
         merged_ids: Vec<TaskId>,
     },
     /// Task tree statistics have been updated
-    TreeStatisticsUpdated {
-        statistics: TaskTreeStatistics,
-    },
+    TreeStatisticsUpdated { statistics: TaskTreeStatistics },
 }
 
 /// Handler trait for processing task management events.

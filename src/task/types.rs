@@ -413,11 +413,11 @@ impl ComplexityLevel {
 pub struct SetupCommand {
     pub id: Uuid,
     pub name: String,
-    pub command: String,                    // Shell command to execute
-    pub args: Vec<String>,                  // Command arguments
-    pub working_dir: Option<PathBuf>,       // Optional working directory
-    pub timeout: Option<Duration>,          // Command timeout
-    pub required: bool,                     // If false, failure won't stop initialization
+    pub command: String,                     // Shell command to execute
+    pub args: Vec<String>,                   // Command arguments
+    pub working_dir: Option<PathBuf>,        // Optional working directory
+    pub timeout: Option<Duration>,           // Command timeout
+    pub required: bool,                      // If false, failure won't stop initialization
     pub error_handler: Option<ErrorHandler>, // Optional error handling strategy
 }
 
@@ -445,10 +445,7 @@ pub enum ErrorStrategy {
     /// Continue despite failure
     Skip,
     /// Retry the command with delay
-    Retry {
-        max_attempts: u32,
-        delay: Duration,
-    },
+    Retry { max_attempts: u32, delay: Duration },
     /// Run backup command based on output analysis
     Backup {
         condition: OutputCondition,
@@ -460,11 +457,11 @@ pub enum ErrorStrategy {
 /// Condition for determining when to run backup commands
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct OutputCondition {
-    pub check_stdout: bool,                     // Analyze stdout
-    pub check_stderr: bool,                     // Analyze stderr
-    pub contains: Option<String>,               // Text that must be present
-    pub not_contains: Option<String>,           // Text that must NOT be present
-    pub exit_code_range: Option<(i32, i32)>,   // Acceptable exit code range
+    pub check_stdout: bool,                  // Analyze stdout
+    pub check_stderr: bool,                  // Analyze stderr
+    pub contains: Option<String>,            // Text that must be present
+    pub not_contains: Option<String>,        // Text that must NOT be present
+    pub exit_code_range: Option<(i32, i32)>, // Acceptable exit code range
 }
 
 impl Default for SetupCommand {
@@ -486,7 +483,7 @@ impl Default for OutputCondition {
     fn default() -> Self {
         Self {
             check_stdout: false,
-            check_stderr: true,  // Default to checking stderr
+            check_stderr: true, // Default to checking stderr
             contains: None,
             not_contains: None,
             exit_code_range: None,
@@ -548,7 +545,10 @@ impl ErrorHandler {
     pub fn retry(name: &str, max_attempts: u32, delay: Duration) -> Self {
         Self {
             name: name.to_string(),
-            strategy: ErrorStrategy::Retry { max_attempts, delay },
+            strategy: ErrorStrategy::Retry {
+                max_attempts,
+                delay,
+            },
         }
     }
 
