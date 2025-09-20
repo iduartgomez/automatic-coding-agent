@@ -6,6 +6,7 @@ use crate::task::tree::TaskTree;
 use crate::task::types::*;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -24,7 +25,7 @@ pub struct SessionManager {
 }
 
 /// Configuration for session manager
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionManagerConfig {
     pub auto_save_interval_minutes: u32,
     pub auto_checkpoint_interval_minutes: u32,

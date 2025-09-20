@@ -12,8 +12,17 @@ cargo build --release
 # Run the application
 cargo run
 
-# Run tests
+# Run all tests (unit + integration)
 cargo test
+
+# Run only unit tests
+cargo test --lib
+
+# Run only integration tests
+cargo test --tests
+
+# Run specific integration test suite
+cargo test --test config_toml_integration
 
 # Check code without building
 cargo check
@@ -74,9 +83,60 @@ Example: `docs/sessions/2025-09-19-llm-abstraction-implementation.md`
 
 ## Current State
 
-This is an early-stage project with basic Rust project structure. The main implementation is planned but not yet built - currently contains only a "Hello, world!" main.rs file. The comprehensive design document in `docs/sessions/0-initial-design.md` outlines the full architecture and implementation plan.
+This project has a fully implemented Rust architecture with the following components:
+
+### ✅ **Implemented Systems**
+- **Task Management System**: Complete hierarchical task tree with scheduling, dependencies, and error handling
+- **Session Persistence**: Full state management with checkpoints and recovery
+- **Claude Integration**: LLM interface with rate limiting and context management
+- **Agent Configuration**: TOML-based configuration system with serialization/deserialization
+- **Setup Commands**: Pre-execution command system with retry, skip, and backup strategies
+
+### 🧪 **Testing Infrastructure**
+- **85 Total Tests**: 51 unit tests + 34 integration tests
+- **Integration Test Suites**:
+  - `config_toml_integration.rs` - TOML configuration testing (5 tests)
+  - `config_generation_integration.rs` - Config generation testing (5 tests)
+  - `backup_strategy_integration.rs` - Backup strategy testing (7 tests)
+  - `error_handling_integration.rs` - Error handling testing (8 tests)
+  - `setup_commands_integration.rs` - Setup commands testing (9 tests)
+
+### 📁 **Project Structure**
+```
+src/
+├── integration.rs      # Main agent system integration
+├── task/              # Task management system
+├── session/           # Session persistence system
+├── claude/            # Claude Code integration
+├── llm/              # LLM abstraction layer
+└── lib.rs            # Library exports
+
+tests/                 # Integration tests
+├── backup_strategy_integration.rs
+├── config_generation_integration.rs
+├── config_toml_integration.rs
+├── error_handling_integration.rs
+└── setup_commands_integration.rs
+
+examples/             # Usage examples
+├── default-config.toml
+└── llm_provider_example.rs
+```
+
+### 🔧 **Configuration**
+The system supports TOML-based configuration with the `AgentConfig` struct:
+
+```rust
+// Load from file
+let config = AgentConfig::from_toml_file("config.toml")?;
+
+// Save to file
+config.to_toml_file("output.toml")?;
+```
 
 # Instructions
 
 - Ensure clippy passes, and that tests pass, before commiting some work.
 - Use conventional commits standard for commit messages.
+- Document all functionality properly at module level.
+- Keep documentation updated when doing changes.

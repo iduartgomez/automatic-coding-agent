@@ -83,7 +83,8 @@
 use crate::claude::{ClaudeCodeInterface, ClaudeConfig};
 use crate::session::{SessionInitOptions, SessionManager, SessionManagerConfig};
 use crate::task::{TaskManager, TaskManagerConfig, TaskSpec, TaskStatus, SetupCommand, SetupResult, ErrorHandler, ErrorStrategy, OutputCondition};
-use anyhow::Result;
+use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Instant;
@@ -98,7 +99,7 @@ pub struct AgentSystem {
     claude_interface: Arc<ClaudeCodeInterface>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
     pub workspace_path: std::path::PathBuf,
     pub session_config: SessionManagerConfig,
@@ -718,6 +719,46 @@ mod tests {
         assert_eq!(config.setup_commands[0].name, "test1");
         assert_eq!(config.setup_commands[1].name, "test2");
     }
+
+    #[test]
+    fn test_agent_config_toml_serialization() {
+        let config = AgentConfig::default();
+
+        // Test serialization to TOML string
+        let toml_str = config.to_toml_string().expect("Failed to serialize to TOML");
+        assert!(!toml_str.is_empty());
+        assert!(toml_str.contains("workspace_path"));
+
+        // Test deserialization from TOML string
+        let deserialized = AgentConfig::from_toml_str(&toml_str)
+            .expect("Failed to deserialize from TOML");
+
+        // Compare some key fields
+        assert_eq!(config.workspace_path, deserialized.workspace_path);
+        assert_eq!(config.setup_commands.len(), deserialized.setup_commands.len());
+    }
+
+    #[test]
+    fn test_agent_config_toml_file_operations() {
+        use tempfile::NamedTempFile;
+
+        let config = AgentConfig::default();
+
+        // Create a temporary file
+        let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+        let temp_path = temp_file.path();
+
+        // Test saving to file
+        config.to_toml_file(temp_path).expect("Failed to save config to file");
+
+        // Test loading from file
+        let loaded_config = AgentConfig::from_toml_file(temp_path)
+            .expect("Failed to load config from file");
+
+        // Verify the loaded config matches the original
+        assert_eq!(config.workspace_path, loaded_config.workspace_path);
+        assert_eq!(config.setup_commands.len(), loaded_config.setup_commands.len());
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -726,6 +767,34 @@ pub struct SystemStatus {
     pub claude_status: crate::claude::interface::ClaudeInterfaceStatus,
     pub session_stats: crate::session::SessionStatistics,
     pub is_healthy: bool,
+}
+
+impl AgentConfig {
+    /// Load configuration from a TOML file
+    pub fn from_toml_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
+        let content = std::fs::read_to_string(path)
+            .context("Failed to read config file")?;
+        Self::from_toml_str(&content)
+    }
+
+    /// Load configuration from a TOML string
+    pub fn from_toml_str(content: &str) -> Result<Self> {
+        toml::from_str(content)
+            .context("Failed to parse TOML configuration")
+    }
+
+    /// Save configuration to a TOML file
+    pub fn to_toml_file<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+        let content = self.to_toml_string()?;
+        std::fs::write(path, content)
+            .context("Failed to write config file")
+    }
+
+    /// Convert configuration to a TOML string
+    pub fn to_toml_string(&self) -> Result<String> {
+        toml::to_string_pretty(self)
+            .context("Failed to serialize configuration to TOML")
+    }
 }
 
 impl Default for AgentConfig {

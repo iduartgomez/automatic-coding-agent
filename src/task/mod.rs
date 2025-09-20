@@ -51,25 +51,16 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::task::{TaskManager, TaskManagerConfig, TaskSpec, TaskPriority};
+//! use automatic_coding_agent::task::{TaskManager, TaskManagerConfig};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     let config = TaskManagerConfig::default();
 //!     let task_manager = TaskManager::new(config);
 //!
-//!     // Create a task specification
-//!     let task_spec = TaskSpec {
-//!         title: "Implement feature X".to_string(),
-//!         description: "Add new functionality to the codebase".to_string(),
-//!         // ... configure metadata, dependencies, etc.
-//!         ..Default::default()
-//!     };
+//!     // Task creation involves building TaskSpec instances
+//!     // See the manager module documentation for detailed examples
 //!
-//!     // Create and schedule the task
-//!     let task_id = task_manager.create_task(task_spec, None).await?;
-//!
-//!     // Task will be automatically scheduled and executed
 //!     Ok(())
 //! }
 //! ```

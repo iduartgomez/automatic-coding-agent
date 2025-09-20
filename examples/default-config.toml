@@ -1,0 +1,67 @@
+workspace_path = "/var/folders/1q/yn949chx1gn7v6zzg3j7xpsw0000gn/T/automatic-coding-agent"
+setup_commands = []
+
+[session_config]
+auto_save_interval_minutes = 5
+auto_checkpoint_interval_minutes = 30
+checkpoint_on_significant_progress = true
+significant_progress_threshold = 25.0
+max_session_duration_hours = 24
+enable_crash_recovery = true
+validate_on_save = true
+compress_checkpoints = false
+
+[task_config]
+auto_retry_failed_tasks = true
+max_retry_attempts = 3
+retry_delay_minutes = 5
+auto_cleanup_completed = false
+cleanup_after_hours = 24
+enable_task_metrics = true
+max_concurrent_tasks = 3
+
+[claude_config.session_config]
+max_concurrent_sessions = 3
+context_window_size = 200000
+
+[claude_config.session_config.session_timeout]
+secs = 1800
+nanos = 0
+
+[claude_config.session_config.auto_checkpoint_interval]
+secs = 300
+nanos = 0
+
+[claude_config.rate_limits]
+max_tokens_per_minute = 40000
+max_requests_per_minute = 50
+burst_allowance = 5000
+backoff_multiplier = 2.0
+
+[claude_config.rate_limits.max_backoff_delay]
+secs = 600
+nanos = 0
+
+[claude_config.context_config]
+compression_threshold = 0.8
+max_history_length = 100
+relevance_threshold = 0.3
+
+[claude_config.usage_tracking]
+track_tokens = true
+track_costs = true
+track_performance = true
+
+[claude_config.usage_tracking.history_retention]
+secs = 604800
+nanos = 0
+
+[claude_config.error_config]
+max_retries = 3
+circuit_breaker_threshold = 5
+enable_fallback_models = true
+
+[claude_config.error_config.circuit_breaker_timeout]
+secs = 300
+nanos = 0
+
