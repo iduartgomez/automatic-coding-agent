@@ -1,3 +1,85 @@
+//! # High-Level System Integration and Orchestration
+//!
+//! Combines all subsystems into a cohesive agent architecture with
+//! coordinated task processing and system-wide status monitoring.
+//!
+//! ## Core Components
+//!
+//! - **[`AgentSystem`]**: Main orchestrator coordinating all subsystems
+//! - **[`AgentConfig`]**: Unified configuration for all system components
+//! - **[`SystemStatus`]**: Comprehensive system health and performance monitoring
+//!
+//! ## System Architecture
+//!
+//! ```text
+//! ┌─────────────────────────────────────────────────┐
+//! │                 AgentSystem                     │
+//! │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐│
+//! │  │    Task     │ │   Session   │ │   Claude    ││
+//! │  │  Manager    │ │   Manager   │ │ Interface   ││
+//! │  └─────────────┘ └─────────────┘ └─────────────┘│
+//! └─────────────────────────────────────────────────┘
+//! ```
+//!
+//! ## Key Features
+//!
+//! ### 🎯 Unified Orchestration
+//! - Seamless integration of task management, session persistence, and LLM interfaces
+//! - Coordinated lifecycle management across all subsystems
+//! - Centralized configuration and initialization
+//! - Graceful startup and shutdown procedures
+//!
+//! ### 🔄 End-to-End Task Processing
+//! - Complete task lifecycle from creation to completion
+//! - Automatic state persistence at each stage
+//! - Error handling and recovery across system boundaries
+//! - Progress tracking and status reporting
+//!
+//! ### 📊 System Monitoring
+//! - Real-time health monitoring across all components
+//! - Performance metrics aggregation and reporting
+//! - Resource utilization tracking
+//! - Unified status reporting interface
+//!
+//! ### 🛡️ Fault Tolerance
+//! - Graceful error handling across subsystem boundaries
+//! - Automatic recovery from transient failures
+//! - State consistency maintenance during errors
+//! - Rollback capabilities for failed operations
+//!
+//! ### ⚙️ Configuration Management
+//! - Unified configuration interface for all subsystems
+//! - Environment-based configuration loading
+//! - Runtime configuration updates
+//! - Validation and error reporting
+//!
+//! ## Example Usage
+//!
+//! ```rust,no_run
+//! use automatic_coding_agent::{AgentSystem, AgentConfig};
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Initialize with default configuration
+//!     let config = AgentConfig::default();
+//!     let agent = AgentSystem::new(config).await?;
+//!
+//!     // Create and process a task
+//!     let task_id = agent.create_and_process_task(
+//!         "Implement REST API",
+//!         "Create a new REST API endpoint for user management"
+//!     ).await?;
+//!
+//!     // Monitor system status
+//!     let status = agent.get_system_status().await?;
+//!     println!("System health: {}", status.is_healthy);
+//!
+//!     // Graceful shutdown
+//!     agent.shutdown().await?;
+//!     Ok(())
+//! }
+//! ```
+
 use crate::claude::{ClaudeCodeInterface, ClaudeConfig};
 use crate::session::{SessionInitOptions, SessionManager, SessionManagerConfig};
 use crate::task::{TaskManager, TaskManagerConfig, TaskSpec, TaskStatus};
