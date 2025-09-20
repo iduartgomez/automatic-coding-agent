@@ -403,3 +403,201 @@ impl ComplexityLevel {
         }
     }
 }
+
+// ============================================================================
+// Setup Commands and Error Handling
+// ============================================================================
+
+/// Setup command to run before the main instruction loop
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SetupCommand {
+    pub id: Uuid,
+    pub name: String,
+    pub command: String,                    // Shell command to execute
+    pub args: Vec<String>,                  // Command arguments
+    pub working_dir: Option<PathBuf>,       // Optional working directory
+    pub timeout: Option<Duration>,          // Command timeout
+    pub required: bool,                     // If false, failure won't stop initialization
+    pub error_handler: Option<ErrorHandler>, // Optional error handling strategy
+}
+
+/// Result of executing a setup command
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SetupResult {
+    pub command_id: Uuid,
+    pub success: bool,
+    pub exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+    pub duration: Duration,
+}
+
+/// Error handler for setup commands
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ErrorHandler {
+    pub name: String,
+    pub strategy: ErrorStrategy,
+}
+
+/// Strategy for handling setup command errors
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum ErrorStrategy {
+    /// Continue despite failure
+    Skip,
+    /// Retry the command with delay
+    Retry {
+        max_attempts: u32,
+        delay: Duration,
+    },
+    /// Run backup command based on output analysis
+    Backup {
+        condition: OutputCondition,
+        backup_command: String,
+        backup_args: Vec<String>,
+    },
+}
+
+/// Condition for determining when to run backup commands
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct OutputCondition {
+    pub check_stdout: bool,                     // Analyze stdout
+    pub check_stderr: bool,                     // Analyze stderr
+    pub contains: Option<String>,               // Text that must be present
+    pub not_contains: Option<String>,           // Text that must NOT be present
+    pub exit_code_range: Option<(i32, i32)>,   // Acceptable exit code range
+}
+
+impl Default for SetupCommand {
+    fn default() -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            name: String::new(),
+            command: String::new(),
+            args: Vec::new(),
+            working_dir: None,
+            timeout: Some(Duration::seconds(30)), // Default 30 second timeout
+            required: true,
+            error_handler: None,
+        }
+    }
+}
+
+impl Default for OutputCondition {
+    fn default() -> Self {
+        Self {
+            check_stdout: false,
+            check_stderr: true,  // Default to checking stderr
+            contains: None,
+            not_contains: None,
+            exit_code_range: None,
+        }
+    }
+}
+
+impl SetupCommand {
+    /// Create a new setup command
+    pub fn new(name: &str, command: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            command: command.to_string(),
+            ..Default::default()
+        }
+    }
+
+    /// Add arguments to the command
+    pub fn with_args(mut self, args: Vec<String>) -> Self {
+        self.args = args;
+        self
+    }
+
+    /// Set working directory
+    pub fn with_working_dir(mut self, dir: PathBuf) -> Self {
+        self.working_dir = Some(dir);
+        self
+    }
+
+    /// Set timeout
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+
+    /// Mark as optional (not required)
+    pub fn optional(mut self) -> Self {
+        self.required = false;
+        self
+    }
+
+    /// Add error handler
+    pub fn with_error_handler(mut self, handler: ErrorHandler) -> Self {
+        self.error_handler = Some(handler);
+        self
+    }
+}
+
+impl ErrorHandler {
+    /// Create a skip error handler
+    pub fn skip(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            strategy: ErrorStrategy::Skip,
+        }
+    }
+
+    /// Create a retry error handler
+    pub fn retry(name: &str, max_attempts: u32, delay: Duration) -> Self {
+        Self {
+            name: name.to_string(),
+            strategy: ErrorStrategy::Retry { max_attempts, delay },
+        }
+    }
+
+    /// Create a backup error handler
+    pub fn backup(
+        name: &str,
+        condition: OutputCondition,
+        backup_command: &str,
+        backup_args: Vec<String>,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            strategy: ErrorStrategy::Backup {
+                condition,
+                backup_command: backup_command.to_string(),
+                backup_args,
+            },
+        }
+    }
+}
+
+impl OutputCondition {
+    /// Check if stderr contains a specific string
+    pub fn stderr_contains(text: &str) -> Self {
+        Self {
+            check_stdout: false,
+            check_stderr: true,
+            contains: Some(text.to_string()),
+            not_contains: None,
+            exit_code_range: None,
+        }
+    }
+
+    /// Check if stdout contains a specific string
+    pub fn stdout_contains(text: &str) -> Self {
+        Self {
+            check_stdout: true,
+            check_stderr: false,
+            contains: Some(text.to_string()),
+            not_contains: None,
+            exit_code_range: None,
+        }
+    }
+
+    /// Check exit code is within range
+    pub fn exit_code_range(min: i32, max: i32) -> Self {
+        Self {
+            exit_code_range: Some((min, max)),
+            ..Default::default()
+        }
+    }
+}
