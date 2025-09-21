@@ -687,12 +687,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_backup_command_execution() {
-        let result = AgentSystem::execute_backup_command(
-            "echo",
-            &["backup executed".to_string()],
-            &None,
-        )
-        .await;
+        let result =
+            AgentSystem::execute_backup_command("echo", &["backup executed".to_string()], &None)
+                .await;
 
         assert!(result.is_ok());
     }
