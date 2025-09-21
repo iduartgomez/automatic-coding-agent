@@ -7,6 +7,6 @@ pub mod args;
 pub mod config;
 pub mod tasks;
 
-pub use args::{Args, ExecutionMode, BatchConfig, InteractiveConfig};
+pub use args::{Args, BatchConfig, ExecutionMode, InteractiveConfig};
 pub use config::{ConfigDiscovery, DefaultAgentConfig};
-pub use tasks::{TaskInput, TaskLoader, SimpleTask, FileError};
+pub use tasks::{FileError, SimpleTask, TaskInput, TaskLoader};

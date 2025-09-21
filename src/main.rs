@@ -1,9 +1,8 @@
-use automatic_coding_agent::{AgentConfig, AgentSystem};
 use automatic_coding_agent::cli::{
-    Args, ExecutionMode, BatchConfig, InteractiveConfig,
-    TaskInput, TaskLoader, ConfigDiscovery,
-    args::{show_help, show_version}
+    Args, BatchConfig, ConfigDiscovery, ExecutionMode, InteractiveConfig, TaskInput, TaskLoader,
+    args::{show_help, show_version},
 };
+use automatic_coding_agent::{AgentConfig, AgentSystem};
 use std::io::{self, Write};
 use tracing::{error, info};
 
@@ -46,7 +45,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Running in batch mode with task input: {:?}", config.task_input);
+    info!(
+        "Running in batch mode with task input: {:?}",
+        config.task_input
+    );
 
     // Discover and load configuration
     let agent_config = if let Some(ref config_override) = config.config_override {
@@ -137,7 +139,10 @@ async fn run_legacy_config_mode(
     let agent_config = AgentConfig::from_toml_file(config_path)?;
 
     if config.verbose {
-        println!("📁 Loaded legacy configuration with {} setup commands", agent_config.setup_commands.len());
+        println!(
+            "📁 Loaded legacy configuration with {} setup commands",
+            agent_config.setup_commands.len()
+        );
     }
 
     if config.dry_run {

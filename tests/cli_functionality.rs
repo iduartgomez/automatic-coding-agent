@@ -3,9 +3,7 @@
 //! These tests verify that the different CLI components work together properly.
 //! Unit tests for individual functions are located in the respective module files.
 
-use automatic_coding_agent::cli::{
-    TaskLoader, ConfigDiscovery, DefaultAgentConfig
-};
+use automatic_coding_agent::cli::{ConfigDiscovery, DefaultAgentConfig, TaskLoader};
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -16,7 +14,8 @@ fn test_task_list_parsing_various_formats() {
 
     // Create task list with various formats
     let task_list = temp_dir.path().join("tasks.md");
-    fs::write(&task_list,
+    fs::write(
+        &task_list,
         "# Task List\n\n\
          - [ ] Create a simple text file with content 'Test File 1'\n\
          - [x] This task is already done (should be included)\n\
@@ -32,8 +31,9 @@ fn test_task_list_parsing_various_formats() {
          # Comments should be ignored\n\
          // This is also a comment\n\
          \n\
-         Plain text task without formatting"
-    ).unwrap();
+         Plain text task without formatting",
+    )
+    .unwrap();
 
     let tasks = TaskLoader::parse_task_list(&task_list).unwrap();
 
@@ -42,10 +42,26 @@ fn test_task_list_parsing_various_formats() {
 
     // Check some specific tasks
     assert!(tasks.iter().any(|t| t.description.contains("Test File 1")));
-    assert!(tasks.iter().any(|t| t.description.contains("Hello from task 3")));
-    assert!(tasks.iter().any(|t| t.description.contains("Numbered task output")));
-    assert!(tasks.iter().any(|t| t.description.contains("Org mode task completed")));
-    assert!(tasks.iter().any(|t| t.description.contains("Plain text task")));
+    assert!(
+        tasks
+            .iter()
+            .any(|t| t.description.contains("Hello from task 3"))
+    );
+    assert!(
+        tasks
+            .iter()
+            .any(|t| t.description.contains("Numbered task output"))
+    );
+    assert!(
+        tasks
+            .iter()
+            .any(|t| t.description.contains("Org mode task completed"))
+    );
+    assert!(
+        tasks
+            .iter()
+            .any(|t| t.description.contains("Plain text task"))
+    );
 }
 
 #[test]
@@ -60,10 +76,14 @@ fn test_task_reference_resolution() {
 
     // Create task list with reference
     let task_list = temp_dir.path().join("tasks.txt");
-    fs::write(&task_list,
-        format!("- Complete the documented task -> {}\n- Simple task without reference",
-                reference_file.file_name().unwrap().to_string_lossy())
-    ).unwrap();
+    fs::write(
+        &task_list,
+        format!(
+            "- Complete the documented task -> {}\n- Simple task without reference",
+            reference_file.file_name().unwrap().to_string_lossy()
+        ),
+    )
+    .unwrap();
 
     let mut tasks = TaskLoader::parse_task_list(&task_list).unwrap();
     assert_eq!(tasks.len(), 2);
@@ -88,9 +108,11 @@ fn test_task_reference_resolution_missing_file() {
 
     // Create task list with reference to non-existent file
     let task_list = temp_dir.path().join("tasks.txt");
-    fs::write(&task_list,
-        "- Task with missing reference -> nonexistent_file.md"
-    ).unwrap();
+    fs::write(
+        &task_list,
+        "- Task with missing reference -> nonexistent_file.md",
+    )
+    .unwrap();
 
     let mut tasks = TaskLoader::parse_task_list(&task_list).unwrap();
     assert_eq!(tasks.len(), 1);
@@ -164,10 +186,14 @@ fn test_default_agent_config_serialization() {
     let deserialized: DefaultAgentConfig = toml::from_str(&toml_str).unwrap();
 
     // Key fields should match
-    assert_eq!(config.session_config.auto_save_interval_minutes,
-               deserialized.session_config.auto_save_interval_minutes);
-    assert_eq!(config.task_config.max_concurrent_tasks,
-               deserialized.task_config.max_concurrent_tasks);
+    assert_eq!(
+        config.session_config.auto_save_interval_minutes,
+        deserialized.session_config.auto_save_interval_minutes
+    );
+    assert_eq!(
+        config.task_config.max_concurrent_tasks,
+        deserialized.task_config.max_concurrent_tasks
+    );
 }
 
 #[test]
@@ -185,10 +211,14 @@ fn test_config_file_operations() {
     let loaded_config = DefaultAgentConfig::from_toml_file(&config_path).unwrap();
 
     // Should match
-    assert_eq!(original_config.session_config.auto_save_interval_minutes,
-               loaded_config.session_config.auto_save_interval_minutes);
-    assert_eq!(original_config.task_config.max_concurrent_tasks,
-               loaded_config.task_config.max_concurrent_tasks);
+    assert_eq!(
+        original_config.session_config.auto_save_interval_minutes,
+        loaded_config.session_config.auto_save_interval_minutes
+    );
+    assert_eq!(
+        original_config.task_config.max_concurrent_tasks,
+        loaded_config.task_config.max_concurrent_tasks
+    );
 }
 
 #[test]
@@ -201,7 +231,10 @@ fn test_extension_agnostic_file_support() {
         ("task.txt", "Plain text task: Generate simple output"),
         ("task.org", "* Org Mode Task\nProcess org-mode content"),
         ("task.yaml", "# YAML-style task\ntask: Process YAML content"),
-        ("task", "No extension task: Process content without extension"),
+        (
+            "task",
+            "No extension task: Process content without extension",
+        ),
     ];
 
     for (filename, content) in test_files {
@@ -222,15 +255,21 @@ fn test_comprehensive_task_parsing_workflow() {
 
     // 1. Create reference files
     let ref1 = temp_dir.path().join("details1.txt");
-    fs::write(&ref1, "Reference 1: Create a text file named 'output1.txt' with content 'Hello World 1'").unwrap();
+    fs::write(
+        &ref1,
+        "Reference 1: Create a text file named 'output1.txt' with content 'Hello World 1'",
+    )
+    .unwrap();
 
     let ref2 = temp_dir.path().join("specs.md");
     fs::write(&ref2, "# Specifications\n\nCreate output2.txt with content:\n- Line 1: Hello World 2\n- Line 2: Task completed").unwrap();
 
     // 2. Create task list with mixed formats and references
     let task_list = temp_dir.path().join("comprehensive_tasks.md");
-    fs::write(&task_list, format!(
-        "# Comprehensive Task List\n\n\
+    fs::write(
+        &task_list,
+        format!(
+            "# Comprehensive Task List\n\n\
          - [ ] Simple echo task: Output 'Basic task completed'\n\
          - [x] Reference task with details -> {}\n\
          * Create greeting: Echo 'Hello from bullet task'\n\
@@ -244,9 +283,11 @@ fn test_comprehensive_task_parsing_workflow() {
          * DONE This was already finished\n\
          \n\
          Plain task: Echo 'Plain text task finished'",
-        ref1.file_name().unwrap().to_string_lossy(),
-        ref2.file_name().unwrap().to_string_lossy()
-    )).unwrap();
+            ref1.file_name().unwrap().to_string_lossy(),
+            ref2.file_name().unwrap().to_string_lossy()
+        ),
+    )
+    .unwrap();
 
     // 3. Parse task list
     let mut tasks = TaskLoader::parse_task_list(&task_list).unwrap();
@@ -262,13 +303,15 @@ fn test_comprehensive_task_parsing_workflow() {
     TaskLoader::resolve_task_references(&mut tasks).unwrap();
 
     // Referenced tasks should now contain reference content
-    let task_with_ref1 = tasks.iter()
+    let task_with_ref1 = tasks
+        .iter()
         .find(|t| t.description.contains("Reference 1"))
         .expect("Should find task with reference 1");
     assert!(task_with_ref1.description.contains("output1.txt"));
     assert!(task_with_ref1.description.contains("Hello World 1"));
 
-    let task_with_ref2 = tasks.iter()
+    let task_with_ref2 = tasks
+        .iter()
         .find(|t| t.description.contains("Specifications"))
         .expect("Should find task with reference 2");
     assert!(task_with_ref2.description.contains("output2.txt"));

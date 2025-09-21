@@ -20,7 +20,10 @@ pub enum FileError {
     NotFound { path: PathBuf },
 
     #[error("IO error reading '{path}': {source}")]
-    IoError { path: PathBuf, source: std::io::Error },
+    IoError {
+        path: PathBuf,
+        source: std::io::Error,
+    },
 
     #[error("Referenced file '{path}' could not be loaded: {reason}")]
     ReferenceError { path: PathBuf, reason: String },
@@ -60,25 +63,23 @@ impl TaskLoader {
 
         match fs::read_to_string(&path) {
             Ok(content) => {
-                debug!("Successfully loaded {} characters from {:?}", content.len(), path);
+                debug!(
+                    "Successfully loaded {} characters from {:?}",
+                    content.len(),
+                    path
+                );
                 Ok(Utf8File { path, content })
             }
-            Err(e) => {
-                match e.kind() {
-                    std::io::ErrorKind::NotFound => {
-                        Err(FileError::NotFound { path })
-                    }
-                    std::io::ErrorKind::InvalidData => {
-                        Err(FileError::NotUtf8 {
-                            path,
-                            hint: "File appears to be binary. Only UTF-8 text files are supported for tasks.".to_string(),
-                        })
-                    }
-                    _ => {
-                        Err(FileError::IoError { path, source: e })
-                    }
-                }
-            }
+            Err(e) => match e.kind() {
+                std::io::ErrorKind::NotFound => Err(FileError::NotFound { path }),
+                std::io::ErrorKind::InvalidData => Err(FileError::NotUtf8 {
+                    path,
+                    hint:
+                        "File appears to be binary. Only UTF-8 text files are supported for tasks."
+                            .to_string(),
+                }),
+                _ => Err(FileError::IoError { path, source: e }),
+            },
         }
     }
 
@@ -108,7 +109,10 @@ impl TaskLoader {
     }
 
     /// Parse task list content - handles various text formats
-    fn parse_task_list_content(content: &str, source_path: &Path) -> Result<Vec<SimpleTask>, FileError> {
+    fn parse_task_list_content(
+        content: &str,
+        source_path: &Path,
+    ) -> Result<Vec<SimpleTask>, FileError> {
         let mut tasks = Vec::new();
 
         for (line_num, line) in content.lines().enumerate() {
@@ -126,7 +130,11 @@ impl TaskLoader {
                 continue; // Skip unrecognized lines
             };
 
-            debug!("Parsed task from line {}: {}", line_num + 1, &task.description[..task.description.len().min(50)]);
+            debug!(
+                "Parsed task from line {}: {}",
+                line_num + 1,
+                &task.description[..task.description.len().min(50)]
+            );
             tasks.push(task);
         }
 
@@ -168,7 +176,10 @@ impl TaskLoader {
         let line = line.trim();
 
         // Markdown task list: "- [ ] task" or "- [x] task" or "* task"
-        if let Some(rest) = line.strip_prefix("- [ ]").or_else(|| line.strip_prefix("- [x]")) {
+        if let Some(rest) = line
+            .strip_prefix("- [ ]")
+            .or_else(|| line.strip_prefix("- [x]"))
+        {
             return rest.trim().to_string();
         }
         if let Some(rest) = line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")) {
@@ -176,7 +187,10 @@ impl TaskLoader {
         }
 
         // Org-mode tasks: "* TODO task" or "* DONE task"
-        if let Some(rest) = line.strip_prefix("* TODO ").or_else(|| line.strip_prefix("* DONE ")) {
+        if let Some(rest) = line
+            .strip_prefix("* TODO ")
+            .or_else(|| line.strip_prefix("* DONE "))
+        {
             return rest.trim().to_string();
         }
         if let Some(rest) = line.strip_prefix("* ") {
@@ -207,7 +221,10 @@ impl TaskLoader {
             }
         };
 
-        debug!("Resolved reference '{}' to: {:?}", reference, reference_path);
+        debug!(
+            "Resolved reference '{}' to: {:?}",
+            reference, reference_path
+        );
 
         Ok(reference_path)
     }
@@ -241,7 +258,6 @@ impl TaskLoader {
 
     /// Convert simple tasks to AgentSystem tasks
     pub fn tasks_to_agent_commands(tasks: Vec<SimpleTask>) -> Vec<SetupCommand> {
-
         tasks
             .into_iter()
             .enumerate()
@@ -284,14 +300,16 @@ mod tests {
     #[test]
     fn test_parse_task_list_markdown() {
         let temp_file = NamedTempFile::new().unwrap();
-        fs::write(&temp_file,
+        fs::write(
+            &temp_file,
             "- [ ] Fix authentication bug\n\
              - [x] Add tests\n\
              * Update documentation\n\
              # This is a comment\n\
              \n\
-             - [ ] Deploy to staging"
-        ).unwrap();
+             - [ ] Deploy to staging",
+        )
+        .unwrap();
 
         let tasks = TaskLoader::parse_task_list(temp_file.path()).unwrap();
         assert_eq!(tasks.len(), 4);
@@ -304,10 +322,12 @@ mod tests {
     #[test]
     fn test_parse_task_with_reference() {
         let temp_file = NamedTempFile::new().unwrap();
-        fs::write(&temp_file,
+        fs::write(
+            &temp_file,
             "Fix memory leak -> analysis.md\n\
-             Add logging"
-        ).unwrap();
+             Add logging",
+        )
+        .unwrap();
 
         let tasks = TaskLoader::parse_task_list(temp_file.path()).unwrap();
         assert_eq!(tasks.len(), 2);
@@ -319,10 +339,22 @@ mod tests {
 
     #[test]
     fn test_extract_task_description_formats() {
-        assert_eq!(TaskLoader::extract_task_description("- [ ] Todo item"), "Todo item");
-        assert_eq!(TaskLoader::extract_task_description("* TODO Org task"), "TODO Org task");
-        assert_eq!(TaskLoader::extract_task_description("1. Numbered task"), "Numbered task");
-        assert_eq!(TaskLoader::extract_task_description("Plain text task"), "Plain text task");
+        assert_eq!(
+            TaskLoader::extract_task_description("- [ ] Todo item"),
+            "Todo item"
+        );
+        assert_eq!(
+            TaskLoader::extract_task_description("* TODO Org task"),
+            "TODO Org task"
+        );
+        assert_eq!(
+            TaskLoader::extract_task_description("1. Numbered task"),
+            "Numbered task"
+        );
+        assert_eq!(
+            TaskLoader::extract_task_description("Plain text task"),
+            "Plain text task"
+        );
     }
 
     #[test]

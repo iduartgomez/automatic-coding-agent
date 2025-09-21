@@ -200,7 +200,10 @@ pub fn show_help() {
     println!("EXAMPLES:");
     println!();
     println!("  # Execute a single task from any text file");
-    println!("    {} --task-file implement_auth.md", env!("CARGO_PKG_NAME"));
+    println!(
+        "    {} --task-file implement_auth.md",
+        env!("CARGO_PKG_NAME")
+    );
     println!("    {} --task-file bug_report.txt", env!("CARGO_PKG_NAME"));
     println!("    {} --task-file requirements", env!("CARGO_PKG_NAME"));
     println!();
@@ -209,8 +212,14 @@ pub fn show_help() {
     println!("    {} --tasks task_list.org", env!("CARGO_PKG_NAME"));
     println!();
     println!("  # Use with options");
-    println!("    {} --task-file task.md --verbose --dry-run", env!("CARGO_PKG_NAME"));
-    println!("    {} --tasks todos.txt --workspace /path/to/project", env!("CARGO_PKG_NAME"));
+    println!(
+        "    {} --task-file task.md --verbose --dry-run",
+        env!("CARGO_PKG_NAME")
+    );
+    println!(
+        "    {} --tasks todos.txt --workspace /path/to/project",
+        env!("CARGO_PKG_NAME")
+    );
     println!();
     println!("  # Interactive mode");
     println!("    {} --interactive", env!("CARGO_PKG_NAME"));
@@ -240,11 +249,8 @@ mod tests {
     #[test]
     fn test_task_input_determination() {
         // Single task file
-        let result = Args::determine_task_input(
-            None,
-            Some(PathBuf::from("task.md")),
-            None,
-        ).unwrap();
+        let result =
+            Args::determine_task_input(None, Some(PathBuf::from("task.md")), None).unwrap();
 
         if let TaskInput::SingleFile(path) = result {
             assert_eq!(path, PathBuf::from("task.md"));
@@ -253,11 +259,8 @@ mod tests {
         }
 
         // Task list
-        let result = Args::determine_task_input(
-            None,
-            None,
-            Some(PathBuf::from("tasks.txt")),
-        ).unwrap();
+        let result =
+            Args::determine_task_input(None, None, Some(PathBuf::from("tasks.txt"))).unwrap();
 
         if let TaskInput::TaskList(path) = result {
             assert_eq!(path, PathBuf::from("tasks.txt"));
@@ -266,11 +269,8 @@ mod tests {
         }
 
         // Config with tasks
-        let result = Args::determine_task_input(
-            Some(PathBuf::from("config.toml")),
-            None,
-            None,
-        ).unwrap();
+        let result =
+            Args::determine_task_input(Some(PathBuf::from("config.toml")), None, None).unwrap();
 
         if let TaskInput::ConfigWithTasks(path) = result {
             assert_eq!(path, PathBuf::from("config.toml"));

@@ -6,7 +6,9 @@
 //! 3. System config: /etc/aca/config.toml
 //! 4. Built-in defaults
 
-use crate::{AgentConfig, session::SessionManagerConfig, task::TaskManagerConfig, claude::ClaudeConfig};
+use crate::{
+    AgentConfig, claude::ClaudeConfig, session::SessionManagerConfig, task::TaskManagerConfig,
+};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::{env, fs};
@@ -133,8 +135,7 @@ impl ConfigDiscovery {
 
     /// Create a default config file in the user's home directory
     pub fn create_default_user_config() -> Result<PathBuf, Box<dyn std::error::Error>> {
-        let home_dir = Self::get_home_dir()
-            .ok_or("Could not determine home directory")?;
+        let home_dir = Self::get_home_dir().ok_or("Could not determine home directory")?;
 
         let config_dir = home_dir.join(".aca");
         let config_path = config_dir.join("config.toml");
