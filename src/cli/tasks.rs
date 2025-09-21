@@ -256,20 +256,6 @@ impl TaskLoader {
         Ok(())
     }
 
-    /// Convert simple tasks to AgentSystem tasks
-    pub fn tasks_to_agent_commands(tasks: Vec<SimpleTask>) -> Vec<SetupCommand> {
-        tasks
-            .into_iter()
-            .enumerate()
-            .map(|(i, task)| {
-                let name = format!("task_{}", i + 1);
-                // For now, create a simple echo command with the task description
-                // In the future, this should integrate with Claude Code directly
-                SetupCommand::new(&name, "echo")
-                    .with_args(vec![format!("Task: {}", task.description)])
-            })
-            .collect()
-    }
 }
 
 #[cfg(test)]

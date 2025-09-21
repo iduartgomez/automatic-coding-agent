@@ -103,21 +103,52 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
         return Ok(());
     }
 
-    // Convert tasks to agent commands and create final config
-    let setup_commands = TaskLoader::tasks_to_agent_commands(tasks);
-    let final_agent_config = AgentConfig {
-        setup_commands,
-        ..agent_config
-    };
-
-    // Initialize and run agent system
+    // Initialize agent system
     info!("Initializing agent system for batch execution...");
-    let agent = AgentSystem::new(final_agent_config).await?;
+    let agent = AgentSystem::new(agent_config).await?;
 
     info!("Agent system initialized successfully!");
 
+    // Process each task using the same pattern as interactive mode
+    let mut successful_tasks = 0;
+    let total_tasks = tasks.len();
+
+    for (i, task) in tasks.into_iter().enumerate() {
+        let task_num = i + 1;
+        info!("Processing task {}/{}: {}", task_num, total_tasks, task.description);
+
+        if config.verbose {
+            println!("🔄 Processing task {}/{}: {}", task_num, total_tasks,
+                if task.description.len() > 100 {
+                    format!("{}...", &task.description[..97])
+                } else {
+                    task.description.clone()
+                });
+        }
+
+        match agent.create_and_process_task(&format!("Batch Task {}", task_num), &task.description).await {
+            Ok(task_id) => {
+                info!("Task {}/{} completed successfully! Task ID: {}", task_num, total_tasks, task_id);
+                if config.verbose {
+                    println!("✅ Task {}/{} completed: {}", task_num, total_tasks, task_id);
+                }
+                successful_tasks += 1;
+            }
+            Err(e) => {
+                error!("Task {}/{} failed: {}", task_num, total_tasks, e);
+                if config.verbose {
+                    println!("❌ Task {}/{} failed: {}", task_num, total_tasks, e);
+                }
+            }
+        }
+    }
+
     if config.verbose {
-        println!("✅ All tasks completed successfully!");
+        if successful_tasks == total_tasks {
+            println!("✅ All {} tasks completed successfully!", total_tasks);
+        } else {
+            println!("⚠️  {}/{} tasks completed successfully", successful_tasks, total_tasks);
+        }
     }
 
     // Graceful shutdown

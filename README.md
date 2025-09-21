@@ -6,7 +6,7 @@
 [![Documentation](https://docs.rs/automatic-coding-agent/badge.svg)](https://docs.rs/automatic-coding-agent)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Rust-based agentic tool that automates coding tasks using multiple LLM providers. The system operates with dynamic task trees, comprehensive session persistence, and full resumability for long-running automated coding sessions. Features a provider-agnostic LLM interface supporting Claude, OpenAI, and local models.
+A Rust-based agentic tool that automates coding tasks using multiple LLM providers. The system operates with dynamic task trees, comprehensive session persistence, and full resumability for long-running automated coding sessions. Features a provider-agnostic LLM interface supporting Claude, OpenAI, and local models with both CLI and library interfaces.
 
 ## Features
 
@@ -41,7 +41,7 @@ A Rust-based agentic tool that automates coding tasks using multiple LLM provide
 ## Quick Start
 
 ### Prerequisites
-- Rust 1.75.0 or later
+- Rust 1.90.0 or later
 - Cargo
 
 ### Installation
@@ -63,42 +63,40 @@ cargo run
 
 ### Usage
 
+#### CLI Interface
+
+```bash
+# Start the agent with default configuration
+cargo run
+
+# Show help and available commands
+cargo run -- --help
+
+# Generate default configuration
+cargo run -- --generate-config
+
+# Specify custom config file
+cargo run -- --config /path/to/config.toml
+```
+
+#### Library Interface
+
 ```rust
-use automatic_coding_agent::{
-    SessionManager, SessionManagerConfig, SessionInitOptions,
-    TaskManager, TaskManagerConfig, TaskSpec
-};
+use automatic_coding_agent::{AgentSystem, AgentConfig};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize session manager
-    let session_config = SessionManagerConfig::default();
-    let init_options = SessionInitOptions {
-        name: "My Coding Session".to_string(),
-        workspace_root: std::env::current_dir()?,
-        enable_auto_save: true,
-        ..Default::default()
-    };
+    // Initialize the agent system
+    let config = AgentConfig::default();
+    let agent = AgentSystem::new(config).await?;
 
-    let session_manager = SessionManager::new(
-        "/path/to/session".into(),
-        session_config,
-        init_options
+    // Create and process a task
+    let task_id = agent.create_and_process_task(
+        "Implement feature",
+        "Add new functionality to the codebase"
     ).await?;
 
-    // Create and execute tasks
-    let task_spec = TaskSpec {
-        title: "Implement feature X".to_string(),
-        description: "Add new functionality...".to_string(),
-        // ... task configuration
-    };
-
-    let task_id = session_manager
-        .task_manager()
-        .create_task(task_spec, None)
-        .await?;
-
-    // Session state is automatically persisted
+    println!("Task completed: {}", task_id);
     Ok(())
 }
 ```
@@ -111,7 +109,7 @@ The system consists of several key components:
 - **TaskTree**: Hierarchical task organization with dynamic subtask creation
 - **TaskManager**: Central orchestration with event-driven architecture
 - **TaskScheduler**: Intelligent prioritization with 6-factor weighted scoring
-- **TaskExecution**: Resource allocation and Claude Code interface integration
+- **TaskExecution**: Resource allocation and LLM provider integration
 
 ### 2. Session Persistence (`src/session/`)
 - **SessionManager**: Complete session lifecycle management
@@ -119,10 +117,28 @@ The system consists of several key components:
 - **RecoveryManager**: State validation and corruption recovery
 - **SessionMetadata**: Version tracking and performance metrics
 
-### 3. Core Types (`src/task/types.rs`)
-- Rich type system for tasks, priorities, and execution states
-- Comprehensive error handling with structured error types
-- Serializable data structures for persistence
+### 3. LLM Provider Abstraction (`src/llm/`)
+- **LLMProvider**: Unified interface across Claude, OpenAI, and local models
+- **ProviderConfig**: Provider-specific configuration and capabilities
+- **Rate Limiting**: Built-in rate limiting and cost optimization
+- **Error Recovery**: Automatic retry and fallback mechanisms
+
+### 4. Claude Code Integration (`src/claude/`)
+- **ClaudeCodeInterface**: Direct integration with Claude Code headless mode
+- **RateLimiter**: Sophisticated rate limiting with adaptive backoff
+- **UsageTracker**: Comprehensive usage monitoring and cost tracking
+- **ContextManager**: Intelligent context window management
+
+### 5. CLI Interface (`src/cli/`)
+- **Command Processing**: Full CLI argument parsing and validation
+- **Configuration Management**: TOML-based configuration with defaults
+- **Interactive Mode**: User-friendly interface for task management
+- **Progress Reporting**: Real-time task progress and system status
+
+### 6. High-Level Integration (`src/integration.rs`)
+- **AgentSystem**: Main orchestration layer combining all subsystems
+- **SystemStatus**: Comprehensive system monitoring and health checks
+- **Task Processing**: End-to-end task lifecycle management
 
 ## Project Status
 
@@ -130,11 +146,21 @@ The system consists of several key components:
 - **1.1 Architecture Overview**: Complete system design and specifications
 - **1.2 Task Management System**: Dynamic task trees with intelligent scheduling
 - **1.3 Session Persistence System**: Atomic persistence with recovery capabilities
+- **1.4 Claude Code Integration**: Comprehensive Claude Code interface with rate limiting
+- **LLM Provider Abstraction**: Multi-provider support with unified API
+- **CLI Interface**: Full command-line interface with configuration management
 
 ### 🚧 In Development
-- **1.4 Claude Code Integration**: Headless SDK integration with rate limiting
-- **1.5 Docker Deployment System**: Containerized execution environment
-- **1.6 CLI Frontend**: User interface and session control
+- **Docker Deployment System**: Containerized execution environment
+- **Advanced Task Processing**: Enhanced task execution with real-world testing
+- **Web Interface**: Optional web-based task monitoring and control
+
+### 📋 Current Implementation Status
+- **Core Systems**: All major components implemented and tested
+- **Integration Tests**: Comprehensive test suite covering all modules
+- **Documentation**: Complete API documentation and design specs
+- **CLI Functionality**: Fully functional command-line interface
+- **Configuration**: TOML-based configuration with sensible defaults
 
 ## Contributing
 
@@ -160,14 +186,20 @@ cargo doc --no-deps --all-features --open
 ### Running Tests
 
 ```bash
-# Unit tests
+# Run all tests (unit + integration)
 cargo test
 
-# Integration tests
-cargo test --test integration
+# Run only unit tests
+cargo test --lib
 
-# Performance benchmarks
-cargo test --release -- --ignored benchmark
+# Run only integration tests
+cargo test --tests
+
+# Run specific integration test suite
+cargo test --test config_toml_integration
+
+# Check code without building
+cargo check
 ```
 
 ## Documentation
