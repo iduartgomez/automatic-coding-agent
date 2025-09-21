@@ -134,13 +134,7 @@ impl ClaudeCodeInterface {
         let processing_time = Duration::from_millis(100 + (rand::random::<u64>() % 900));
         tokio::time::sleep(processing_time).await;
 
-        // Simulate occasional errors for testing
-        if rand::random::<f64>() < 0.05 {
-            // 5% error rate
-            return Err(ClaudeError::ServiceUnavailable(
-                "Mock service temporarily unavailable".to_string(),
-            ));
-        }
+        // Random error injection removed to prevent flaky tests
 
         let input_tokens = self.estimate_tokens(&request.description);
         let output_tokens = input_tokens / 2 + 50; // Mock output length
