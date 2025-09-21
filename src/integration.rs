@@ -689,7 +689,7 @@ mod tests {
     async fn test_backup_command_execution() {
         let result = AgentSystem::execute_backup_command(
             "echo",
-            &vec!["backup executed".to_string()],
+            &["backup executed".to_string()],
             &None,
         )
         .await;

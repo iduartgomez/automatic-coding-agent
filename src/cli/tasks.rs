@@ -198,10 +198,10 @@ impl TaskLoader {
         }
 
         // Numbered list: "1. task" or "1) task"
-        if let Some(pos) = line.find(". ").or_else(|| line.find(") ")) {
-            if line[..pos].chars().all(|c| c.is_ascii_digit()) {
-                return line[pos + 2..].trim().to_string();
-            }
+        if let Some(pos) = line.find(". ").or_else(|| line.find(") "))
+            && line[..pos].chars().all(|c| c.is_ascii_digit())
+        {
+            return line[pos + 2..].trim().to_string();
         }
 
         // Plain text - assume the whole line is a task
@@ -360,7 +360,7 @@ mod tests {
     #[test]
     fn test_load_utf8_file_with_binary() {
         let temp_file = NamedTempFile::new().unwrap();
-        fs::write(&temp_file, &[0xFF, 0xFE, 0x00, 0x01]).unwrap();
+        fs::write(&temp_file, [0xFF, 0xFE, 0x00, 0x01]).unwrap();
 
         let result = TaskLoader::load_utf8_file(temp_file.path());
         assert!(result.is_err());

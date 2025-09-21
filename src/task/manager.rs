@@ -1017,7 +1017,7 @@ impl Default for TaskManagerConfig {
 ///
 /// This section provides comprehensive examples showing how to effectively
 /// use the task manager in real-world scenarios.
-
+///
 /// ## Example: Complete Project Workflow
 ///
 /// ```rust,ignore
@@ -1209,7 +1209,7 @@ impl Default for TaskManagerConfig {
 /// - **Resource Pooling**: Reuse connections and expensive resources
 /// - **Memory Management**: Enable auto-cleanup for long-running processes
 /// - **Monitoring**: Track task execution times and resource usage
-
+///
 /// Simple event handler that logs events
 pub struct LoggingEventHandler;
 

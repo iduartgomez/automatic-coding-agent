@@ -78,11 +78,13 @@ fn test_config_generation_with_setup_commands() {
     use automatic_coding_agent::task::SetupCommand;
 
     // Create a config with setup commands
-    let mut config = AgentConfig::default();
-    config.setup_commands = vec![
-        SetupCommand::new("test_command", "echo")
-            .with_args(vec!["Hello".to_string(), "World".to_string()]),
-    ];
+    let config = AgentConfig {
+        setup_commands: vec![
+            SetupCommand::new("test_command", "echo")
+                .with_args(vec!["Hello".to_string(), "World".to_string()]),
+        ],
+        ..Default::default()
+    };
 
     let toml_str = config
         .to_toml_string()
