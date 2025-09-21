@@ -89,7 +89,7 @@
 //!             file_refs: Vec::new(),
 //!             tags: vec!["api".to_string(), "backend".to_string()],
 //!             context_requirements: ContextRequirements {
-//!                 required_files: vec!["package.json".to_string()],
+//!                 required_files: vec!["package.json".into()],
 //!                 required_repositories: Vec::new(),
 //!                 build_dependencies: vec!["nodejs".to_string()],
 //!                 environment_vars: HashMap::new(),
@@ -104,7 +104,7 @@
 //!
 //!     // Monitor task progress
 //!     let stats = task_manager.get_statistics().await?;
-//!     println!("Active tasks: {}", stats.active_tasks);
+//!     println!("In progress tasks: {}", stats.in_progress_tasks);
 //!
 //!     Ok(())
 //! }

@@ -116,3 +116,40 @@ pub enum LLMError {
     #[error("Provider-specific error: {0}")]
     ProviderSpecific(String),
 }
+
+impl Default for LLMRequest {
+    fn default() -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            prompt: String::new(),
+            context: HashMap::new(),
+            max_tokens: None,
+            temperature: None,
+            model_preference: None,
+            system_message: None,
+        }
+    }
+}
+
+impl Default for ProviderConfig {
+    fn default() -> Self {
+        Self {
+            provider_type: ProviderType::Claude,
+            api_key: None,
+            base_url: None,
+            model: None,
+            rate_limits: RateLimitConfig::default(),
+            additional_config: HashMap::new(),
+        }
+    }
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            max_requests_per_minute: 60,
+            max_tokens_per_minute: 10000,
+            burst_allowance: 10,
+        }
+    }
+}

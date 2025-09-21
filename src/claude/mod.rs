@@ -61,7 +61,7 @@
 //!         task_type: "code_generation".to_string(),
 //!         description: "Create a REST API endpoint".to_string(),
 //!         context: HashMap::new(),
-//!         priority: TaskPriority::Normal,
+//!         priority: TaskPriority::Medium,
 //!         estimated_tokens: Some(1000),
 //!     };
 //!

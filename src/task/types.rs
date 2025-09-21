@@ -235,7 +235,7 @@ pub enum TaskError {
 }
 
 /// Task specification for creating new tasks
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct TaskSpec {
     pub title: String,
     pub description: String,
@@ -400,6 +400,106 @@ impl ComplexityLevel {
             ComplexityLevel::Moderate => 2,
             ComplexityLevel::Complex => 3,
             ComplexityLevel::Epic => 4,
+        }
+    }
+}
+
+impl std::fmt::Display for TaskError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskError::ClaudeError {
+                message,
+                error_code,
+                retry_possible,
+            } => {
+                if let Some(code) = error_code {
+                    write!(
+                        f,
+                        "Claude API error [{}]: {} (retry: {})",
+                        code, message, retry_possible
+                    )
+                } else {
+                    write!(
+                        f,
+                        "Claude API error: {} (retry: {})",
+                        message, retry_possible
+                    )
+                }
+            }
+            TaskError::BuildError {
+                exit_code, stderr, ..
+            } => {
+                write!(
+                    f,
+                    "Build failed with exit code {}: {}",
+                    exit_code,
+                    stderr.lines().next().unwrap_or("No error details")
+                )
+            }
+            TaskError::FileSystemError {
+                message,
+                path,
+                operation,
+            } => {
+                if let Some(path) = path {
+                    write!(
+                        f,
+                        "File system error during {}: {} (path: {})",
+                        operation,
+                        message,
+                        path.display()
+                    )
+                } else {
+                    write!(f, "File system error during {}: {}", operation, message)
+                }
+            }
+            TaskError::ResourceError {
+                resource_type,
+                limit_exceeded,
+                ..
+            } => {
+                write!(
+                    f,
+                    "Resource exhausted: {} limit exceeded ({})",
+                    resource_type, limit_exceeded
+                )
+            }
+            TaskError::DependencyError {
+                message,
+                missing_dependencies,
+                ..
+            } => {
+                if missing_dependencies.is_empty() {
+                    write!(f, "Dependency error: {}", message)
+                } else {
+                    write!(
+                        f,
+                        "Dependency error: {} (missing: {})",
+                        message,
+                        missing_dependencies.join(", ")
+                    )
+                }
+            }
+            TaskError::TimeoutError {
+                operation,
+                timeout_duration,
+                elapsed_time,
+            } => {
+                write!(
+                    f,
+                    "Timeout during {}: {}s exceeded (elapsed: {}s)",
+                    operation,
+                    timeout_duration.num_seconds(),
+                    elapsed_time.num_seconds()
+                )
+            }
+            TaskError::Other { message, source } => {
+                if let Some(source) = source {
+                    write!(f, "{} (source: {})", message, source)
+                } else {
+                    write!(f, "{}", message)
+                }
+            }
         }
     }
 }
@@ -598,6 +698,20 @@ impl OutputCondition {
         Self {
             exit_code_range: Some((min, max)),
             ..Default::default()
+        }
+    }
+}
+
+impl Default for TaskMetadata {
+    fn default() -> Self {
+        Self {
+            priority: TaskPriority::Normal,
+            estimated_complexity: None,
+            estimated_duration: None,
+            repository_refs: Vec::new(),
+            file_refs: Vec::new(),
+            tags: Vec::new(),
+            context_requirements: ContextRequirements::default(),
         }
     }
 }
