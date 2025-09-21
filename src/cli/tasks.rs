@@ -5,7 +5,6 @@
 //! - Task lists (--tasks): Files containing multiple task specifications
 //! - Reference resolution: Tasks can reference other files for context
 
-use crate::task::SetupCommand;
 use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;

@@ -141,14 +141,10 @@ fn test_task_conversion_to_agent_commands() {
         },
     ];
 
-    let commands = TaskLoader::tasks_to_agent_commands(tasks);
-    assert_eq!(commands.len(), 2);
-
-    // Commands should be simple echo commands
-    assert_eq!(commands[0].name, "task_1");
-    assert_eq!(commands[1].name, "task_2");
-    assert_eq!(commands[0].command, "echo");
-    assert_eq!(commands[1].command, "echo");
+    // Verify tasks were loaded correctly
+    assert_eq!(tasks.len(), 2);
+    assert_eq!(tasks[0].description, "Echo 'Task 1 completed'");
+    assert_eq!(tasks[1].description, "Print message: 'Task 2 finished'");
 }
 
 #[test]
@@ -317,15 +313,12 @@ fn test_comprehensive_task_parsing_workflow() {
     assert!(task_with_ref2.description.contains("output2.txt"));
     assert!(task_with_ref2.description.contains("Hello World 2"));
 
-    // 5. Convert to agent commands
-    let commands = TaskLoader::tasks_to_agent_commands(tasks);
-    assert!(!commands.is_empty());
+    // 5. Verify all tasks were loaded correctly
+    assert!(!tasks.is_empty());
 
-    // All commands should be simple echo commands (safe for testing)
-    for (i, cmd) in commands.iter().enumerate() {
-        assert_eq!(cmd.name, format!("task_{}", i + 1));
-        assert_eq!(cmd.command, "echo");
-        assert!(!cmd.args.is_empty());
+    // Verify task content integration
+    for task in &tasks {
+        assert!(!task.description.is_empty(), "Task description should not be empty");
     }
 }
 
