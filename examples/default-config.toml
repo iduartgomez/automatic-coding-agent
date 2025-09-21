@@ -1,4 +1,4 @@
-workspace_path = "/var/folders/1q/yn949chx1gn7v6zzg3j7xpsw0000gn/T/automatic-coding-agent"
+workspace_path = "/tmp/automatic-coding-agent"
 setup_commands = []
 
 [session_config]

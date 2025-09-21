@@ -73,6 +73,7 @@ The agent interfaces with Claude Code in headless mode with rate limiting, adapt
 - **Session documentation**: Located in `docs/sessions/` directory
 
 **CRITICAL SESSION DOCUMENTATION REQUIREMENT**:
+
 - **ALWAYS** create or update session documentation in `docs/sessions/` directory
 - **MUST** create a new session file `docs/sessions/YYYY-MM-DD-session-topic.md` when starting work on any new date
 - **MUST** document objectives, progress, implementation details, and outcomes for each session
@@ -83,25 +84,8 @@ Example: `docs/sessions/2025-09-19-llm-abstraction-implementation.md`
 
 ## Current State
 
-This project has a fully implemented Rust architecture with the following components:
-
-### ✅ **Implemented Systems**
-- **Task Management System**: Complete hierarchical task tree with scheduling, dependencies, and error handling
-- **Session Persistence**: Full state management with checkpoints and recovery
-- **Claude Integration**: LLM interface with rate limiting and context management
-- **Agent Configuration**: TOML-based configuration system with serialization/deserialization
-- **Setup Commands**: Pre-execution command system with retry, skip, and backup strategies
-
-### 🧪 **Testing Infrastructure**
-- **85 Total Tests**: 51 unit tests + 34 integration tests
-- **Integration Test Suites**:
-  - `config_toml_integration.rs` - TOML configuration testing (5 tests)
-  - `config_generation_integration.rs` - Config generation testing (5 tests)
-  - `backup_strategy_integration.rs` - Backup strategy testing (7 tests)
-  - `error_handling_integration.rs` - Error handling testing (8 tests)
-  - `setup_commands_integration.rs` - Setup commands testing (9 tests)
-
 ### 📁 **Project Structure**
+
 ```
 src/
 ├── integration.rs      # Main agent system integration
@@ -110,28 +94,8 @@ src/
 ├── claude/            # Claude Code integration
 ├── llm/              # LLM abstraction layer
 └── lib.rs            # Library exports
-
 tests/                 # Integration tests
-├── backup_strategy_integration.rs
-├── config_generation_integration.rs
-├── config_toml_integration.rs
-├── error_handling_integration.rs
-└── setup_commands_integration.rs
-
 examples/             # Usage examples
-├── default-config.toml
-└── llm_provider_example.rs
-```
-
-### 🔧 **Configuration**
-The system supports TOML-based configuration with the `AgentConfig` struct:
-
-```rust
-// Load from file
-let config = AgentConfig::from_toml_file("config.toml")?;
-
-// Save to file
-config.to_toml_file("output.toml")?;
 ```
 
 # Instructions
@@ -140,3 +104,4 @@ config.to_toml_file("output.toml")?;
 - Use conventional commits standard for commit messages.
 - Document all functionality properly at module level.
 - Keep documentation updated when doing changes.
+- Ensure that CI passes after committing.

@@ -6,8 +6,8 @@
 //! ## Core Components
 //!
 //! - **[`LLMProvider`]**: Universal trait for all LLM provider implementations
-//! - **[`ClaudeProvider`]**: Claude-specific implementation with Claude Code integration
-//! - **[`LLMProviderFactory`]**: Factory for creating provider instances
+//! - **`ClaudeProvider`**: Claude-specific implementation with Claude Code integration
+//! - **`LLMProviderFactory`**: Factory for creating provider instances
 //! - **Provider Types**: Request/response types and configuration structures
 //!
 //! ## Key Features

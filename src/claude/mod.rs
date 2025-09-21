@@ -7,10 +7,10 @@
 //! ## Core Components
 //!
 //! - **[`ClaudeCodeInterface`]**: Main interface for Claude Code interactions
-//! - **[`RateLimiter`]**: Token bucket rate limiting with adaptive backoff
-//! - **[`ContextManager`]**: Conversation context optimization and compression
-//! - **[`ErrorRecoveryManager`]**: Circuit breaker and retry mechanisms
-//! - **[`UsageTracker`]**: Cost tracking and performance analytics
+//! - **`RateLimiter`**: Token bucket rate limiting with adaptive backoff
+//! - **`ContextManager`**: Conversation context optimization and compression
+//! - **`ErrorRecoveryManager`**: Circuit breaker and retry mechanisms
+//! - **`UsageTracker`**: Cost tracking and performance analytics
 //!
 //! ## Key Features
 //!

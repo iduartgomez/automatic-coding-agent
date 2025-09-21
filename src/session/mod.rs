@@ -7,8 +7,8 @@
 //! ## Core Components
 //!
 //! - **[`SessionManager`]**: Central orchestrator for session lifecycle
-//! - **[`PersistenceManager`]**: Atomic file operations with transaction support
-//! - **[`RecoveryManager`]**: State validation and corruption recovery
+//! - **`PersistenceManager`**: Atomic file operations with transaction support
+//! - **`RecoveryManager`**: State validation and corruption recovery
 //! - **[`SessionMetadata`]**: Version tracking and performance metrics
 //!
 //! ## Key Features

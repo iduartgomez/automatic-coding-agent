@@ -6,9 +6,9 @@
 //! ## Core Components
 //!
 //! - **[`TaskManager`]**: Central orchestrator for task lifecycle and coordination
-//! - **[`TaskTree`]**: Hierarchical task organization with parent-child relationships
-//! - **[`TaskScheduler`]**: Intelligent prioritization with multi-factor scoring
-//! - **[`TaskExecutor`]**: Resource allocation and execution environment management
+//! - **`TaskTree`**: Hierarchical task organization with parent-child relationships
+//! - **`TaskScheduler`**: Intelligent prioritization with multi-factor scoring
+//! - **`TaskExecutor`**: Resource allocation and execution environment management
 //!
 //! ## Key Features
 //!
