@@ -100,3 +100,6 @@ pub use llm::{LLMProvider, LLMRequest, LLMResponse, ProviderConfig, ProviderType
 
 // Re-export integration types
 pub use integration::{AgentConfig, AgentSystem, SystemStatus};
+
+// CLI module for command-line interface
+pub mod cli;

@@ -1,0 +1,48 @@
+Caching Strategy for High-Performance Data Access
+
+OVERVIEW
+========
+Implement a multi-layer caching system to improve response times for frequently accessed data.
+
+CACHE LAYERS
+============
+
+1. Application Cache (Redis)
+   - Store user sessions
+   - Cache API responses for 5-15 minutes
+   - Use LRU eviction policy
+
+2. Database Query Cache
+   - Cache complex aggregation queries
+   - Invalidate on data changes
+   - Use query fingerprinting for cache keys
+
+3. CDN/Edge Cache
+   - Cache static assets
+   - Cache API responses for public data
+   - Geographic distribution for global users
+
+IMPLEMENTATION DETAILS
+=====================
+
+Cache Keys Format:
+- User data: "user:{user_id}:{version}"
+- API responses: "api:{endpoint}:{params_hash}"
+- Query results: "query:{table}:{query_hash}"
+
+TTL Strategy:
+- User sessions: 30 minutes
+- API responses: 5-15 minutes based on data volatility
+- Query results: 10-60 minutes based on update frequency
+
+Cache Warming:
+- Pre-populate frequently accessed data during low-traffic periods
+- Use background jobs to refresh cache before expiration
+- Implement cache warming for new deployments
+
+MONITORING
+==========
+- Track cache hit/miss ratios
+- Monitor cache memory usage
+- Alert on cache performance degradation
+- Track cache invalidation patterns
