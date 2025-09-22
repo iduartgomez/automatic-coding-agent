@@ -104,18 +104,3 @@ pub use integration::{AgentConfig, AgentSystem, SystemStatus};
 // CLI module for command-line interface
 pub mod cli;
 
-/// Returns "Hello, World!" greeting.
-///
-/// A simple function that returns the classic programming greeting.
-///
-/// # Examples
-///
-/// ```
-/// use automatic_coding_agent::hello_world;
-///
-/// let greeting = hello_world();
-/// assert_eq!(greeting, "Hello, World!");
-/// ```
-pub fn hello_world() -> &'static str {
-    "Hello, World!"
-}
