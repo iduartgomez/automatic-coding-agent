@@ -5,6 +5,7 @@ on:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -46,11 +47,56 @@ jobs:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Run tests (excluding Claude integration tests)
+      run: cargo test --verbose -- :!claude:
 
-    - name: Run tests with all features
-      run: cargo test --verbose --all-features
+    - name: Run tests with all features (excluding Claude integration tests)
+      run: cargo test --verbose --all-features -- :!claude:
+
+  claude-integration-tests:
+    name: Claude Integration Tests
+    runs-on: ubuntu-latest
+    # Only run on manual dispatch or when explicitly requested
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-claude-tests]')
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Check Claude CLI availability
+      run: |
+        if ! command -v claude &> /dev/null; then
+          echo "⚠️  Claude CLI not available in CI environment"
+          echo "Claude integration tests require the Claude CLI to be installed"
+          exit 1
+        fi
+
+    - name: Run Claude integration tests
+      run: cargo test --verbose -- :claude:
+      env:
+        # Add any required environment variables for Claude tests
+        RUST_LOG: info
 
   lint:
     name: Linting

@@ -1,8 +1,10 @@
 use automatic_coding_agent::task::{ErrorHandler, OutputCondition, SetupCommand};
 use automatic_coding_agent::{AgentConfig, AgentSystem};
 use std::env;
+use test_tag::tag;
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_backup_strategy_with_failing_command() {
     // Test backup strategy with a command that will fail and trigger backup
     let setup_commands = vec![
@@ -36,6 +38,7 @@ async fn test_backup_strategy_with_failing_command() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_backup_strategy_with_specific_error_condition() {
     // Test backup strategy that only triggers on specific error conditions
     let setup_commands = vec![
@@ -67,6 +70,7 @@ async fn test_backup_strategy_with_specific_error_condition() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_backup_strategy_no_trigger() {
     // Test backup strategy where the condition is not met (should still fail)
     let setup_commands = vec![
@@ -100,6 +104,7 @@ async fn test_backup_strategy_no_trigger() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_backup_strategy_success_case() {
     // Test that backup is not triggered when primary command succeeds
     let setup_commands = vec![
@@ -127,6 +132,7 @@ async fn test_backup_strategy_success_case() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_backup_strategy_with_exit_code_condition() {
     // Test backup strategy based on exit code range
     let setup_commands = vec![
@@ -155,6 +161,7 @@ async fn test_backup_strategy_with_exit_code_condition() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_backup_strategy_complex_condition() {
     // Test backup strategy with multiple conditions
     let setup_commands = vec![
@@ -192,6 +199,7 @@ async fn test_backup_strategy_complex_condition() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_backup_strategy_working_directory() {
     // Test backup strategy with specific working directory
     let temp_dir = env::temp_dir().join("backup_workdir_test");

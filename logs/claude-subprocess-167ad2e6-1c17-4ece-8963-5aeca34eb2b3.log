@@ -1,0 +1,12 @@
+Claude Code Subprocess Log - Task ID: 167ad2e6-1c17-4ece-8963-5aeca34eb2b3
+Started: 2025-09-22 08:28:06.848 UTC
+================================================================================
+[2025-09-22 08:28:06.848] Executing Claude Code command: claude --print --output-format json --allowedTools Read,Write,Edit,Bash,Glob,Grep --permission-mode acceptEdits --model sonnet -- "Test request 1"
+[2025-09-22 08:28:06.848] Task ID: 167ad2e6-1c17-4ece-8963-5aeca34eb2b3 | Description length: 14 chars
+[2025-09-22 08:28:10.794] Command completed in 3.95s | Exit code: 0 | Stdout: 740 bytes | Stderr: 0 bytes
+[2025-09-22 08:28:10.794] STDOUT: {"type":"result","subtype":"success","is_error":false,"duration_ms":2689,"duration_api_ms":2671,"num_turns":1,"result":"4","session_id":"1c59910a-dd06-48e5-a191-6295ba9fbbd3","total_cost_usd":0.044626349999999995,"usage":{"input_tokens":4,"cache_creation_input_tokens":11493,"cache_read_input_tokens":4802,"output_tokens":5,"server_tool_use":{"web_search_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":0,"ephemeral_5m_input_tokens":11493}},"modelUsage":{"claude-... (truncated, 740 total chars)
+[2025-09-22 08:28:10.794] Task completed successfully | Input tokens: 4 | Output tokens: 185 | Total tokens: 189 | Estimated cost: $0.002787
+[2025-09-22 08:28:10.794] Response length: 740 chars | Execution time: 3.95s
+================================================================================
+Task processing completed for ID: 167ad2e6-1c17-4ece-8963-5aeca34eb2b3
+
