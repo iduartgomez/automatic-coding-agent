@@ -2,8 +2,10 @@ use automatic_coding_agent::task::{ErrorHandler, OutputCondition, SetupCommand};
 use automatic_coding_agent::{AgentConfig, AgentSystem};
 use chrono::Duration;
 use std::path::PathBuf;
+use test_tag::tag;
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_simple_successful_command() {
     let setup_commands =
         vec![SetupCommand::new("check_rust", "rustc").with_args(vec!["--version".to_string()])];
@@ -19,6 +21,7 @@ async fn test_simple_successful_command() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_command_with_working_directory() {
     let temp_dir = std::env::temp_dir().join("working_dir_test");
     std::fs::create_dir_all(&temp_dir).expect("Should create test directory");
@@ -43,6 +46,7 @@ async fn test_command_with_working_directory() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_optional_command_with_skip_strategy() {
     let setup_commands = vec![
         SetupCommand::new("optional_check", "which")
@@ -65,6 +69,7 @@ async fn test_optional_command_with_skip_strategy() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_command_with_retry_strategy() {
     let setup_commands = vec![
         SetupCommand::new("retry_test", "sh")
@@ -91,6 +96,7 @@ async fn test_command_with_retry_strategy() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_command_with_backup_strategy() {
     let setup_commands = vec![
         SetupCommand::new("check_docker", "docker")
@@ -118,6 +124,7 @@ async fn test_command_with_backup_strategy() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_file_creation_command() {
     let temp_file = std::env::temp_dir().join("setup_test_integration.txt");
 
@@ -158,6 +165,7 @@ async fn test_file_creation_command() {
 // async fn test_command_with_timeout() { ... }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_multiple_setup_commands() {
     let temp_dir = std::env::temp_dir().join("multiple_commands_test");
     std::fs::create_dir_all(&temp_dir).expect("Should create test directory");
@@ -192,6 +200,7 @@ async fn test_multiple_setup_commands() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_command_args_handling() {
     let setup_commands = vec![SetupCommand::new("args_test", "echo").with_args(vec![
         "first".to_string(),
@@ -213,6 +222,7 @@ async fn test_command_args_handling() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_setup_commands_builder_pattern() {
     // Test that the builder pattern works correctly
     let cmd = SetupCommand::new("builder_test", "echo")

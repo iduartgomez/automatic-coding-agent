@@ -5,6 +5,7 @@ on:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,44 +14,52 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
-          - beta
-          - nightly
     steps:
     - uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@master
+      uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: ${{ matrix.rust }}
         components: rustfmt, clippy
 
-    - name: Cache cargo registry
-      uses: actions/cache@v3
+    - name: Cache Rust dependencies and build artifacts
+      uses: Swatinem/rust-cache@v2
+
+    - name: Run tests (unit + integration, excluding Claude tests)
+      run: cargo test --verbose --lib -- --skip "::claude::test" && cargo test --verbose --test cli_functionality --test config_generation_integration --test config_toml_integration
+
+    - name: Run tests with all features (unit + integration, excluding Claude tests)
+      run: cargo test --verbose --all-features --lib -- --skip "::claude::test" && cargo test --verbose --all-features --test cli_functionality --test config_generation_integration --test config_toml_integration
+
+  claude-integration-tests:
+    name: Claude Integration Tests
+    runs-on: ubuntu-latest
+    # Only run on manual dispatch or when explicitly requested
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-claude-tests]')
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
       with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        components: rustfmt, clippy
 
-    - name: Cache cargo index
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+    - name: Cache Rust dependencies and build artifacts
+      uses: Swatinem/rust-cache@v2
 
-    - name: Cache cargo build
-      uses: actions/cache@v3
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    - name: Check Claude CLI availability
+      run: |
+        if ! command -v claude &> /dev/null; then
+          echo "⚠️  Claude CLI not available in CI environment"
+          echo "Claude integration tests require the Claude CLI to be installed"
+          exit 1
+        fi
 
-    - name: Run tests
-      run: cargo test --verbose
-
-    - name: Run tests with all features
-      run: cargo test --verbose --all-features
+    - name: Run Claude integration tests
+      run: cargo test --verbose --test setup_commands_integration --test backup_strategy_integration --test error_handling_integration --test claude_integration
+      env:
+        # Add any required environment variables for Claude tests
+        RUST_LOG: info
 
   lint:
     name: Linting
@@ -63,23 +72,8 @@ jobs:
       with:
         components: rustfmt, clippy
 
-    - name: Cache cargo registry
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo index
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo build
-      uses: actions/cache@v3
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    - name: Cache Rust dependencies and build artifacts
+      uses: Swatinem/rust-cache@v2
 
     - name: Check formatting
       run: cargo fmt --all -- --check
@@ -114,32 +108,14 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable]
     steps:
     - uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.rust }}
+      uses: dtolnay/rust-toolchain@stable
 
-    - name: Cache cargo registry
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo index
-      uses: actions/cache@v3
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache cargo build
-      uses: actions/cache@v3
-      with:
-        path: target
-        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+    - name: Cache Rust dependencies and build artifacts
+      uses: Swatinem/rust-cache@v2
 
     - name: Check build
       run: cargo check --verbose

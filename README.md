@@ -185,27 +185,42 @@ cargo doc --no-deps --all-features --open
 
 ### Running Tests
 
+The project uses test categories to organize tests based on their dependencies:
+
 ```bash
-# Run all tests (unit + integration)
+# Run all tests (excluding Claude integration tests)
 cargo test
 
 # Run only unit tests
 cargo test --lib
 
-# Run only integration tests
-cargo test --tests
+# Run only integration tests (non-Claude)
+cargo test --test cli_functionality --test config_generation_integration --test config_toml_integration
 
-# Run specific integration test suite
+# Run only Claude integration tests (requires Claude CLI)
+cargo test --test setup_commands_integration --test backup_strategy_integration --test error_handling_integration --test claude_integration
+
+# Run specific test file
 cargo test --test config_toml_integration
 
 # Check code without building
 cargo check
 ```
 
+**Test Categories**:
+- **Unit Tests**: Standard tests with no external dependencies
+- **Integration Tests**: System integration tests (non-Claude dependencies)
+- **Claude Integration Tests**: Tests requiring Claude CLI installation (tagged with `#[tag(claude)]`)
+
+See [Testing Guide](docs/testing.md) for detailed information about test setup, categories, and CI configuration.
+
 ## Documentation
 
 - **[Architecture Design](docs/design/)**: Detailed system design documents
 - **[Session Logs](docs/sessions/)**: Development progress and implementation notes
+- **[Testing Guide](docs/testing.md)**: Test categories, setup, and CI configuration
+- **[Usage Guide](docs/usage-guide.md)**: Comprehensive usage examples and best practices
+- **[Session Management](docs/session-management.md)**: Session persistence and checkpoint system
 - **[API Documentation](https://docs.rs/automatic-coding-agent)**: Generated API docs
 
 ## License

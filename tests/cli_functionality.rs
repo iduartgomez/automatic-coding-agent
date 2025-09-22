@@ -130,7 +130,7 @@ fn test_task_reference_resolution_missing_file() {
 fn test_task_conversion_to_agent_commands() {
     use automatic_coding_agent::cli::SimpleTask;
 
-    let tasks = vec![
+    let tasks = [
         SimpleTask {
             description: "Echo 'Task 1 completed'".to_string(),
             reference_file: None,
@@ -318,7 +318,10 @@ fn test_comprehensive_task_parsing_workflow() {
 
     // Verify task content integration
     for task in &tasks {
-        assert!(!task.description.is_empty(), "Task description should not be empty");
+        assert!(
+            !task.description.is_empty(),
+            "Task description should not be empty"
+        );
     }
 }
 

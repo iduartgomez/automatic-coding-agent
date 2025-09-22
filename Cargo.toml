@@ -34,6 +34,7 @@ lexopt = "0.3"
 
 [dev-dependencies]
 tempfile = "3.8"
+test-tag = "0.1"
 
 [[example]]
 name = "llm_provider_example"

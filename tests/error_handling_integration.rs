@@ -1,8 +1,10 @@
 use automatic_coding_agent::task::{ErrorHandler, OutputCondition, SetupCommand};
 use automatic_coding_agent::{AgentConfig, AgentSystem};
 use chrono::Duration;
+use test_tag::tag;
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_skip_error_strategy() {
     let setup_commands = vec![
         SetupCommand::new("failing_command", "false") // `false` always exits with code 1
@@ -24,6 +26,7 @@ async fn test_skip_error_strategy() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_retry_error_strategy() {
     let setup_commands = vec![
         SetupCommand::new("retry_test", "sh")
@@ -50,6 +53,7 @@ async fn test_retry_error_strategy() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_backup_strategy_with_stderr_analysis() {
     let setup_commands = vec![
         SetupCommand::new("backup_test", "sh")
@@ -80,6 +84,7 @@ async fn test_backup_strategy_with_stderr_analysis() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_backup_strategy_no_trigger() {
     let setup_commands = vec![
         SetupCommand::new("backup_no_trigger", "sh")
@@ -110,6 +115,7 @@ async fn test_backup_strategy_no_trigger() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_required_command_failure() {
     // Test a required command that fails (should cause initialization to fail)
     let setup_commands = vec![
@@ -130,6 +136,7 @@ async fn test_required_command_failure() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_multiple_error_strategies() {
     let setup_commands = vec![
         // First command: skip on failure
@@ -180,6 +187,7 @@ async fn test_multiple_error_strategies() {
 // async fn test_error_handler_with_timeout() { ... }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_error_handler_with_working_directory() {
     let temp_dir = std::env::temp_dir().join("error_workdir_test");
     std::fs::create_dir_all(&temp_dir).expect("Should create test directory");
@@ -213,6 +221,7 @@ async fn test_error_handler_with_working_directory() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_complex_error_conditions() {
     let setup_commands = vec![
         SetupCommand::new("complex_error", "sh")

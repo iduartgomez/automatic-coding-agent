@@ -115,22 +115,38 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
 
     for (i, task) in tasks.into_iter().enumerate() {
         let task_num = i + 1;
-        info!("Processing task {}/{}: {}", task_num, total_tasks, task.description);
+        info!(
+            "Processing task {}/{}: {}",
+            task_num, total_tasks, task.description
+        );
 
         if config.verbose {
-            println!("🔄 Processing task {}/{}: {}", task_num, total_tasks,
+            println!(
+                "🔄 Processing task {}/{}: {}",
+                task_num,
+                total_tasks,
                 if task.description.len() > 100 {
                     format!("{}...", &task.description[..97])
                 } else {
                     task.description.clone()
-                });
+                }
+            );
         }
 
-        match agent.create_and_process_task(&format!("Batch Task {}", task_num), &task.description).await {
+        match agent
+            .create_and_process_task(&format!("Batch Task {}", task_num), &task.description)
+            .await
+        {
             Ok(task_id) => {
-                info!("Task {}/{} completed successfully! Task ID: {}", task_num, total_tasks, task_id);
+                info!(
+                    "Task {}/{} completed successfully! Task ID: {}",
+                    task_num, total_tasks, task_id
+                );
                 if config.verbose {
-                    println!("✅ Task {}/{} completed: {}", task_num, total_tasks, task_id);
+                    println!(
+                        "✅ Task {}/{} completed: {}",
+                        task_num, total_tasks, task_id
+                    );
                 }
                 successful_tasks += 1;
             }
@@ -147,7 +163,10 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
         if successful_tasks == total_tasks {
             println!("✅ All {} tasks completed successfully!", total_tasks);
         } else {
-            println!("⚠️  {}/{} tasks completed successfully", successful_tasks, total_tasks);
+            println!(
+                "⚠️  {}/{} tasks completed successfully",
+                successful_tasks, total_tasks
+            );
         }
     }
 
