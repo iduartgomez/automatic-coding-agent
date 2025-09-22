@@ -7,6 +7,7 @@ use automatic_coding_agent::session::{SessionManager, SessionManagerConfig, Sess
 use automatic_coding_agent::session::persistence::PersistenceConfig;
 use automatic_coding_agent::session::recovery::RecoveryConfig;
 use automatic_coding_agent::task::manager::TaskManagerConfig;
+use automatic_coding_agent::task::TaskStatus;
 use std::io::{self, Write};
 use tracing::{error, info};
 
@@ -387,11 +388,57 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
 
     if config.verbose {
         println!("✅ Successfully resumed from checkpoint: {}", checkpoint_id);
-        println!("🤖 Agent system ready. Session will continue processing from restored state.");
+        println!("🤖 Agent system ready. Checking for incomplete tasks...");
     }
 
-    // Note: In the future, we might want to automatically continue processing incomplete tasks
-    // For now, the system is restored and ready for new tasks
+    // Check for incomplete tasks and continue processing
+    let incomplete_tasks = find_incomplete_tasks(&agent).await?;
+
+    if !incomplete_tasks.is_empty() {
+        if config.verbose {
+            println!("🔄 Found {} incomplete tasks. Continuing processing...", incomplete_tasks.len());
+        }
+
+        let mut successful_tasks = 0;
+        let total_tasks = incomplete_tasks.len();
+
+        for (task_num, task_id) in incomplete_tasks.iter().enumerate() {
+            if config.verbose {
+                println!(
+                    "🔄 Processing incomplete task {}/{}: {}",
+                    task_num + 1, total_tasks, task_id
+                );
+            }
+
+            match agent.process_task(*task_id).await {
+                Ok(()) => {
+                    info!("Resumed task {}/{} completed successfully! Task ID: {}",
+                         task_num + 1, total_tasks, task_id);
+                    if config.verbose {
+                        println!("✅ Task {}/{} completed: {}",
+                               task_num + 1, total_tasks, task_id);
+                    }
+                    successful_tasks += 1;
+                }
+                Err(e) => {
+                    error!("Failed to process resumed task {}: {}", task_id, e);
+                    if config.verbose {
+                        println!("❌ Task {}/{} failed: {}",
+                               task_num + 1, total_tasks, e);
+                    }
+                }
+            }
+        }
+
+        if successful_tasks == total_tasks {
+            println!("✅ All {} resumed tasks completed successfully!", total_tasks);
+        } else {
+            println!("⚠️  {}/{} resumed tasks completed successfully",
+                    successful_tasks, total_tasks);
+        }
+    } else if config.verbose {
+        println!("ℹ️  No incomplete tasks found. Session restored successfully.");
+    }
 
     // Graceful shutdown
     info!("Shutting down agent system...");
@@ -530,4 +577,40 @@ async fn find_latest_checkpoint(session_dir: &std::path::Path) -> Result<String,
         .unwrap();
 
     Ok(latest.id.clone())
+}
+
+/// Find incomplete tasks that should be continued when resuming
+async fn find_incomplete_tasks(agent: &AgentSystem) -> Result<Vec<uuid::Uuid>, Box<dyn std::error::Error>> {
+    let task_manager = agent.task_manager();
+
+    // Look for tasks that are in progress or eligible to be processed
+    let in_progress_tasks = task_manager
+        .get_tasks_by_status(|status| matches!(status, TaskStatus::InProgress { .. }))
+        .await?;
+
+    let eligible_tasks = task_manager.get_eligible_tasks().await?;
+
+    // Combine both sets, prioritizing in-progress tasks
+    let mut incomplete_tasks = Vec::new();
+
+    // Track counts before moving
+    let in_progress_count = in_progress_tasks.len();
+    let eligible_count = eligible_tasks.len();
+
+    // Add in-progress tasks first (highest priority for resume)
+    incomplete_tasks.extend(in_progress_tasks);
+
+    // Add eligible tasks that aren't already in progress
+    for task_id in &eligible_tasks {
+        if !incomplete_tasks.contains(task_id) {
+            incomplete_tasks.push(*task_id);
+        }
+    }
+
+    info!("Found {} incomplete tasks for resume: {} in-progress, {} eligible",
+          incomplete_tasks.len(),
+          in_progress_count,
+          eligible_count);
+
+    Ok(incomplete_tasks)
 }
