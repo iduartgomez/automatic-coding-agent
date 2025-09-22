@@ -130,16 +130,14 @@ fn test_task_reference_resolution_missing_file() {
 fn test_task_conversion_to_agent_commands() {
     use automatic_coding_agent::cli::SimpleTask;
 
-    let tasks = vec![
-        SimpleTask {
+    let tasks = [SimpleTask {
             description: "Echo 'Task 1 completed'".to_string(),
             reference_file: None,
         },
         SimpleTask {
             description: "Print message: 'Task 2 finished'".to_string(),
             reference_file: None,
-        },
-    ];
+        }];
 
     // Verify tasks were loaded correctly
     assert_eq!(tasks.len(), 2);

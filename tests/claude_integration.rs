@@ -3,9 +3,9 @@ use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
 use test_tag::tag;
-use tokio;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct TestCase {
     name: &'static str,
     resource_dir: &'static str,
@@ -98,8 +98,8 @@ async fn test_claude_integration_with_temp_workspaces() {
         println!("Running test case: {}", test_case.name);
 
         // Setup isolated workspace
-        let (_temp_dir, workspace_path) = setup_test_workspace(test_case.resource_dir)
-            .expect(&format!("Failed to setup workspace for {}", test_case.name));
+        let (_temp_dir, _workspace_path) = setup_test_workspace(test_case.resource_dir)
+            .unwrap_or_else(|_| panic!("Failed to setup workspace for {}", test_case.name));
 
         // Initialize agent with temp workspace
         // TODO: Re-enable when AgentSystem interface is finalized
@@ -156,8 +156,6 @@ async fn test_claude_integration_with_temp_workspaces() {
             }
         }
         */
-
-        println!("---");
     }
 }
 
@@ -178,10 +176,8 @@ async fn test_single_task_with_references() {
     // List available files
     println!("Available files:");
     if let Ok(entries) = fs::read_dir(&workspace_path) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                println!("  - {}", entry.file_name().to_string_lossy());
-            }
+        for entry in entries.flatten() {
+            println!("  - {}", entry.file_name().to_string_lossy());
         }
     }
 
@@ -245,7 +241,7 @@ async fn test_multi_task_execution() {
 
     println!("Running multi-task test: {}", test_case.name);
 
-    let (_temp_dir, workspace_path) =
+    let (_temp_dir, _workspace_path) =
         setup_test_workspace(test_case.resource_dir).expect("Failed to setup workspace");
 
     println!("⚠️  Test temporarily disabled - agent system integration pending");
