@@ -109,8 +109,8 @@ impl ClaudeCodeInterface {
             .await
             .map_err(|e| ClaudeError::Unknown(e.to_string()))?;
 
-        // Execute real Claude Code request
-        let response = self.execute_claude_code_request(request).await?;
+        // Execute real Claude Code request with session context
+        let response = self.execute_claude_code_request(session.id, request).await?;
 
         // Add assistant response to context
         let assistant_message = ClaudeMessage {
@@ -132,12 +132,16 @@ impl ClaudeCodeInterface {
 
     async fn execute_claude_code_request(
         &self,
+        session_id: SessionId,
         request: &TaskRequest,
     ) -> Result<TaskResponse, ClaudeError> {
         let start_time = Instant::now();
 
         // Create log file for this request
         let log_path = self.create_subprocess_log_file(&request.id).await?;
+
+        // Build contextual prompt with conversation history
+        let contextual_prompt = self.build_contextual_prompt(session_id, &request.description).await;
 
         // Prepare Claude Code CLI command
         let mut command = Command::new("claude");
@@ -152,7 +156,7 @@ impl ClaudeCodeInterface {
             .arg("--model")
             .arg("sonnet") // Use latest Sonnet model
             .arg("--") // Separate options from prompt
-            .arg(&request.description) // The task description
+            .arg(&contextual_prompt) // The task description with conversation context
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .stdin(Stdio::null());
@@ -528,6 +532,63 @@ impl ClaudeCodeInterface {
             session_stats,
             is_healthy: rate_status.failure_count < 3,
         }
+    }
+
+    /// Build a contextual prompt that includes conversation history for better continuity
+    async fn build_contextual_prompt(&self, session_id: SessionId, current_request: &str) -> String {
+        // Get existing conversation context
+        if let Some(context) = self.context_manager.get_context(session_id).await {
+            if !context.messages.is_empty() {
+                // Format the conversation history
+                let history = self.format_conversation_history(&context.messages);
+
+                // Build contextual prompt with history and current request
+                return format!(
+                    "Previous conversation context:\n{}\n\n--- Current Task ---\n{}",
+                    history,
+                    current_request
+                );
+            }
+        }
+
+        // If no context exists, just return the current request
+        current_request.to_string()
+    }
+
+    /// Format conversation messages into a readable conversation history
+    fn format_conversation_history(&self, messages: &[ClaudeMessage]) -> String {
+        let mut history = String::new();
+
+        for (i, message) in messages.iter().enumerate() {
+            let role = match message.role {
+                MessageRole::User => "User",
+                MessageRole::Assistant => "Assistant",
+                MessageRole::System => "System",
+            };
+
+            let timestamp = message.timestamp.format("%H:%M:%S");
+
+            // Truncate very long messages to keep context manageable
+            let content = if message.content.len() > 1000 {
+                format!("{}...[truncated]", &message.content[..1000])
+            } else {
+                message.content.clone()
+            };
+
+            history.push_str(&format!(
+                "[{}] {}: {}\n",
+                timestamp,
+                role,
+                content
+            ));
+
+            // Add separator between messages except for the last one
+            if i < messages.len() - 1 {
+                history.push_str("\n");
+            }
+        }
+
+        history
     }
 }
 
