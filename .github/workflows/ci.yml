@@ -48,10 +48,10 @@ jobs:
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Run tests (unit + integration, excluding Claude tests)
-      run: cargo test --verbose --lib && cargo test --verbose --test cli_functionality --test config_generation_integration --test config_toml_integration
+      run: cargo test --verbose --lib -- --skip "::claude::test" && cargo test --verbose --test cli_functionality --test config_generation_integration --test config_toml_integration
 
     - name: Run tests with all features (unit + integration, excluding Claude tests)
-      run: cargo test --verbose --all-features --lib && cargo test --verbose --all-features --test cli_functionality --test config_generation_integration --test config_toml_integration
+      run: cargo test --verbose --all-features --lib -- --skip "::claude::test" && cargo test --verbose --all-features --test cli_functionality --test config_generation_integration --test config_toml_integration
 
   claude-integration-tests:
     name: Claude Integration Tests

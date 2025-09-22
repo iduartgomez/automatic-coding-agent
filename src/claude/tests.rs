@@ -1,5 +1,10 @@
 use super::*;
 use std::time::Duration;
+use test_tag::tag;
+
+// NOTE: Tests tagged with #[tag(claude)] require actual Claude Code CLI and API access.
+// These tests are automatically excluded from CI via the pattern `--skip "::claude::test"`
+// To run Claude integration tests locally: cargo test -- --include claude::test
 
 #[tokio::test]
 async fn test_claude_interface_creation() {
@@ -9,6 +14,7 @@ async fn test_claude_interface_creation() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_task_request_execution() {
     let config = ClaudeConfig::default();
     let interface = ClaudeCodeInterface::new(config).await.unwrap();
@@ -31,6 +37,7 @@ async fn test_task_request_execution() {
 }
 
 #[tokio::test]
+#[tag(claude)]
 async fn test_rate_limiting() {
     let mut config = ClaudeConfig::default();
     config.rate_limits.max_requests_per_minute = 2;
