@@ -16,6 +16,9 @@ use tracing::debug;
 pub enum ExecutionMode {
     Batch(BatchConfig),
     Interactive(InteractiveConfig),
+    Resume(ResumeConfig),      // Resume from checkpoint
+    ListCheckpoints,           // List available checkpoints
+    CreateCheckpoint(String),  // Create manual checkpoint
     Help,
     Version,
     ShowConfig, // New: Show configuration discovery info
@@ -37,6 +40,14 @@ pub struct InteractiveConfig {
 }
 
 #[derive(Debug)]
+pub struct ResumeConfig {
+    pub checkpoint_id: Option<String>,  // Specific checkpoint or latest
+    pub workspace_override: Option<PathBuf>,
+    pub verbose: bool,
+    pub continue_latest: bool,
+}
+
+#[derive(Debug)]
 pub struct Args {
     pub mode: ExecutionMode,
 }
@@ -52,6 +63,10 @@ impl Args {
         let mut dry_run = false;
         let mut force_interactive = false;
         let mut show_config = false;
+        let mut resume_checkpoint: Option<String> = None;
+        let mut continue_latest = false;
+        let mut list_checkpoints = false;
+        let mut create_checkpoint: Option<String> = None;
 
         while let Some(arg) = parser.next()? {
             match arg {
@@ -98,6 +113,20 @@ impl Args {
                     show_config = true;
                 }
 
+                // Resume functionality
+                Long("resume") => {
+                    resume_checkpoint = Some(parser.value()?.to_string_lossy().to_string());
+                }
+                Long("continue") => {
+                    continue_latest = true;
+                }
+                Long("list-checkpoints") => {
+                    list_checkpoints = true;
+                }
+                Long("create-checkpoint") => {
+                    create_checkpoint = Some(parser.value()?.to_string_lossy().to_string());
+                }
+
                 _ => return Err(arg.unexpected()),
             }
         }
@@ -106,6 +135,29 @@ impl Args {
         if show_config {
             return Ok(Args {
                 mode: ExecutionMode::ShowConfig,
+            });
+        }
+
+        if list_checkpoints {
+            return Ok(Args {
+                mode: ExecutionMode::ListCheckpoints,
+            });
+        }
+
+        if let Some(description) = create_checkpoint {
+            return Ok(Args {
+                mode: ExecutionMode::CreateCheckpoint(description),
+            });
+        }
+
+        if resume_checkpoint.is_some() || continue_latest {
+            return Ok(Args {
+                mode: ExecutionMode::Resume(ResumeConfig {
+                    checkpoint_id: resume_checkpoint,
+                    workspace_override: workspace,
+                    verbose,
+                    continue_latest,
+                }),
             });
         }
 
@@ -192,6 +244,12 @@ pub fn show_help() {
     println!("    -v, --verbose               Enable verbose output");
     println!("    -n, --dry-run               Show what would be executed without running");
     println!();
+    println!("RESUME OPTIONS:");
+    println!("        --resume <CHECKPOINT>   Resume from specific checkpoint ID");
+    println!("        --continue              Resume from latest checkpoint");
+    println!("        --list-checkpoints      List available checkpoints");
+    println!("        --create-checkpoint <DESC> Create manual checkpoint");
+    println!();
     println!("INFORMATION OPTIONS:");
     println!("    -h, --help                  Show this help message");
     println!("    -V, --version               Show version information");
@@ -223,6 +281,11 @@ pub fn show_help() {
     println!();
     println!("  # Interactive mode");
     println!("    {} --interactive", env!("CARGO_PKG_NAME"));
+    println!();
+    println!("  # Resume operations");
+    println!("    {} --list-checkpoints", env!("CARGO_PKG_NAME"));
+    println!("    {} --resume checkpoint-abc123 --workspace .", env!("CARGO_PKG_NAME"));
+    println!("    {} --continue --workspace .", env!("CARGO_PKG_NAME"));
     println!();
     println!("  # Legacy TOML config format");
     println!("    {} --config full_config.toml", env!("CARGO_PKG_NAME"));
