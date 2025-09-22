@@ -318,7 +318,10 @@ fn test_comprehensive_task_parsing_workflow() {
 
     // Verify task content integration
     for task in &tasks {
-        assert!(!task.description.is_empty(), "Task description should not be empty");
+        assert!(
+            !task.description.is_empty(),
+            "Task description should not be empty"
+        );
     }
 }
 

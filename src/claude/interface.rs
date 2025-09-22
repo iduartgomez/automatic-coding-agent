@@ -1,14 +1,14 @@
 use crate::claude::{ContextManager, ErrorRecoveryManager, RateLimiter, UsageTracker, types::*};
 use crate::task::types::{Task, TaskStatus};
 use chrono::{DateTime, Utc};
+use std::path::PathBuf;
+use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
-use tokio::process::Command;
-use std::process::Stdio;
-use uuid::Uuid;
-use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
+use tokio::process::Command;
+use tokio::sync::Mutex;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct ClaudeCodeInterface {
@@ -164,40 +164,46 @@ impl ClaudeCodeInterface {
             request.description
         )).await;
 
-        self.log_subprocess_activity(&log_path, &format!(
-            "[{}] Task ID: {} | Description length: {} chars",
-            Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-            request.id,
-            request.description.len()
-        )).await;
+        self.log_subprocess_activity(
+            &log_path,
+            &format!(
+                "[{}] Task ID: {} | Description length: {} chars",
+                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                request.id,
+                request.description.len()
+            ),
+        )
+        .await;
 
         // Execute the command
-        let output = command
-            .output()
-            .await
-            .map_err(|e| {
-                // Log the error
-                let error_msg = format!("Failed to execute claude command: {}", e);
-                tokio::spawn({
-                    let log_path = log_path.clone();
-                    let error_msg = error_msg.clone();
-                    async move {
-                        if let Ok(mut f) = tokio::fs::OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open(&log_path)
-                            .await
-                        {
-                            let _ = f.write_all(format!(
-                                "[{}] ERROR: {}\n",
-                                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                                error_msg
-                            ).as_bytes()).await;
-                        }
+        let output = command.output().await.map_err(|e| {
+            // Log the error
+            let error_msg = format!("Failed to execute claude command: {}", e);
+            tokio::spawn({
+                let log_path = log_path.clone();
+                let error_msg = error_msg.clone();
+                async move {
+                    if let Ok(mut f) = tokio::fs::OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(&log_path)
+                        .await
+                    {
+                        let _ = f
+                            .write_all(
+                                format!(
+                                    "[{}] ERROR: {}\n",
+                                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                                    error_msg
+                                )
+                                .as_bytes(),
+                            )
+                            .await;
                     }
-                });
-                ClaudeError::Unknown(error_msg)
-            })?;
+                }
+            });
+            ClaudeError::Unknown(error_msg)
+        })?;
 
         let execution_time = start_time.elapsed();
 
@@ -215,30 +221,46 @@ impl ClaudeCodeInterface {
         if !output.stdout.is_empty() {
             let stdout_preview = String::from_utf8_lossy(&output.stdout);
             let preview = if stdout_preview.len() > 500 {
-                format!("{}... (truncated, {} total chars)", &stdout_preview[..500], stdout_preview.len())
+                format!(
+                    "{}... (truncated, {} total chars)",
+                    &stdout_preview[..500],
+                    stdout_preview.len()
+                )
             } else {
                 stdout_preview.to_string()
             };
-            self.log_subprocess_activity(&log_path, &format!(
-                "[{}] STDOUT: {}",
-                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                preview
-            )).await;
+            self.log_subprocess_activity(
+                &log_path,
+                &format!(
+                    "[{}] STDOUT: {}",
+                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                    preview
+                ),
+            )
+            .await;
         }
 
         // Log stderr if not empty
         if !output.stderr.is_empty() {
             let stderr_preview = String::from_utf8_lossy(&output.stderr);
             let preview = if stderr_preview.len() > 500 {
-                format!("{}... (truncated, {} total chars)", &stderr_preview[..500], stderr_preview.len())
+                format!(
+                    "{}... (truncated, {} total chars)",
+                    &stderr_preview[..500],
+                    stderr_preview.len()
+                )
             } else {
                 stderr_preview.to_string()
             };
-            self.log_subprocess_activity(&log_path, &format!(
-                "[{}] STDERR: {}",
-                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                preview
-            )).await;
+            self.log_subprocess_activity(
+                &log_path,
+                &format!(
+                    "[{}] STDERR: {}",
+                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                    preview
+                ),
+            )
+            .await;
         }
 
         // Check if command succeeded
@@ -250,11 +272,15 @@ impl ClaudeCodeInterface {
                 stderr
             );
 
-            self.log_subprocess_activity(&log_path, &format!(
-                "[{}] COMMAND FAILED: {}",
-                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                error_msg
-            )).await;
+            self.log_subprocess_activity(
+                &log_path,
+                &format!(
+                    "[{}] COMMAND FAILED: {}",
+                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                    error_msg
+                ),
+            )
+            .await;
 
             return Err(ClaudeError::Unknown(error_msg));
         }
@@ -302,18 +328,26 @@ impl ClaudeCodeInterface {
             estimated_cost
         )).await;
 
-        self.log_subprocess_activity(&log_path, &format!(
-            "[{}] Response length: {} chars | Execution time: {:.2}s",
-            Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-            response_text.len(),
-            execution_time.as_secs_f64()
-        )).await;
+        self.log_subprocess_activity(
+            &log_path,
+            &format!(
+                "[{}] Response length: {} chars | Execution time: {:.2}s",
+                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                response_text.len(),
+                execution_time.as_secs_f64()
+            ),
+        )
+        .await;
 
-        self.log_subprocess_activity(&log_path, &format!(
-            "{}\nTask processing completed for ID: {}\n",
-            "=".repeat(80),
-            request.id
-        )).await;
+        self.log_subprocess_activity(
+            &log_path,
+            &format!(
+                "{}\nTask processing completed for ID: {}\n",
+                "=".repeat(80),
+                request.id
+            ),
+        )
+        .await;
 
         Ok(TaskResponse {
             task_id: request.id,
@@ -434,7 +468,8 @@ impl ClaudeCodeInterface {
     async fn create_subprocess_log_file(&self, task_id: &Uuid) -> Result<PathBuf, ClaudeError> {
         // Create logs directory in current workspace
         let logs_dir = PathBuf::from("logs");
-        tokio::fs::create_dir_all(&logs_dir).await
+        tokio::fs::create_dir_all(&logs_dir)
+            .await
             .map_err(|e| ClaudeError::Unknown(format!("Failed to create logs directory: {}", e)))?;
 
         let log_file = logs_dir.join(format!("claude-subprocess-{}.log", task_id));
@@ -448,12 +483,16 @@ impl ClaudeCodeInterface {
             .await
             .map_err(|e| ClaudeError::Unknown(format!("Failed to create log file: {}", e)))?;
 
-        file.write_all(format!(
-            "Claude Code Subprocess Log - Task ID: {}\nStarted: {}\n{}\n",
-            task_id,
-            Utc::now().format("%Y-%m-%d %H:%M:%S%.3f UTC"),
-            "=".repeat(80)
-        ).as_bytes()).await
+        file.write_all(
+            format!(
+                "Claude Code Subprocess Log - Task ID: {}\nStarted: {}\n{}\n",
+                task_id,
+                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f UTC"),
+                "=".repeat(80)
+            )
+            .as_bytes(),
+        )
+        .await
         .map_err(|e| ClaudeError::Unknown(format!("Failed to write log header: {}", e)))?;
 
         Ok(log_file)

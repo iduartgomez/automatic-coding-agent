@@ -104,6 +104,7 @@ pub use integration::{AgentConfig, AgentSystem, SystemStatus};
 // CLI module for command-line interface
 pub mod cli;
 
-
-
-
+/// Simple hello world function for demonstration purposes.
+pub fn hello_world() -> String {
+    "Hello, World!".to_string()
+}

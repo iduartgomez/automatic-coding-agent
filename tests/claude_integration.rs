@@ -2,8 +2,8 @@
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
-use tokio;
 use test_tag::tag;
+use tokio;
 
 #[derive(Debug)]
 struct TestCase {
@@ -37,7 +37,13 @@ fn get_test_cases() -> Vec<TestCase> {
             name: "multi_task_execution",
             resource_dir: "test4-multi-task",
             task_file: "tasks.md",
-            expected_outputs: vec!["hello.py", "config.json", "run.sh", ".gitignore", "requirements.txt"],
+            expected_outputs: vec![
+                "hello.py",
+                "config.json",
+                "run.sh",
+                ".gitignore",
+                "requirements.txt",
+            ],
         },
         TestCase {
             name: "task_references",
@@ -49,7 +55,9 @@ fn get_test_cases() -> Vec<TestCase> {
 }
 
 /// Helper function to copy test resources to temp workspace
-fn setup_test_workspace(resource_dir: &str) -> Result<(TempDir, PathBuf), Box<dyn std::error::Error>> {
+fn setup_test_workspace(
+    resource_dir: &str,
+) -> Result<(TempDir, PathBuf), Box<dyn std::error::Error>> {
     let temp_dir = TempDir::new()?;
     let workspace_path = temp_dir.path().to_path_buf();
 
@@ -162,8 +170,8 @@ async fn test_single_task_with_references() {
 
     println!("Running detailed test: {}", test_case.name);
 
-    let (_temp_dir, workspace_path) = setup_test_workspace(test_case.resource_dir)
-        .expect("Failed to setup workspace");
+    let (_temp_dir, workspace_path) =
+        setup_test_workspace(test_case.resource_dir).expect("Failed to setup workspace");
 
     println!("Workspace: {:?}", workspace_path);
 
@@ -237,8 +245,8 @@ async fn test_multi_task_execution() {
 
     println!("Running multi-task test: {}", test_case.name);
 
-    let (_temp_dir, workspace_path) = setup_test_workspace(test_case.resource_dir)
-        .expect("Failed to setup workspace");
+    let (_temp_dir, workspace_path) =
+        setup_test_workspace(test_case.resource_dir).expect("Failed to setup workspace");
 
     println!("⚠️  Test temporarily disabled - agent system integration pending");
     return;

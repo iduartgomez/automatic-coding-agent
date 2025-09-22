@@ -254,7 +254,6 @@ impl TaskLoader {
 
         Ok(())
     }
-
 }
 
 #[cfg(test)]
