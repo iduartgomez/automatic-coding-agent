@@ -101,36 +101,51 @@ async fn test_claude_integration_with_temp_workspaces() {
         let (_temp_dir, _workspace_path) = setup_test_workspace(test_case.resource_dir)
             .unwrap_or_else(|_| panic!("Failed to setup workspace for {}", test_case.name));
 
-        // Initialize agent with temp workspace
-        // TODO: Re-enable when AgentSystem interface is finalized
-        println!("⚠️  Test temporarily disabled - agent system integration pending");
-        continue;
+        // Initialize agent with temp workspace using modern AgentSystem
+        let default_config = automatic_coding_agent::cli::ConfigDiscovery::discover_config()
+            .unwrap_or_else(|_| {
+                eprintln!("Warning: Failed to discover config, using basic defaults");
+                // Create minimal config for testing
+                automatic_coding_agent::cli::DefaultAgentConfig::default()
+            });
 
-        /*
-        let agent = AutomaticCodingAgent::new(workspace_path.clone())
+        let agent_config = default_config.to_agent_config(Some(_workspace_path.clone()));
+
+        // Change to the workspace directory to ensure all file operations happen there
+        let original_dir = std::env::current_dir().expect("Failed to get current directory");
+        std::env::set_current_dir(&_workspace_path).expect("Failed to change to workspace directory");
+
+        let agent = automatic_coding_agent::AgentSystem::new(agent_config)
             .await
             .expect(&format!("Failed to create agent for {}", test_case.name));
 
         // Get task file path
-        let task_file_path = workspace_path.join(test_case.task_file);
+        let task_file_path = _workspace_path.join(test_case.task_file);
 
         if !task_file_path.exists() {
             eprintln!("Task file not found for {}: {:?}", test_case.name, task_file_path);
             continue;
         }
 
-        // Execute the task
-        let result = agent.execute_task_file(&task_file_path).await;
-        */
+        // Read task file content
+        let task_content = match fs::read_to_string(&task_file_path) {
+            Ok(content) => content,
+            Err(e) => {
+                eprintln!("Failed to read task file for {}: {:?}", test_case.name, e);
+                continue;
+            }
+        };
 
-        /*
+        // Execute the task using modern interface
+        let result = agent.create_and_process_task(&test_case.name, &task_content).await;
+
         match result {
-            Ok(_) => {
-                println!("✅ {} completed successfully", test_case.name);
+            Ok(task_id) => {
+                println!("✅ {} completed successfully (Task ID: {})", test_case.name, task_id);
 
                 // Verify expected outputs exist (if specified)
-                for expected_file in test_case.expected_outputs {
-                    let file_path = workspace_path.join(expected_file);
+                for expected_file in &test_case.expected_outputs {
+                    let file_path = _workspace_path.join(expected_file);
                     if file_path.exists() {
                         println!("  ✅ Created: {}", expected_file);
                     } else {
@@ -140,7 +155,7 @@ async fn test_claude_integration_with_temp_workspaces() {
 
                 // List all files created in workspace for debugging
                 println!("  Files in workspace:");
-                if let Ok(entries) = fs::read_dir(&workspace_path) {
+                if let Ok(entries) = fs::read_dir(&_workspace_path) {
                     for entry in entries {
                         if let Ok(entry) = entry {
                             let path = entry.path();
@@ -155,7 +170,9 @@ async fn test_claude_integration_with_temp_workspaces() {
                 eprintln!("❌ {} failed: {:?}", test_case.name, e);
             }
         }
-        */
+
+        // Restore original directory
+        std::env::set_current_dir(&original_dir).expect("Failed to restore original directory");
     }
 }
 
@@ -181,11 +198,21 @@ async fn test_single_task_with_references() {
         }
     }
 
-    println!("⚠️  Test temporarily disabled - agent system integration pending");
-    return;
+    // Initialize agent with modern AgentSystem
+    let default_config = automatic_coding_agent::cli::ConfigDiscovery::discover_config()
+        .unwrap_or_else(|_| {
+            eprintln!("Warning: Failed to discover config, using basic defaults");
+            // Create minimal config for testing
+            automatic_coding_agent::cli::DefaultAgentConfig::default()
+        });
 
-    /*
-    let agent = AutomaticCodingAgent::new(workspace_path.clone())
+    let agent_config = default_config.to_agent_config(Some(workspace_path.clone()));
+
+    // Change to the workspace directory to ensure all file operations happen there
+    let original_dir = std::env::current_dir().expect("Failed to get current directory");
+    std::env::set_current_dir(&workspace_path).expect("Failed to change to workspace directory");
+
+    let agent = automatic_coding_agent::AgentSystem::new(agent_config)
         .await
         .expect("Failed to create agent");
 
@@ -193,17 +220,19 @@ async fn test_single_task_with_references() {
     println!("Task file: {:?}", task_file_path);
 
     // Read and display task content
-    if let Ok(content) = fs::read_to_string(&task_file_path) {
+    let task_content = if let Ok(content) = fs::read_to_string(&task_file_path) {
         println!("Task content:\n{}", content);
-    }
+        content
+    } else {
+        eprintln!("Failed to read task file: {:?}", task_file_path);
+        return;
+    };
 
-    let result = agent.execute_task_file(&task_file_path).await;
-    */
+    let result = agent.create_and_process_task(&test_case.name, &task_content).await;
 
-    /*
     match result {
-        Ok(_) => {
-            println!("✅ Task completed");
+        Ok(task_id) => {
+            println!("✅ Task completed (Task ID: {})", task_id);
 
             // Show all created files
             println!("Files after execution:");
@@ -230,7 +259,9 @@ async fn test_single_task_with_references() {
             eprintln!("❌ Task failed: {:?}", e);
         }
     }
-    */
+
+    // Restore original directory
+    std::env::set_current_dir(&original_dir).expect("Failed to restore original directory");
 }
 
 #[tokio::test]
@@ -244,37 +275,63 @@ async fn test_multi_task_execution() {
     let (_temp_dir, _workspace_path) =
         setup_test_workspace(test_case.resource_dir).expect("Failed to setup workspace");
 
-    println!("⚠️  Test temporarily disabled - agent system integration pending");
-    return;
+    // Initialize agent with modern AgentSystem
+    let default_config = automatic_coding_agent::cli::ConfigDiscovery::discover_config()
+        .unwrap_or_else(|_| {
+            eprintln!("Warning: Failed to discover config, using basic defaults");
+            // Create minimal config for testing
+            automatic_coding_agent::cli::DefaultAgentConfig::default()
+        });
 
-    /*
-    let agent = AutomaticCodingAgent::new(workspace_path.clone())
+    let agent_config = default_config.to_agent_config(Some(_workspace_path.clone()));
+
+    // Change to the workspace directory to ensure all file operations happen there
+    let original_dir = std::env::current_dir().expect("Failed to get current directory");
+    std::env::set_current_dir(&_workspace_path).expect("Failed to change to workspace directory");
+
+    let agent = automatic_coding_agent::AgentSystem::new(agent_config)
         .await
         .expect("Failed to create agent");
 
-    let task_file_path = workspace_path.join("tasks.md");
+    let task_file_path = _workspace_path.join("tasks.md");
 
-    // Execute multi-task file
-    let result = agent.execute_tasks_file(&task_file_path).await;
-    */
+    // Read multi-task file content
+    let task_content = match fs::read_to_string(&task_file_path) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("Failed to read multi-task file: {:?}", e);
+            return;
+        }
+    };
 
-    /*
+    // Execute multi-task using modern interface
+    // Note: The modern interface processes one task at a time, so we'll treat the entire file as one task
+    let result = agent.create_and_process_task("Multi-Task Execution", &task_content).await;
+
     match result {
-        Ok(completed_tasks) => {
-            println!("✅ Multi-task execution completed");
-            println!("Completed {} tasks", completed_tasks.len());
-
-            for (i, task) in completed_tasks.iter().enumerate() {
-                println!("  {}. {} - {:?}", i + 1, task.description, task.status);
-            }
+        Ok(task_id) => {
+            println!("✅ Multi-task execution completed (Task ID: {})", task_id);
 
             // Verify expected files
-            for expected_file in test_case.expected_outputs {
-                let file_path = workspace_path.join(expected_file);
+            for expected_file in &test_case.expected_outputs {
+                let file_path = _workspace_path.join(expected_file);
                 if file_path.exists() {
                     println!("  ✅ Created: {}", expected_file);
                 } else {
                     println!("  ⚠️  Missing: {}", expected_file);
+                }
+            }
+
+            // List all files created in workspace
+            println!("  Files in workspace:");
+            if let Ok(entries) = fs::read_dir(&_workspace_path) {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        let path = entry.path();
+                        if path.is_file() {
+                            println!("    - {}", path.file_name().unwrap().to_string_lossy());
+                        }
+                    }
                 }
             }
         }
@@ -282,7 +339,9 @@ async fn test_multi_task_execution() {
             eprintln!("❌ Multi-task execution failed: {:?}", e);
         }
     }
-    */
+
+    // Restore original directory
+    std::env::set_current_dir(&original_dir).expect("Failed to restore original directory");
 }
 
 /// Test CLI resume functionality integration
