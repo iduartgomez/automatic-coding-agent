@@ -494,7 +494,7 @@ impl SessionManager {
 
         // Create final checkpoint
         let _final_checkpoint = self
-            .create_checkpoint("Session shutdown checkpoint".to_string())
+            .create_checkpoint("session_shutdown".to_string())
             .await?;
 
         // Save current state

@@ -2,8 +2,10 @@ use crate::claude::{ContextManager, ErrorRecoveryManager, RateLimiter, UsageTrac
 use crate::task::types::{Task, TaskStatus};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
+use tokio::process::Command;
+use std::process::Stdio;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -105,8 +107,8 @@ impl ClaudeCodeInterface {
             .await
             .map_err(|e| ClaudeError::Unknown(e.to_string()))?;
 
-        // Mock Claude response generation
-        let response = self.generate_mock_response(request).await?;
+        // Execute real Claude Code request
+        let response = self.execute_claude_code_request(request).await?;
 
         // Add assistant response to context
         let assistant_message = ClaudeMessage {
@@ -126,44 +128,75 @@ impl ClaudeCodeInterface {
         Ok(response)
     }
 
-    async fn generate_mock_response(
+    async fn execute_claude_code_request(
         &self,
         request: &TaskRequest,
     ) -> Result<TaskResponse, ClaudeError> {
-        // Simulate processing time
-        let processing_time = Duration::from_millis(100 + (rand::random::<u64>() % 900));
-        tokio::time::sleep(processing_time).await;
+        let start_time = Instant::now();
 
-        // Random error injection removed to prevent flaky tests
+        // Prepare Claude Code CLI command
+        let mut command = Command::new("claude");
+        command
+            .arg("--print") // Non-interactive mode
+            .arg("--output-format")
+            .arg("json") // JSON output for easier parsing
+            .arg("--allowedTools")
+            .arg("Read,Write,Edit,Bash,Glob,Grep") // Allow file operations
+            .arg("--permission-mode")
+            .arg("acceptEdits") // Allow file modifications
+            .arg("--model")
+            .arg("sonnet") // Use latest Sonnet model
+            .arg("--") // Separate options from prompt
+            .arg(&request.description) // The task description
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null());
+
+        // Execute the command
+        let output = command
+            .output()
+            .await
+            .map_err(|e| ClaudeError::Unknown(format!("Failed to execute claude command: {}", e)))?;
+
+        let execution_time = start_time.elapsed();
+
+        // Check if command succeeded
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(ClaudeError::Unknown(format!(
+                "Claude command failed with exit code {}: {}",
+                output.status.code().unwrap_or(-1),
+                stderr
+            )));
+        }
+
+        // Parse the output
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let response_text = if stdout.trim().is_empty() {
+            // If no JSON output, fall back to stderr which might contain the response
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if stderr.trim().is_empty() {
+                "Task completed successfully".to_string()
+            } else {
+                stderr.to_string()
+            }
+        } else {
+            // Try to parse JSON response, fall back to raw text if parsing fails
+            match serde_json::from_str::<serde_json::Value>(&stdout) {
+                Ok(json) => {
+                    // Extract response text from JSON structure
+                    json.get("response")
+                        .and_then(|r| r.as_str())
+                        .unwrap_or(&stdout)
+                        .to_string()
+                }
+                Err(_) => stdout.to_string(),
+            }
+        };
 
         let input_tokens = self.estimate_tokens(&request.description);
-        let output_tokens = input_tokens / 2 + 50; // Mock output length
+        let output_tokens = self.estimate_tokens(&response_text);
         let total_tokens = input_tokens + output_tokens;
-
-        // Generate mock response based on task type
-        let response_text = match request.task_type.as_str() {
-            "code_generation" => format!(
-                "I'll help you implement {}. Here's the solution:\n\n```rust\n// Mock implementation\nfn {}() {{\n    // TODO: Implement functionality\n    println!(\"Hello from mock implementation!\");\n}}\n```",
-                request.description,
-                request.description.replace(' ', "_").to_lowercase()
-            ),
-            "code_review" => format!(
-                "I've reviewed the code. Here are my findings:\n\n1. The implementation looks good overall\n2. Consider adding error handling\n3. Unit tests would be beneficial\n\nFor: {}",
-                request.description
-            ),
-            "debugging" => format!(
-                "I've analyzed the issue: {}\n\nPossible causes:\n1. Check for null pointer exceptions\n2. Verify input validation\n3. Review error logs\n\nRecommended fix: Add proper error handling and logging.",
-                request.description
-            ),
-            "refactoring" => format!(
-                "Here's how I would refactor {}:\n\n1. Extract common functionality into utilities\n2. Improve naming conventions\n3. Add documentation\n4. Optimize performance",
-                request.description
-            ),
-            _ => format!(
-                "I understand you want help with: {}\n\nI'll analyze this and provide a comprehensive solution. This is a mock response for testing purposes.",
-                request.description
-            ),
-        };
 
         let estimated_cost = self
             .usage_tracker
@@ -173,15 +206,15 @@ impl ClaudeCodeInterface {
         Ok(TaskResponse {
             task_id: request.id,
             response_text,
-            tool_uses: vec![], // Mock: no tool uses for now
+            tool_uses: vec![], // TODO: Parse tool uses from JSON output
             token_usage: TokenUsage {
                 input_tokens,
                 output_tokens,
                 total_tokens,
                 estimated_cost,
             },
-            execution_time: processing_time,
-            model_used: "claude-3-mock".to_string(),
+            execution_time,
+            model_used: "sonnet".to_string(), // Latest Sonnet model
         })
     }
 
