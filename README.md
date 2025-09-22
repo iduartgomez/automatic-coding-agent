@@ -195,10 +195,10 @@ cargo test
 cargo test --lib
 
 # Run only integration tests (non-Claude)
-cargo test -- :!claude:
+cargo test --test cli_functionality --test config_generation_integration --test config_toml_integration
 
 # Run only Claude integration tests (requires Claude CLI)
-cargo test -- :claude:
+cargo test --test setup_commands_integration --test backup_strategy_integration --test error_handling_integration --test claude_integration
 
 # Run specific test file
 cargo test --test config_toml_integration

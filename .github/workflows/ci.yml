@@ -47,11 +47,11 @@ jobs:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Run tests (excluding Claude integration tests)
-      run: cargo test --verbose -- :!claude:
+    - name: Run tests (unit + integration, excluding Claude tests)
+      run: cargo test --verbose --lib && cargo test --verbose --test cli_functionality --test config_generation_integration --test config_toml_integration
 
-    - name: Run tests with all features (excluding Claude integration tests)
-      run: cargo test --verbose --all-features -- :!claude:
+    - name: Run tests with all features (unit + integration, excluding Claude tests)
+      run: cargo test --verbose --all-features --lib && cargo test --verbose --all-features --test cli_functionality --test config_generation_integration --test config_toml_integration
 
   claude-integration-tests:
     name: Claude Integration Tests
@@ -93,7 +93,7 @@ jobs:
         fi
 
     - name: Run Claude integration tests
-      run: cargo test --verbose -- :claude:
+      run: cargo test --verbose --test setup_commands_integration --test backup_strategy_integration --test error_handling_integration --test claude_integration
       env:
         # Add any required environment variables for Claude tests
         RUST_LOG: info

@@ -53,13 +53,13 @@ This is the default mode for CI and regular development:
 
 ```bash
 # Run all unit and integration tests (excluding Claude)
-cargo test
+cargo test --lib && cargo test --test cli_functionality --test config_generation_integration --test config_toml_integration
 
 # With verbose output
-cargo test -- :!claude: --nocapture
+cargo test --lib --nocapture && cargo test --test cli_functionality --test config_generation_integration --test config_toml_integration --nocapture
 
 # With all features
-cargo test --all-features -- :!claude:
+cargo test --all-features --lib && cargo test --all-features --test cli_functionality --test config_generation_integration --test config_toml_integration
 ```
 
 ### Claude Integration Tests Only
@@ -68,10 +68,10 @@ To run only the Claude integration tests:
 
 ```bash
 # Run only Claude integration tests
-cargo test -- :claude:
+cargo test --test setup_commands_integration --test backup_strategy_integration --test error_handling_integration --test claude_integration
 
 # With verbose output
-cargo test -- :claude: --nocapture
+cargo test --test setup_commands_integration --test backup_strategy_integration --test error_handling_integration --test claude_integration --nocapture
 ```
 
 ### Specific Test Categories
