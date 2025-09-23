@@ -1,4 +1,4 @@
-use automatic_coding_agent::integration::AgentConfig;
+use aca::integration::AgentConfig;
 use std::path::Path;
 
 #[test]
@@ -75,7 +75,7 @@ fn test_config_template_generation() {
 
 #[test]
 fn test_config_generation_with_setup_commands() {
-    use automatic_coding_agent::task::SetupCommand;
+    use aca::task::SetupCommand;
 
     // Create a config with setup commands
     let config = AgentConfig {

@@ -54,7 +54,7 @@
 //! ### Basic Task Management
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::task::{
+//! use aca::task::{
 //!     TaskManager, TaskManagerConfig, TaskSpec, TaskPriority,
 //!     TaskMetadata, ComplexityLevel, ContextRequirements
 //! };
@@ -113,7 +113,7 @@
 //! ### Hierarchical Task Creation
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::task::{TaskManager, TaskManagerConfig, TaskSpec};
+//! use aca::task::{TaskManager, TaskManagerConfig, TaskSpec};
 //!
 //! async fn create_project_tasks(task_manager: &TaskManager) -> anyhow::Result<()> {
 //!     // Create a main project task
@@ -155,7 +155,7 @@
 //! ### Event Handling & Monitoring
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::task::{TaskManager, TaskEvent, TaskEventHandler};
+//! use aca::task::{TaskManager, TaskEvent, TaskEventHandler};
 //! use anyhow::Result;
 //!
 //! struct MetricsHandler {
@@ -247,7 +247,7 @@ use tracing::{debug, error, info, warn};
 /// ## Example
 ///
 /// ```rust,no_run
-/// use automatic_coding_agent::task::{TaskManager, TaskManagerConfig};
+/// use aca::task::{TaskManager, TaskManagerConfig};
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -281,7 +281,7 @@ pub struct TaskManager {
 /// ## Example
 ///
 /// ```rust
-/// use automatic_coding_agent::task::TaskManagerConfig;
+/// use aca::task::TaskManagerConfig;
 ///
 /// let config = TaskManagerConfig {
 ///     auto_retry_failed_tasks: true,
@@ -327,7 +327,7 @@ pub struct TaskManagerConfig {
 /// ## Example Usage
 ///
 /// ```rust,no_run
-/// use automatic_coding_agent::task::{TaskEvent, TaskEventHandler};
+/// use aca::task::{TaskEvent, TaskEventHandler};
 /// use anyhow::Result;
 ///
 /// struct LoggingHandler;
@@ -394,7 +394,7 @@ pub enum TaskEvent {
 /// ## Example Implementation
 ///
 /// ```rust,no_run
-/// use automatic_coding_agent::task::{TaskEvent, TaskEventHandler};
+/// use aca::task::{TaskEvent, TaskEventHandler};
 /// use anyhow::Result;
 /// use std::sync::atomic::{AtomicU64, Ordering};
 ///
@@ -477,7 +477,7 @@ impl TaskManager {
     /// # Example
     ///
     /// ```rust
-    /// use automatic_coding_agent::task::{TaskManager, TaskManagerConfig};
+    /// use aca::task::{TaskManager, TaskManagerConfig};
     ///
     /// let config = TaskManagerConfig {
     ///     auto_retry_failed_tasks: true,
@@ -523,7 +523,7 @@ impl TaskManager {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use automatic_coding_agent::task::{TaskManager, TaskManagerConfig};
+    /// use aca::task::{TaskManager, TaskManagerConfig};
     ///
     /// #[tokio::main]
     /// async fn main() -> anyhow::Result<()> {
@@ -577,7 +577,7 @@ impl TaskManager {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use automatic_coding_agent::task::{TaskManager, TaskManagerConfig};
+    /// use aca::task::{TaskManager, TaskManagerConfig};
     ///
     /// #[tokio::main]
     /// async fn main() -> anyhow::Result<()> {
@@ -1021,7 +1021,7 @@ impl Default for TaskManagerConfig {
 /// ## Example: Complete Project Workflow
 ///
 /// ```rust,ignore
-/// use automatic_coding_agent::task::{
+/// use aca::task::{
 ///     TaskManager, TaskManagerConfig, TaskSpec, TaskPriority, TaskMetadata,
 ///     ComplexityLevel, ContextRequirements, LoggingEventHandler
 /// };
@@ -1118,7 +1118,7 @@ impl Default for TaskManagerConfig {
 /// ## Example: Error Handling and Recovery
 ///
 /// ```rust,ignore
-/// use automatic_coding_agent::task::{
+/// use aca::task::{
 ///     TaskManager, TaskManagerConfig, TaskEvent, TaskEventHandler, TaskStatus
 /// };
 /// use anyhow::Result;

@@ -3,7 +3,7 @@
 //! These tests verify that the different CLI components work together properly.
 //! Unit tests for individual functions are located in the respective module files.
 
-use automatic_coding_agent::cli::{ConfigDiscovery, DefaultAgentConfig, TaskLoader};
+use aca::cli::{ConfigDiscovery, DefaultAgentConfig, TaskLoader};
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -128,7 +128,7 @@ fn test_task_reference_resolution_missing_file() {
 
 #[test]
 fn test_task_conversion_to_agent_commands() {
-    use automatic_coding_agent::cli::SimpleTask;
+    use aca::cli::SimpleTask;
 
     let tasks = [
         SimpleTask {

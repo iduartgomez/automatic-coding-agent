@@ -56,7 +56,7 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::{AgentSystem, AgentConfig};
+//! use aca::{AgentSystem, AgentConfig};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -872,7 +872,7 @@ impl AgentConfig {
 impl Default for AgentConfig {
     fn default() -> Self {
         // Create a proper test/temp directory instead of using current dir
-        let workspace_path = std::env::temp_dir().join("automatic-coding-agent");
+        let workspace_path = std::env::temp_dir().join("aca");
 
         Self {
             workspace_path,

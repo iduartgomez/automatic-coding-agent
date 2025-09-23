@@ -36,7 +36,7 @@ cargo clippy
 
 ## Project Architecture
 
-This is a Rust-based agentic tool that automates coding tasks using Claude Code in headless mode. The system operates in two distinct modes:
+aca (automatic coding agent) is a Rust-based agentic tool that automates coding tasks using Claude Code in headless mode. The system operates in two distinct modes:
 
 1. **Host-side session initializer** - Manages Docker environments and session persistence
 2. **In-container agent** - Executes tasks using a dynamic task tree with full persistence and resumability
@@ -65,7 +65,7 @@ Tasks are managed in a hierarchical tree structure with support for:
 - Real-time progress tracking
 - Full persistence and resumability
 
-The agent interfaces with Claude Code in headless mode with rate limiting, adaptive backoff, and usage tracking.
+aca interfaces with Claude Code in headless mode with rate limiting, adaptive backoff, and usage tracking.
 
 ## Documentation Structure
 

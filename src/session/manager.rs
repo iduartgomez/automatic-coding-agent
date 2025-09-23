@@ -268,19 +268,38 @@ impl SessionManager {
     }
 
     /// List available checkpoints
-    pub async fn list_checkpoints(&self) -> Result<Vec<CheckpointInfo>> {
-        let checkpoint_ids = self.persistence.list_checkpoints().await?;
+    ///
+    /// # Arguments
+    /// * `include_all_sessions` - If true, lists checkpoints from all sessions in the workspace.
+    ///   If false, lists only checkpoints from the current session.
+    pub async fn list_checkpoints(&self, include_all_sessions: bool) -> Result<Vec<CheckpointInfo>> {
+        if include_all_sessions {
+            let metadata = self.metadata.read().await;
+            let workspace_root = &metadata.workspace_root;
+            Self::list_all_checkpoints_in_workspace(workspace_root).await
+        } else {
+            // Session-specific behavior: only show checkpoints from this session
+            let checkpoint_ids = self.persistence.list_checkpoints().await?;
+            let metadata = self.metadata.read().await;
+
+            let available_checkpoints: Vec<CheckpointInfo> = metadata
+                .checkpoints
+                .iter()
+                .filter(|checkpoint| checkpoint_ids.contains(&checkpoint.id))
+                .cloned()
+                .collect();
+
+            Ok(available_checkpoints)
+        }
+    }
+
+
+    /// Create a checkpoint in the latest session of the workspace
+    /// This is useful for CLI operations that want to add checkpoints to existing sessions
+    pub async fn create_checkpoint_in_latest_session_of_workspace(&self, description: String) -> Result<CheckpointInfo> {
         let metadata = self.metadata.read().await;
-
-        // Return checkpoint info from metadata, filtered by available checkpoint files
-        let available_checkpoints: Vec<CheckpointInfo> = metadata
-            .checkpoints
-            .iter()
-            .filter(|checkpoint| checkpoint_ids.contains(&checkpoint.id))
-            .cloned()
-            .collect();
-
-        Ok(available_checkpoints)
+        let workspace_root = &metadata.workspace_root;
+        Self::create_checkpoint_in_latest_session(workspace_root, description).await
     }
 
     /// Start automatic session saving
@@ -515,6 +534,213 @@ impl SessionManager {
 
         info!("Session shutdown completed");
         Ok(())
+    }
+
+    /// List all checkpoints across all sessions in a workspace
+    /// This is a private static method used internally
+    async fn list_all_checkpoints_in_workspace(workspace_root: &std::path::Path) -> Result<Vec<CheckpointInfo>> {
+        use crate::env;
+        use std::collections::BTreeMap;
+
+        let sessions_dir = env::sessions_dir_path(workspace_root);
+
+        if !sessions_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut all_checkpoints: BTreeMap<DateTime<Utc>, CheckpointInfo> = BTreeMap::new();
+
+        // Read all session directories
+        if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+            for entry in entries.flatten() {
+                let session_path = entry.path();
+                if session_path.is_dir() {
+                    let checkpoints_dir = session_path.join("checkpoints");
+                    if checkpoints_dir.exists() {
+                        if let Ok(checkpoint_entries) = std::fs::read_dir(&checkpoints_dir) {
+                            for checkpoint_entry in checkpoint_entries.flatten() {
+                                let checkpoint_path = checkpoint_entry.path();
+                                if checkpoint_path.extension().and_then(|s| s.to_str()) == Some("json") {
+                                    if let Ok(content) = std::fs::read_to_string(&checkpoint_path) {
+                                        // Parse the session data and extract checkpoints from metadata
+                                        if let Ok(session_data) = serde_json::from_str::<serde_json::Value>(&content) {
+                                            if let Some(metadata) = session_data.get("metadata") {
+                                                if let Some(checkpoints_array) = metadata.get("checkpoints") {
+                                                    if let Some(checkpoints) = checkpoints_array.as_array() {
+                                                        for checkpoint_value in checkpoints {
+                                                            if let Ok(checkpoint_info) = serde_json::from_value::<CheckpointInfo>(checkpoint_value.clone()) {
+                                                                all_checkpoints.insert(checkpoint_info.created_at, checkpoint_info);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Convert to vec and sort by creation time (most recent first)
+        let mut checkpoints: Vec<_> = all_checkpoints.into_values().collect();
+        checkpoints.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+
+        Ok(checkpoints)
+    }
+
+    /// Create a checkpoint in the most recent session of a workspace
+    /// This is a private static method used internally
+    async fn create_checkpoint_in_latest_session(
+        workspace_root: &std::path::Path,
+        description: String,
+    ) -> Result<CheckpointInfo> {
+        use crate::env;
+        use uuid::Uuid;
+
+        let sessions_dir = env::sessions_dir_path(workspace_root);
+
+        if !sessions_dir.exists() {
+            return Err(anyhow::anyhow!("No sessions found in workspace"));
+        }
+
+        // Find the most recent session directory
+        let mut latest_session_dir = None;
+        let mut latest_time = None;
+
+        if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Ok(metadata) = entry.metadata() {
+                        if let Ok(modified) = metadata.modified() {
+                            if latest_time.is_none() || Some(modified) > latest_time {
+                                latest_time = Some(modified);
+                                latest_session_dir = Some(path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let session_dir = latest_session_dir
+            .ok_or_else(|| anyhow::anyhow!("No session directories found"))?;
+
+        // Load the session and add checkpoint to it
+        let _session_config = SessionManagerConfig::default();
+        let _init_options = SessionInitOptions {
+            name: "Temporary Session for Manual Checkpoint".to_string(),
+            description: Some("Temporary session for creating manual checkpoint".to_string()),
+            workspace_root: workspace_root.to_path_buf(),
+            task_manager_config: TaskManagerConfig::default(),
+            persistence_config: PersistenceConfig::default(),
+            recovery_config: RecoveryConfig::default(),
+            enable_auto_save: false,
+            restore_from_checkpoint: None,
+        };
+
+        // This approach still has the isolation issue. Let me implement a direct approach
+        // that modifies the existing session files rather than creating a new session.
+
+        // Create checkpoint info
+        let checkpoint_id = format!("checkpoint_{}", Uuid::new_v4());
+        let now = Utc::now();
+
+        let checkpoint_info = CheckpointInfo {
+            id: checkpoint_id.clone(),
+            created_at: now,
+            description: description.clone(),
+            task_count: 0,
+            size_bytes: 0,
+            is_automatic: false,
+            trigger_reason: CheckpointTrigger::Manual {
+                reason: "User requested manual checkpoint".to_string(),
+            },
+        };
+
+        // Find the most recent checkpoint file in the session to update
+        let checkpoints_dir = session_dir.join("checkpoints");
+        if !checkpoints_dir.exists() {
+            std::fs::create_dir_all(&checkpoints_dir)?;
+        }
+
+        // Create a new checkpoint file in the existing session directory
+        let checkpoint_file = checkpoints_dir.join(format!("{}.json", checkpoint_id));
+
+        // Create minimal session-like structure for this checkpoint
+        let session_data = serde_json::json!({
+            "metadata": {
+                "id": format!("{}", Uuid::new_v4()),
+                "name": "Manual Checkpoint",
+                "description": format!("Manual checkpoint: {}", description),
+                "created_at": now,
+                "last_updated": now,
+                "version": {
+                    "major": 1,
+                    "minor": 0,
+                    "patch": 0,
+                    "agent_version": "0.1.0",
+                    "format_version": "1.0"
+                },
+                "checkpoints": [&checkpoint_info],
+                "total_tasks": 0,
+                "completed_tasks": 0,
+                "failed_tasks": 0,
+                "session_tags": [],
+                "workspace_root": workspace_root.to_string_lossy(),
+                "custom_properties": {}
+            },
+            "task_tree": {
+                "tasks": {},
+                "roots": [],
+                "metadata": {
+                    "created_at": now,
+                    "updated_at": now,
+                    "version": 1,
+                    "total_tasks_created": 0,
+                    "statistics": {
+                        "total_tasks": 0,
+                        "pending_tasks": 0,
+                        "in_progress_tasks": 0,
+                        "completed_tasks": 0,
+                        "failed_tasks": 0,
+                        "blocked_tasks": 0,
+                        "skipped_tasks": 0,
+                        "average_completion_time": null,
+                        "success_rate": 0.0
+                    }
+                }
+            },
+            "execution_context": {
+                "current_working_directory": workspace_root.to_string_lossy(),
+                "environment_variables": {},
+                "active_file_watchers": [],
+                "resource_usage": {
+                    "memory_usage_mb": 0,
+                    "cpu_usage_percent": 0.0,
+                    "disk_usage_mb": 0,
+                    "open_file_handles": 0,
+                    "network_connections": 0
+                }
+            },
+            "file_system_state": {
+                "tracked_files": {},
+                "workspace_files": [],
+                "temp_files": [],
+                "created_directories": []
+            }
+        });
+
+        // Write the checkpoint file
+        std::fs::write(&checkpoint_file, serde_json::to_string_pretty(&session_data)?)?;
+
+        info!("Manual checkpoint created: {} in session: {:?}", checkpoint_id, session_dir.file_name());
+
+        Ok(checkpoint_info)
     }
 }
 

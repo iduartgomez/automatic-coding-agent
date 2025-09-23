@@ -3,6 +3,31 @@
 version = 4
 
 [[package]]
+name = "aca"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dashmap",
+ "flate2",
+ "futures",
+ "lexopt",
+ "rand",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "test-tag",
+ "thiserror",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -52,31 +77,6 @@ name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
-
-[[package]]
-name = "automatic-coding-agent"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "dashmap",
- "flate2",
- "futures",
- "lexopt",
- "rand",
- "reqwest",
- "serde",
- "serde_json",
- "tempfile",
- "test-tag",
- "thiserror",
- "tokio",
- "toml",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
-]
 
 [[package]]
 name = "backtrace"

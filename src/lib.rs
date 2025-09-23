@@ -37,7 +37,7 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::{AgentSystem, AgentConfig};
+//! use aca::{AgentSystem, AgentConfig};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {

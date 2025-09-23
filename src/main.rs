@@ -1,14 +1,14 @@
-use automatic_coding_agent::cli::{
+use aca::cli::{
     Args, BatchConfig, ConfigDiscovery, ExecutionMode, InteractiveConfig, TaskInput, TaskLoader,
     args::{ResumeConfig, show_help, show_version},
 };
-use automatic_coding_agent::env;
-use automatic_coding_agent::session::persistence::PersistenceConfig;
-use automatic_coding_agent::session::recovery::RecoveryConfig;
-use automatic_coding_agent::session::{SessionInitOptions, SessionManager, SessionManagerConfig};
-use automatic_coding_agent::task::TaskStatus;
-use automatic_coding_agent::task::manager::TaskManagerConfig;
-use automatic_coding_agent::{AgentConfig, AgentSystem};
+use aca::env;
+use aca::session::persistence::PersistenceConfig;
+use aca::session::recovery::RecoveryConfig;
+use aca::session::{SessionInitOptions, SessionManager, SessionManagerConfig};
+use aca::task::TaskStatus;
+use aca::task::manager::TaskManagerConfig;
+use aca::{AgentConfig, AgentSystem};
 use std::io::{self, Write};
 use tracing::{error, info};
 
@@ -478,7 +478,7 @@ async fn list_available_checkpoints(_all_sessions: bool) -> Result<(), Box<dyn s
     if !sessions_dir.exists() {
         println!("No session data found in current directory.");
         println!(
-            "Make sure you're in a workspace that has been used with the automatic-coding-agent."
+            "Make sure you're in a workspace that has been used with aca."
         );
         return Ok(());
     }

@@ -62,7 +62,7 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::llm::{
+//! use aca::llm::{
 //!     LLMProvider, LLMRequest, ProviderConfig, ProviderType, ClaudeProvider
 //! };
 //! use std::collections::HashMap;

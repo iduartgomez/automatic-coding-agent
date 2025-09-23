@@ -36,7 +36,7 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::session::{SessionManager, SessionManagerConfig, SessionInitOptions};
+//! use aca::session::{SessionManager, SessionManagerConfig, SessionInitOptions};
 //! use std::path::PathBuf;
 //!
 //! #[tokio::main]

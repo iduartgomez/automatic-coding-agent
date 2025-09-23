@@ -17,11 +17,11 @@ pub enum ExecutionMode {
     Batch(BatchConfig),
     Interactive(InteractiveConfig),
     Resume(ResumeConfig),     // Resume from checkpoint
-    ListCheckpoints,          // List available checkpoints
+    ListCheckpoints { all_sessions: bool }, // List available checkpoints
     CreateCheckpoint(String), // Create manual checkpoint
     Help,
     Version,
-    ShowConfig,
+    ShowConfig, // New: Show configuration discovery info
 }
 
 #[derive(Debug)]
@@ -66,6 +66,7 @@ impl Args {
         let mut resume_checkpoint: Option<String> = None;
         let mut continue_latest = false;
         let mut list_checkpoints = false;
+        let mut all_sessions = false;
         let mut create_checkpoint: Option<String> = None;
 
         while let Some(arg) = parser.next()? {
@@ -123,6 +124,9 @@ impl Args {
                 Long("list-checkpoints") => {
                     list_checkpoints = true;
                 }
+                Long("all-sessions") => {
+                    all_sessions = true;
+                }
                 Long("create-checkpoint") => {
                     create_checkpoint = Some(parser.value()?.to_string_lossy().to_string());
                 }
@@ -140,7 +144,7 @@ impl Args {
 
         if list_checkpoints {
             return Ok(Args {
-                mode: ExecutionMode::ListCheckpoints,
+                mode: ExecutionMode::ListCheckpoints { all_sessions },
             });
         }
 
@@ -248,6 +252,7 @@ pub fn show_help() {
     println!("        --resume <CHECKPOINT>   Resume from specific checkpoint ID");
     println!("        --continue              Resume from latest checkpoint");
     println!("        --list-checkpoints      List available checkpoints");
+    println!("        --all-sessions          Include checkpoints from all sessions (use with --list-checkpoints)");
     println!("        --create-checkpoint <DESC> Create manual checkpoint");
     println!();
     println!("INFORMATION OPTIONS:");

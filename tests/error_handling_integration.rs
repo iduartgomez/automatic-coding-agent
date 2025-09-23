@@ -1,5 +1,5 @@
-use automatic_coding_agent::task::{ErrorHandler, OutputCondition, SetupCommand};
-use automatic_coding_agent::{AgentConfig, AgentSystem};
+use aca::task::{ErrorHandler, OutputCondition, SetupCommand};
+use aca::{AgentConfig, AgentSystem};
 use chrono::Duration;
 use test_tag::tag;
 

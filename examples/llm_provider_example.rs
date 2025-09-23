@@ -1,5 +1,5 @@
-use automatic_coding_agent::llm::claude_provider::ClaudeProvider;
-use automatic_coding_agent::llm::{LLMProvider, LLMRequest, ProviderConfig, ProviderType};
+use aca::llm::claude_provider::ClaudeProvider;
+use aca::llm::{LLMProvider, LLMRequest, ProviderConfig, ProviderType};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         api_key: Some("mock-api-key".to_string()),
         base_url: None,
         model: Some("claude-3-sonnet".to_string()),
-        rate_limits: automatic_coding_agent::llm::types::RateLimitConfig {
+        rate_limits: aca::llm::types::RateLimitConfig {
             max_requests_per_minute: 50,
             max_tokens_per_minute: 40000,
             burst_allowance: 5000,

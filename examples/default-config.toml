@@ -1,4 +1,4 @@
-workspace_path = "/tmp/automatic-coding-agent"
+workspace_path = "/tmp/aca"
 setup_commands = []
 
 [session_config]

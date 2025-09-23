@@ -1,17 +1,21 @@
 [package]
-name = "automatic-coding-agent"
+name = "aca"
 version = "0.1.0"
 edition = "2024"
 description = "A Rust-based agentic tool that automates coding tasks using Claude Code in headless mode"
 license = "MIT"
 repository = "https://github.com/automatic-coding-agent/automatic-coding-agent"
 homepage = "https://github.com/automatic-coding-agent/automatic-coding-agent"
-documentation = "https://docs.rs/automatic-coding-agent"
+documentation = "https://docs.rs/aca"
 readme = "README.md"
 keywords = ["ai", "automation", "coding", "agent", "claude"]
 categories = ["development-tools", "command-line-utilities"]
 authors = ["Automatic Coding Agent Team"]
 rust-version = "1.90.0"
+
+[[bin]]
+name = "aca"
+path = "src/main.rs"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

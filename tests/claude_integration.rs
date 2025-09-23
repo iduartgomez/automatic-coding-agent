@@ -1,4 +1,4 @@
-// use automatic_coding_agent::{AgentSystem, AgentConfig};
+// use aca::{AgentSystem, AgentConfig};
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -102,11 +102,11 @@ async fn test_claude_integration_with_temp_workspaces() {
             .unwrap_or_else(|_| panic!("Failed to setup workspace for {}", test_case.name));
 
         // Initialize agent with temp workspace using modern AgentSystem
-        let default_config = automatic_coding_agent::cli::ConfigDiscovery::discover_config()
+        let default_config = aca::cli::ConfigDiscovery::discover_config()
             .unwrap_or_else(|_| {
                 eprintln!("Warning: Failed to discover config, using basic defaults");
                 // Create minimal config for testing
-                automatic_coding_agent::cli::DefaultAgentConfig::default()
+                aca::cli::DefaultAgentConfig::default()
             });
 
         let agent_config = default_config.to_agent_config(Some(_workspace_path.clone()));
@@ -116,7 +116,7 @@ async fn test_claude_integration_with_temp_workspaces() {
         std::env::set_current_dir(&_workspace_path)
             .expect("Failed to change to workspace directory");
 
-        let agent = automatic_coding_agent::AgentSystem::new(agent_config)
+        let agent = aca::AgentSystem::new(agent_config)
             .await
             .expect(&format!("Failed to create agent for {}", test_case.name));
 
@@ -215,11 +215,11 @@ async fn test_single_task_with_references() {
     }
 
     // Initialize agent with modern AgentSystem
-    let default_config = automatic_coding_agent::cli::ConfigDiscovery::discover_config()
+    let default_config = aca::cli::ConfigDiscovery::discover_config()
         .unwrap_or_else(|_| {
             eprintln!("Warning: Failed to discover config, using basic defaults");
             // Create minimal config for testing
-            automatic_coding_agent::cli::DefaultAgentConfig::default()
+            aca::cli::DefaultAgentConfig::default()
         });
 
     let agent_config = default_config.to_agent_config(Some(workspace_path.clone()));
@@ -228,7 +228,7 @@ async fn test_single_task_with_references() {
     let original_dir = std::env::current_dir().expect("Failed to get current directory");
     std::env::set_current_dir(&workspace_path).expect("Failed to change to workspace directory");
 
-    let agent = automatic_coding_agent::AgentSystem::new(agent_config)
+    let agent = aca::AgentSystem::new(agent_config)
         .await
         .expect("Failed to create agent");
 
@@ -294,11 +294,11 @@ async fn test_multi_task_execution() {
         setup_test_workspace(test_case.resource_dir).expect("Failed to setup workspace");
 
     // Initialize agent with modern AgentSystem
-    let default_config = automatic_coding_agent::cli::ConfigDiscovery::discover_config()
+    let default_config = aca::cli::ConfigDiscovery::discover_config()
         .unwrap_or_else(|_| {
             eprintln!("Warning: Failed to discover config, using basic defaults");
             // Create minimal config for testing
-            automatic_coding_agent::cli::DefaultAgentConfig::default()
+            aca::cli::DefaultAgentConfig::default()
         });
 
     let agent_config = default_config.to_agent_config(Some(_workspace_path.clone()));
@@ -307,7 +307,7 @@ async fn test_multi_task_execution() {
     let original_dir = std::env::current_dir().expect("Failed to get current directory");
     std::env::set_current_dir(&_workspace_path).expect("Failed to change to workspace directory");
 
-    let agent = automatic_coding_agent::AgentSystem::new(agent_config)
+    let agent = aca::AgentSystem::new(agent_config)
         .await
         .expect("Failed to create agent");
 
@@ -368,7 +368,7 @@ async fn test_multi_task_execution() {
 #[tokio::test]
 #[tag(claude)]
 async fn test_cli_resume_functionality() {
-    use automatic_coding_agent::cli::{args::ExecutionMode, tasks::TaskLoader};
+    use aca::cli::{args::ExecutionMode, tasks::TaskLoader};
     use tempfile::TempDir;
 
     println!("Testing CLI resume functionality");
@@ -388,8 +388,9 @@ async fn test_cli_resume_functionality() {
     println!("✅ Testing ExecutionMode enum variants exist");
 
     // Verify the ExecutionMode variants exist
-    match ExecutionMode::ListCheckpoints {
-        ExecutionMode::ListCheckpoints => println!("  ✅ ListCheckpoints variant exists"),
+    let test_mode = ExecutionMode::ListCheckpoints { all_sessions: false };
+    match test_mode {
+        ExecutionMode::ListCheckpoints { all_sessions: _ } => println!("  ✅ ListCheckpoints variant exists"),
         _ => panic!("ListCheckpoints variant missing"),
     }
 
@@ -398,7 +399,7 @@ async fn test_cli_resume_functionality() {
         _ => panic!("CreateCheckpoint variant missing"),
     }
 
-    match ExecutionMode::Resume(automatic_coding_agent::cli::args::ResumeConfig {
+    match ExecutionMode::Resume(aca::cli::args::ResumeConfig {
         checkpoint_id: Some("test".to_string()),
         workspace_override: None,
         verbose: false,
@@ -410,7 +411,7 @@ async fn test_cli_resume_functionality() {
 
     // Test 2: Verify resume-related structures
 
-    let resume_config = automatic_coding_agent::cli::args::ResumeConfig {
+    let resume_config = aca::cli::args::ResumeConfig {
         checkpoint_id: Some("test-checkpoint-123".to_string()),
         workspace_override: Some(workspace_path.clone()),
         verbose: true,
@@ -459,7 +460,7 @@ async fn test_cli_resume_functionality() {
 #[tokio::test]
 #[tag(claude)]
 async fn test_checkpoint_operations() {
-    use automatic_coding_agent::cli::args::{ExecutionMode, ResumeConfig};
+    use aca::cli::args::{ExecutionMode, ResumeConfig};
 
     println!("Testing checkpoint operations");
 
@@ -521,7 +522,7 @@ async fn test_checkpoint_operations() {
 #[tokio::test]
 #[tag(claude)]
 async fn test_task_continuation_on_resume() {
-    use automatic_coding_agent::cli::args::{ExecutionMode, ResumeConfig};
+    use aca::cli::args::{ExecutionMode, ResumeConfig};
 
     println!("Testing task continuation during resume");
 
@@ -581,10 +582,10 @@ async fn test_conversational_state_persistence() {
     println!("  Workspace: {:?}", workspace_path);
 
     // Initialize agent with modern AgentSystem
-    let default_config = automatic_coding_agent::cli::ConfigDiscovery::discover_config()
+    let default_config = aca::cli::ConfigDiscovery::discover_config()
         .unwrap_or_else(|_| {
             println!("  Warning: Failed to discover config, using basic defaults");
-            automatic_coding_agent::cli::DefaultAgentConfig::default()
+            aca::cli::DefaultAgentConfig::default()
         });
 
     let agent_config = default_config.to_agent_config(Some(workspace_path.clone()));
@@ -593,7 +594,7 @@ async fn test_conversational_state_persistence() {
     let original_dir = std::env::current_dir().expect("Failed to get current directory");
     std::env::set_current_dir(&workspace_path).expect("Failed to change to workspace directory");
 
-    let agent = automatic_coding_agent::AgentSystem::new(agent_config)
+    let agent = aca::AgentSystem::new(agent_config)
         .await
         .expect("Failed to create agent system");
 

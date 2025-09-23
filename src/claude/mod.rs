@@ -46,7 +46,7 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::claude::{ClaudeCodeInterface, ClaudeConfig, TaskRequest, TaskPriority};
+//! use aca::claude::{ClaudeCodeInterface, ClaudeConfig, TaskRequest, TaskPriority};
 //! use std::collections::HashMap;
 //!
 //! #[tokio::main]

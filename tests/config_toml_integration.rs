@@ -1,4 +1,4 @@
-use automatic_coding_agent::integration::AgentConfig;
+use aca::integration::AgentConfig;
 use tempfile::NamedTempFile;
 
 #[test]
@@ -127,9 +127,9 @@ fn test_config_error_handling() {
 
 #[test]
 fn test_config_customization() {
-    use automatic_coding_agent::claude::ClaudeConfig;
-    use automatic_coding_agent::session::SessionManagerConfig;
-    use automatic_coding_agent::task::TaskManagerConfig;
+    use aca::claude::ClaudeConfig;
+    use aca::session::SessionManagerConfig;
+    use aca::task::TaskManagerConfig;
 
     // Create a custom config
     let custom_config = AgentConfig {

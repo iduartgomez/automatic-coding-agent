@@ -51,7 +51,7 @@
 //! ## Example Usage
 //!
 //! ```rust,no_run
-//! use automatic_coding_agent::task::{TaskManager, TaskManagerConfig};
+//! use aca::task::{TaskManager, TaskManagerConfig};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
