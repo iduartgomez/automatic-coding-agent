@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ExecutionMode::Batch(config) => run_batch_mode(config).await,
         ExecutionMode::Interactive(config) => run_interactive_mode(config).await,
         ExecutionMode::Resume(config) => run_resume_mode(config).await,
-        ExecutionMode::ListCheckpoints => list_available_checkpoints().await,
+        ExecutionMode::ListCheckpoints { all_sessions } => list_available_checkpoints(all_sessions).await,
         ExecutionMode::CreateCheckpoint(description) => create_manual_checkpoint(description).await,
         ExecutionMode::Help => {
             show_help();
@@ -469,7 +469,7 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> {
+async fn list_available_checkpoints(_all_sessions: bool) -> Result<(), Box<dyn std::error::Error>> {
     let workspace = std::env::current_dir()?;
     let _aca_dir = env::aca_dir_path(&workspace);
     let sessions_dir = env::sessions_dir_path(&workspace);
@@ -509,10 +509,10 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
         }
     };
 
-    // Load existing session to list checkpoints
+    // Create a temporary session manager to list all checkpoints across sessions
     let session_config = SessionManagerConfig::default();
     let init_options = SessionInitOptions {
-        name: "Temporary Session".to_string(),
+        name: "Temporary Session for Listing".to_string(),
         description: Some("Temporary session for listing checkpoints".to_string()),
         workspace_root: workspace.clone(),
         task_manager_config: TaskManagerConfig::default(),
@@ -521,16 +521,19 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
         enable_auto_save: false,
         restore_from_checkpoint: None,
     };
-    let temp_session =
-        match SessionManager::new(workspace.clone(), session_config, init_options).await {
-            Ok(session) => session,
-            Err(e) => {
-                eprintln!("Error: Failed to load session data: {}", e);
-                std::process::exit(1);
-            }
-        };
 
-    let checkpoints = temp_session.list_checkpoints().await?;
+    let temp_session = match SessionManager::new(workspace.clone(), session_config, init_options).await {
+        Ok(session) => session,
+        Err(e) => {
+            eprintln!("Error: Failed to create session for listing: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    // For CLI usage, default to showing all checkpoints across sessions
+    // The --all-sessions flag is currently redundant but kept for explicit behavior
+    let show_all = true; // CLI users expect to see all checkpoints by default
+    let checkpoints = temp_session.list_checkpoints(show_all).await?;
 
     if checkpoints.is_empty() {
         println!("No checkpoints available in current workspace.");
@@ -568,11 +571,11 @@ async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std
         std::process::exit(1);
     }
 
-    // Load existing session to create checkpoint
+    // Create checkpoint using a temporary session manager that operates on the latest session
     let session_config = SessionManagerConfig::default();
     let init_options = SessionInitOptions {
-        name: "Temporary Session".to_string(),
-        description: Some("Temporary session for creating checkpoint".to_string()),
+        name: "Temporary Session for Manual Checkpoint".to_string(),
+        description: Some("Temporary session for creating manual checkpoint".to_string()),
         workspace_root: workspace.clone(),
         task_manager_config: TaskManagerConfig::default(),
         persistence_config: PersistenceConfig::default(),
@@ -580,18 +583,22 @@ async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std
         enable_auto_save: false,
         restore_from_checkpoint: None,
     };
-    let session_manager =
-        match SessionManager::new(workspace.clone(), session_config, init_options).await {
-            Ok(session) => session,
-            Err(e) => {
-                eprintln!("Error: Failed to load session data: {}", e);
-                std::process::exit(1);
-            }
-        };
 
-    let checkpoint = session_manager
-        .create_checkpoint(description.clone())
-        .await?;
+    let temp_session = match SessionManager::new(workspace.clone(), session_config, init_options).await {
+        Ok(session) => session,
+        Err(e) => {
+            eprintln!("Error: Failed to create session for checkpoint: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let checkpoint = match temp_session.create_checkpoint_in_latest_session_of_workspace(description.clone()).await {
+        Ok(checkpoint) => checkpoint,
+        Err(e) => {
+            eprintln!("Error: Failed to create checkpoint: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     println!("✅ Checkpoint created: {}", checkpoint.id);
     println!("   Description: {}", description);
@@ -619,7 +626,7 @@ async fn find_latest_checkpoint(
     };
     let temp_session =
         SessionManager::new(session_dir.to_path_buf(), session_config, init_options).await?;
-    let checkpoints = temp_session.list_checkpoints().await?;
+    let checkpoints = temp_session.list_checkpoints(true).await?;
 
     if checkpoints.is_empty() {
         return Err("No checkpoints available".into());
