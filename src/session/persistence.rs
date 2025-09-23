@@ -108,7 +108,11 @@ enum RollbackOperation {
 
 impl PersistenceManager {
     /// Create a new persistence manager
-    pub fn new(workspace_root: PathBuf, session_id: &str, config: PersistenceConfig) -> Result<Self> {
+    pub fn new(
+        workspace_root: PathBuf,
+        session_id: &str,
+        config: PersistenceConfig,
+    ) -> Result<Self> {
         // Create the .aca directory structure
         let aca_root = workspace_root.join(".aca");
         let session_dir = aca_root.join("sessions").join(session_id);
@@ -146,9 +150,8 @@ impl PersistenceManager {
             &claude_interactions_dir,
             &errors_dir,
         ] {
-            std::fs::create_dir_all(dir).with_context(|| {
-                format!("Failed to create directory: {}", dir.display())
-            })?;
+            std::fs::create_dir_all(dir)
+                .with_context(|| format!("Failed to create directory: {}", dir.display()))?;
         }
 
         Ok(Self {
@@ -241,7 +244,10 @@ impl PersistenceManager {
     ) -> Result<CheckpointInfo> {
         let checkpoint_uuid = uuid::Uuid::new_v4().to_string();
         let checkpoint_id = format!("checkpoint_{}", checkpoint_uuid);
-        let checkpoint_file = self.session_dir.join("checkpoints").join(format!("{}.json", checkpoint_id));
+        let checkpoint_file = self
+            .session_dir
+            .join("checkpoints")
+            .join(format!("{}.json", checkpoint_id));
 
         let _start_time = std::time::Instant::now();
 
@@ -268,7 +274,10 @@ impl PersistenceManager {
 
     /// Restore from a specific checkpoint
     pub async fn restore_from_checkpoint(&self, checkpoint_id: &str) -> Result<SessionState> {
-        let checkpoint_file = self.session_dir.join("checkpoints").join(format!("{}.json", checkpoint_id));
+        let checkpoint_file = self
+            .session_dir
+            .join("checkpoints")
+            .join(format!("{}.json", checkpoint_id));
 
         if !checkpoint_file.exists() {
             return Err(anyhow::anyhow!("Checkpoint {} not found", checkpoint_id));

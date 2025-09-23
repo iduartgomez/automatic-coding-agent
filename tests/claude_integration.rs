@@ -169,7 +169,12 @@ async fn test_claude_integration_with_temp_workspaces() {
                         if let Ok(entry) = entry {
                             let path = entry.path();
                             if path.is_file() {
-                                println!("    - {}", path.file_name().unwrap().to_string_lossy());
+                                println!(
+                                    "    - {}",
+                                    path.file_name()
+                                        .expect("Invalid file name")
+                                        .to_string_lossy()
+                                );
                             }
                         }
                     }
@@ -202,8 +207,10 @@ async fn test_single_task_with_references() {
     // List available files
     println!("Available files:");
     if let Ok(entries) = fs::read_dir(&workspace_path) {
-        for entry in entries.flatten() {
-            println!("  - {}", entry.file_name().to_string_lossy());
+        for entry in entries {
+            if let Ok(entry) = entry {
+                println!("  - {}", entry.file_name().to_string_lossy());
+            }
         }
     }
 

@@ -68,7 +68,7 @@ async fn test_persistence_manager_creation() {
     let session_dir = temp_dir.path().to_path_buf();
 
     let config = PersistenceConfig::default();
-    let persistence = PersistenceManager::new(session_dir, config);
+    let persistence = PersistenceManager::new(session_dir, "test-session", config);
 
     assert!(persistence.is_ok());
 }
@@ -79,7 +79,7 @@ async fn test_session_state_save_and_load() {
     let session_dir = temp_dir.path().to_path_buf();
 
     let config = PersistenceConfig::default();
-    let persistence = PersistenceManager::new(session_dir, config).unwrap();
+    let persistence = PersistenceManager::new(session_dir, "test-session", config).unwrap();
 
     let test_state = create_test_session_state();
 
@@ -113,7 +113,7 @@ async fn test_checkpoint_creation_and_restoration() {
     let session_dir = temp_dir.path().to_path_buf();
 
     let config = PersistenceConfig::default();
-    let persistence = PersistenceManager::new(session_dir, config).unwrap();
+    let persistence = PersistenceManager::new(session_dir, "test-session", config).unwrap();
 
     let test_state = create_test_session_state();
 
@@ -149,7 +149,7 @@ async fn test_checkpoint_listing() {
     let session_dir = temp_dir.path().to_path_buf();
 
     let config = PersistenceConfig::default();
-    let persistence = PersistenceManager::new(session_dir, config).unwrap();
+    let persistence = PersistenceManager::new(session_dir, "test-session", config).unwrap();
 
     let test_state = create_test_session_state();
 
@@ -182,7 +182,8 @@ async fn test_recovery_manager_creation() {
     let session_dir = temp_dir.path().to_path_buf();
 
     let persistence_config = PersistenceConfig::default();
-    let persistence = PersistenceManager::new(session_dir, persistence_config).unwrap();
+    let persistence =
+        PersistenceManager::new(session_dir, "test-session", persistence_config).unwrap();
 
     let recovery_config = RecoveryConfig::default();
     let recovery = RecoveryManager::new(persistence, recovery_config);
@@ -196,7 +197,8 @@ async fn test_session_state_validation() {
     let session_dir = temp_dir.path().to_path_buf();
 
     let persistence_config = PersistenceConfig::default();
-    let persistence = PersistenceManager::new(session_dir, persistence_config).unwrap();
+    let persistence =
+        PersistenceManager::new(session_dir, "test-session", persistence_config).unwrap();
 
     let recovery_config = RecoveryConfig::default();
     let recovery = RecoveryManager::new(persistence, recovery_config);
@@ -218,12 +220,16 @@ async fn test_recovery_from_checkpoint() {
     let session_dir = temp_dir.path().to_path_buf();
 
     let persistence_config = PersistenceConfig::default();
-    let persistence =
-        PersistenceManager::new(session_dir.clone(), persistence_config.clone()).unwrap();
+    let persistence = PersistenceManager::new(
+        session_dir.clone(),
+        "test-session",
+        persistence_config.clone(),
+    )
+    .unwrap();
 
     let recovery_config = RecoveryConfig::default();
     let recovery = RecoveryManager::new(
-        PersistenceManager::new(session_dir, persistence_config).unwrap(),
+        PersistenceManager::new(session_dir, "test-session", persistence_config).unwrap(),
         recovery_config,
     );
 

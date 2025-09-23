@@ -487,19 +487,15 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
     let mut latest_time = None;
 
     if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    if let Ok(metadata) = entry.metadata() {
-                        if let Ok(modified) = metadata.modified() {
-                            if latest_time.is_none() || Some(modified) > latest_time {
-                                latest_time = Some(modified);
-                                latest_session_dir = Some(path);
-                            }
-                        }
-                    }
-                }
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir()
+                && let Ok(metadata) = entry.metadata()
+                && let Ok(modified) = metadata.modified()
+                && (latest_time.is_none() || Some(modified) > latest_time)
+            {
+                latest_time = Some(modified);
+                latest_session_dir = Some(path);
             }
         }
     }
@@ -524,13 +520,14 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
         enable_auto_save: false,
         restore_from_checkpoint: None,
     };
-    let temp_session = match SessionManager::new(workspace.clone(), session_config, init_options).await {
-        Ok(session) => session,
-        Err(e) => {
-            eprintln!("Error: Failed to load session data: {}", e);
-            std::process::exit(1);
-        }
-    };
+    let temp_session =
+        match SessionManager::new(workspace.clone(), session_config, init_options).await {
+            Ok(session) => session,
+            Err(e) => {
+                eprintln!("Error: Failed to load session data: {}", e);
+                std::process::exit(1);
+            }
+        };
 
     let checkpoints = temp_session.list_checkpoints().await?;
 
@@ -582,14 +579,14 @@ async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std
         enable_auto_save: false,
         restore_from_checkpoint: None,
     };
-    let session_manager = match SessionManager::new(workspace.clone(), session_config, init_options).await
-    {
-        Ok(session) => session,
-        Err(e) => {
-            eprintln!("Error: Failed to load session data: {}", e);
-            std::process::exit(1);
-        }
-    };
+    let session_manager =
+        match SessionManager::new(workspace.clone(), session_config, init_options).await {
+            Ok(session) => session,
+            Err(e) => {
+                eprintln!("Error: Failed to load session data: {}", e);
+                std::process::exit(1);
+            }
+        };
 
     let checkpoint = session_manager
         .create_checkpoint(description.clone())

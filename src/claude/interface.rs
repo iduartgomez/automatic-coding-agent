@@ -140,7 +140,9 @@ impl ClaudeCodeInterface {
         let start_time = Instant::now();
 
         // Create log file for this request
-        let log_path = self.create_subprocess_log_file(session_id, &request.id).await?;
+        let log_path = self
+            .create_subprocess_log_file(session_id, &request.id)
+            .await?;
 
         // Build contextual prompt with conversation history
         let contextual_prompt = self
@@ -473,9 +475,17 @@ impl ClaudeCodeInterface {
         Ok(updated_task)
     }
 
-    async fn create_subprocess_log_file(&self, session_id: SessionId, task_id: &Uuid) -> Result<PathBuf, ClaudeError> {
+    async fn create_subprocess_log_file(
+        &self,
+        session_id: SessionId,
+        task_id: &Uuid,
+    ) -> Result<PathBuf, ClaudeError> {
         // Create logs directory in .aca session structure
-        let logs_dir = PathBuf::from(".aca").join("sessions").join(session_id.to_string()).join("logs").join("claude_interactions");
+        let logs_dir = PathBuf::from(".aca")
+            .join("sessions")
+            .join(session_id.to_string())
+            .join("logs")
+            .join("claude_interactions");
         tokio::fs::create_dir_all(&logs_dir)
             .await
             .map_err(|e| ClaudeError::Unknown(format!("Failed to create logs directory: {}", e)))?;
@@ -545,17 +555,17 @@ impl ClaudeCodeInterface {
         current_request: &str,
     ) -> String {
         // Get existing conversation context
-        if let Some(context) = self.context_manager.get_context(session_id).await {
-            if !context.messages.is_empty() {
-                // Format the conversation history
-                let history = self.format_conversation_history(&context.messages);
+        if let Some(context) = self.context_manager.get_context(session_id).await
+            && !context.messages.is_empty()
+        {
+            // Format the conversation history
+            let history = self.format_conversation_history(&context.messages);
 
-                // Build contextual prompt with history and current request
-                return format!(
-                    "Previous conversation context:\n{}\n\n--- Current Task ---\n{}",
-                    history, current_request
-                );
-            }
+            // Build contextual prompt with history and current request
+            return format!(
+                "Previous conversation context:\n{}\n\n--- Current Task ---\n{}",
+                history, current_request
+            );
         }
 
         // If no context exists, just return the current request
@@ -586,7 +596,7 @@ impl ClaudeCodeInterface {
 
             // Add separator between messages except for the last one
             if i < messages.len() - 1 {
-                history.push_str("\n");
+                history.push('\n');
             }
         }
 
