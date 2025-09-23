@@ -1,4 +1,5 @@
 use crate::claude::ClaudeCodeInterface;
+use std::path::PathBuf;
 use crate::llm::provider::LLMProvider;
 use crate::llm::types::{
     LLMError, LLMRequest, LLMResponse, ProviderCapabilities, ProviderConfig, ProviderStatus,
@@ -17,7 +18,7 @@ pub struct ClaudeProvider {
 }
 
 impl ClaudeProvider {
-    pub async fn new(config: ProviderConfig) -> Result<Self, LLMError> {
+    pub async fn new(config: ProviderConfig, workspace_root: PathBuf) -> Result<Self, LLMError> {
         // Convert ProviderConfig to ClaudeConfig
         let claude_config = crate::claude::ClaudeConfig {
             api_key: config.api_key.clone(),
@@ -54,7 +55,7 @@ impl ClaudeProvider {
             },
         };
 
-        let claude_interface = ClaudeCodeInterface::new(claude_config).await.map_err(|e| {
+        let claude_interface = ClaudeCodeInterface::new(claude_config, workspace_root).await.map_err(|e| {
             LLMError::ProviderSpecific(format!("Failed to initialize Claude: {}", e))
         })?;
 

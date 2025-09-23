@@ -1,6 +1,7 @@
 use automatic_coding_agent::llm::claude_provider::ClaudeProvider;
 use automatic_coding_agent::llm::{LLMProvider, LLMRequest, ProviderConfig, ProviderType};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use uuid::Uuid;
 
 #[tokio::main]
@@ -22,7 +23,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Create Claude provider
-    let provider = ClaudeProvider::new(config).await?;
+    let workspace_root = PathBuf::from(".");
+    let provider = ClaudeProvider::new(config, workspace_root).await?;
 
     println!("Provider: {}", provider.provider_name());
 

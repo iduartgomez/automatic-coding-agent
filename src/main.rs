@@ -2,6 +2,7 @@ use automatic_coding_agent::cli::{
     Args, BatchConfig, ConfigDiscovery, ExecutionMode, InteractiveConfig, TaskInput, TaskLoader,
     args::{ResumeConfig, show_help, show_version},
 };
+use automatic_coding_agent::env;
 use automatic_coding_agent::session::persistence::PersistenceConfig;
 use automatic_coding_agent::session::recovery::RecoveryConfig;
 use automatic_coding_agent::session::{SessionInitOptions, SessionManager, SessionManagerConfig};
@@ -336,8 +337,8 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
     // Check if .aca directory structure exists
-    let aca_dir = workspace.join(".aca");
-    let sessions_dir = aca_dir.join("sessions");
+    let _aca_dir = env::aca_dir_path(&workspace);
+    let sessions_dir = env::sessions_dir_path(&workspace);
 
     if !sessions_dir.exists() {
         eprintln!(
@@ -470,8 +471,8 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
 
 async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> {
     let workspace = std::env::current_dir()?;
-    let aca_dir = workspace.join(".aca");
-    let sessions_dir = aca_dir.join("sessions");
+    let _aca_dir = env::aca_dir_path(&workspace);
+    let sessions_dir = env::sessions_dir_path(&workspace);
 
     // Check if .aca directory structure exists
     if !sessions_dir.exists() {
@@ -557,8 +558,8 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
 
 async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std::error::Error>> {
     let workspace = std::env::current_dir()?;
-    let aca_dir = workspace.join(".aca");
-    let sessions_dir = aca_dir.join("sessions");
+    let _aca_dir = env::aca_dir_path(&workspace);
+    let sessions_dir = env::sessions_dir_path(&workspace);
 
     // Check if .aca directory structure exists
     if !sessions_dir.exists() {

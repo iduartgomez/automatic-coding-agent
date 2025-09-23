@@ -119,6 +119,9 @@ impl AgentSystem {
             Self::execute_setup_commands(&config.setup_commands).await?;
         }
 
+        // Extract workspace path before moving config
+        let workspace_path = config.workspace_path.clone();
+
         // Initialize session manager
         let session_manager = Arc::new(
             SessionManager::new(
@@ -134,7 +137,7 @@ impl AgentSystem {
 
         // Initialize Claude interface
         let claude_interface = Arc::new(
-            ClaudeCodeInterface::new(config.claude_config)
+            ClaudeCodeInterface::new(config.claude_config, workspace_path)
                 .await
                 .map_err(|e| anyhow::anyhow!("Failed to initialize Claude interface: {}", e))?,
         );

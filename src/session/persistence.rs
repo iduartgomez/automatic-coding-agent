@@ -1,3 +1,4 @@
+use crate::env;
 use crate::session::metadata::*;
 use crate::task::tree::TaskTree;
 use anyhow::{Context, Result};
@@ -55,6 +56,8 @@ pub struct ResourceUsageSnapshot {
 
 /// Atomic persistence manager with transaction support
 pub struct PersistenceManager {
+    workspace_root: PathBuf,
+    session_id: String,
     session_dir: PathBuf,
     temp_dir: PathBuf,
     pub config: PersistenceConfig,
@@ -114,24 +117,24 @@ impl PersistenceManager {
         config: PersistenceConfig,
     ) -> Result<Self> {
         // Create the .aca directory structure
-        let aca_root = workspace_root.join(".aca");
-        let session_dir = aca_root.join("sessions").join(session_id);
+        let aca_root = env::aca_dir_path(&workspace_root);
+        let session_dir = env::session_dir_path(&workspace_root, session_id);
 
         // Create directory structure as per design specification
-        let meta_dir = session_dir.join("meta");
+        let meta_dir = session_dir.join(env::session::META_DIR_NAME);
         let state_dir = session_dir.join("state");
         let claude_dir = session_dir.join("claude");
-        let logs_dir = session_dir.join("logs");
-        let checkpoints_dir = session_dir.join("checkpoints");
-        let temp_dir = session_dir.join("temp");
+        let logs_dir = session_dir.join(env::session::LOGS_DIR_NAME);
+        let checkpoints_dir = session_dir.join(env::session::CHECKPOINTS_DIR_NAME);
+        let temp_dir = session_dir.join(env::session::TEMP_DIR_NAME);
 
         // Create conversation and other subdirectories
         let conversation_dir = claude_dir.join("conversation");
         let context_windows_dir = claude_dir.join("context_windows");
         let rate_limit_dir = claude_dir.join("rate_limit");
         let execution_logs_dir = logs_dir.join("execution");
-        let claude_interactions_dir = logs_dir.join("claude_interactions");
-        let errors_dir = logs_dir.join("errors");
+        let claude_interactions_dir = logs_dir.join(env::session::CLAUDE_INTERACTIONS_DIR_NAME);
+        let errors_dir = logs_dir.join(env::session::ERRORS_DIR_NAME);
 
         // Ensure all directories exist
         for dir in [
@@ -155,6 +158,8 @@ impl PersistenceManager {
         }
 
         Ok(Self {
+            workspace_root,
+            session_id: session_id.to_string(),
             session_dir,
             temp_dir,
             config,
@@ -193,7 +198,7 @@ impl PersistenceManager {
 
     /// Load session state with validation
     pub async fn load_session_state(&self) -> Result<SessionState> {
-        let session_file = self.session_dir.join("meta").join("session.json");
+        let session_file = env::session_state_file_path(&self.workspace_root, &self.session_id);
 
         if !session_file.exists() {
             return Err(anyhow::anyhow!("Session file not found"));
@@ -244,10 +249,7 @@ impl PersistenceManager {
     ) -> Result<CheckpointInfo> {
         let checkpoint_uuid = uuid::Uuid::new_v4().to_string();
         let checkpoint_id = format!("checkpoint_{}", checkpoint_uuid);
-        let checkpoint_file = self
-            .session_dir
-            .join("checkpoints")
-            .join(format!("{}.json", checkpoint_id));
+        let checkpoint_file = env::checkpoint_file_path(&self.workspace_root, &self.session_id, &checkpoint_id);
 
         let _start_time = std::time::Instant::now();
 
@@ -274,10 +276,7 @@ impl PersistenceManager {
 
     /// Restore from a specific checkpoint
     pub async fn restore_from_checkpoint(&self, checkpoint_id: &str) -> Result<SessionState> {
-        let checkpoint_file = self
-            .session_dir
-            .join("checkpoints")
-            .join(format!("{}.json", checkpoint_id));
+        let checkpoint_file = env::checkpoint_file_path(&self.workspace_root, &self.session_id, checkpoint_id);
 
         if !checkpoint_file.exists() {
             return Err(anyhow::anyhow!("Checkpoint {} not found", checkpoint_id));
@@ -307,7 +306,7 @@ impl PersistenceManager {
     pub async fn list_checkpoints(&self) -> Result<Vec<String>> {
         let mut checkpoints = Vec::new();
 
-        let checkpoints_dir = self.session_dir.join("checkpoints");
+        let checkpoints_dir = env::session_checkpoints_dir_path(&self.workspace_root, &self.session_id);
         if !checkpoints_dir.exists() {
             return Ok(checkpoints);
         }
@@ -443,7 +442,7 @@ impl PersistenceManager {
         let result = self.save_to_file(state, &temp_file).await?;
 
         // In this simplified implementation, we'll just copy to the final location
-        let final_file = self.session_dir.join("meta").join("session.json");
+        let final_file = env::session_state_file_path(&self.workspace_root, &self.session_id);
         async_fs::copy(&temp_file, &final_file)
             .await
             .context("Failed to copy temp file to final location")?;
@@ -453,7 +452,7 @@ impl PersistenceManager {
 
     /// Save directly without transaction
     async fn save_direct(&self, state: &SessionState) -> Result<PersistenceResult> {
-        let session_file = self.session_dir.join("meta").join("session.json");
+        let session_file = env::session_state_file_path(&self.workspace_root, &self.session_id);
         self.save_to_file(state, &session_file).await
     }
 
@@ -519,7 +518,7 @@ impl PersistenceManager {
             && let Some(name_str) = file_name.to_str()
             && name_str.starts_with("session_")
         {
-            return Some(self.session_dir.join("meta").join("session.json"));
+            return Some(env::session_state_file_path(&self.workspace_root, &self.session_id));
         }
         None
     }

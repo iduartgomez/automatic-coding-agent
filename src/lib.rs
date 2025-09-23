@@ -86,6 +86,12 @@ pub mod llm;
 /// coordinated task processing and system-wide status monitoring.
 pub mod integration;
 
+/// Environment constants and path utilities.
+///
+/// Centralizes all hardcoded paths and directory names used throughout
+/// the application for easier maintenance and consistency.
+pub mod env;
+
 // Re-export main session types
 pub use session::{SessionInitOptions, SessionManager, SessionManagerConfig, SessionMetadata};
 

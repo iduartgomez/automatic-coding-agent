@@ -1,4 +1,5 @@
 use crate::claude::{ContextManager, ErrorRecoveryManager, RateLimiter, UsageTracker, types::*};
+use crate::env;
 use crate::task::types::{Task, TaskStatus};
 use chrono::{DateTime, Utc};
 use std::path::PathBuf;
@@ -13,6 +14,7 @@ use uuid::Uuid;
 #[derive(Debug)]
 pub struct ClaudeCodeInterface {
     config: ClaudeConfig,
+    workspace_root: PathBuf,
     rate_limiter: Arc<RateLimiter>,
     context_manager: Arc<ContextManager>,
     usage_tracker: Arc<UsageTracker>,
@@ -38,7 +40,7 @@ struct ClaudeSession {
 }
 
 impl ClaudeCodeInterface {
-    pub async fn new(config: ClaudeConfig) -> Result<Self, ClaudeError> {
+    pub async fn new(config: ClaudeConfig, workspace_root: PathBuf) -> Result<Self, ClaudeError> {
         let rate_limiter = Arc::new(RateLimiter::new(config.rate_limits.clone()));
         let context_manager = Arc::new(ContextManager::new(config.context_config.clone()));
         let usage_tracker = Arc::new(UsageTracker::new(config.usage_tracking.clone()));
@@ -51,6 +53,7 @@ impl ClaudeCodeInterface {
 
         Ok(Self {
             config,
+            workspace_root,
             rate_limiter,
             context_manager,
             usage_tracker,
@@ -481,11 +484,7 @@ impl ClaudeCodeInterface {
         task_id: &Uuid,
     ) -> Result<PathBuf, ClaudeError> {
         // Create logs directory in .aca session structure
-        let logs_dir = PathBuf::from(".aca")
-            .join("sessions")
-            .join(session_id.to_string())
-            .join("logs")
-            .join("claude_interactions");
+        let logs_dir = env::claude_interactions_dir_path(&self.workspace_root, &session_id.to_string());
         tokio::fs::create_dir_all(&logs_dir)
             .await
             .map_err(|e| ClaudeError::Unknown(format!("Failed to create logs directory: {}", e)))?;

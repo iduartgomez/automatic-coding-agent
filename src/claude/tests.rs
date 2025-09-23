@@ -1,4 +1,6 @@
 use super::*;
+use crate::env;
+use std::path::PathBuf;
 use std::time::Duration;
 use test_tag::tag;
 
@@ -9,7 +11,7 @@ use test_tag::tag;
 #[tokio::test]
 async fn test_claude_interface_creation() {
     let config = ClaudeConfig::default();
-    let interface = ClaudeCodeInterface::new(config).await;
+    let interface = ClaudeCodeInterface::new(config, PathBuf::from(env::test::DEFAULT_TEST_DIR)).await;
     assert!(interface.is_ok());
 }
 
@@ -17,7 +19,7 @@ async fn test_claude_interface_creation() {
 #[tag(claude)]
 async fn test_task_request_execution() {
     let config = ClaudeConfig::default();
-    let interface = ClaudeCodeInterface::new(config).await.unwrap();
+    let interface = ClaudeCodeInterface::new(config, PathBuf::from(env::test::DEFAULT_TEST_DIR)).await.unwrap();
 
     let request = TaskRequest {
         id: uuid::Uuid::new_v4(),
@@ -43,7 +45,7 @@ async fn test_rate_limiting() {
     config.rate_limits.max_requests_per_minute = 2;
     config.rate_limits.max_tokens_per_minute = 100;
 
-    let interface = ClaudeCodeInterface::new(config).await.unwrap();
+    let interface = ClaudeCodeInterface::new(config, PathBuf::from(env::test::DEFAULT_TEST_DIR)).await.unwrap();
 
     // First request should succeed
     let request1 = TaskRequest {
@@ -161,7 +163,7 @@ async fn test_usage_tracking() {
 #[tokio::test]
 async fn test_interface_status() {
     let config = ClaudeConfig::default();
-    let interface = ClaudeCodeInterface::new(config).await.unwrap();
+    let interface = ClaudeCodeInterface::new(config, PathBuf::from(env::test::DEFAULT_TEST_DIR)).await.unwrap();
 
     let status = interface.get_interface_status().await;
     assert!(status.is_healthy);
@@ -172,7 +174,7 @@ async fn test_interface_status() {
 #[tokio::test]
 async fn test_simple_task_creation() {
     let config = ClaudeConfig::default();
-    let interface = ClaudeCodeInterface::new(config).await.unwrap();
+    let interface = ClaudeCodeInterface::new(config, PathBuf::from(env::test::DEFAULT_TEST_DIR)).await.unwrap();
 
     let task_request = interface
         .create_task_from_description("Create a test function", "code_generation")

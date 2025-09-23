@@ -1,5 +1,6 @@
 use crate::llm::types::{LLMError, LLMRequest, LLMResponse, ProviderCapabilities, ProviderStatus};
 use futures::future::BoxFuture;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// Generic LLM Provider trait that can be implemented by any LLM service
@@ -37,10 +38,11 @@ pub struct LLMProviderFactory;
 impl LLMProviderFactory {
     pub async fn create_provider(
         config: crate::llm::types::ProviderConfig,
+        workspace_root: PathBuf,
     ) -> Result<Arc<dyn LLMProvider>, LLMError> {
         match config.provider_type {
             crate::llm::types::ProviderType::Claude => Ok(Arc::new(
-                crate::llm::claude_provider::ClaudeProvider::new(config).await?,
+                crate::llm::claude_provider::ClaudeProvider::new(config, workspace_root).await?,
             )),
             crate::llm::types::ProviderType::OpenAI => {
                 // TODO: Implement OpenAI provider

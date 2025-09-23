@@ -1,3 +1,4 @@
+use crate::env;
 use crate::session::*;
 use crate::task::manager::TaskManagerConfig;
 use chrono::{Duration, Utc};
@@ -12,7 +13,7 @@ fn create_test_session_dir() -> TempDir {
 
 /// Helper function to create a test session state
 fn create_test_session_state() -> SessionState {
-    let mut metadata = SessionMetadata::new("Test Session".to_string(), PathBuf::from("/tmp"));
+    let mut metadata = SessionMetadata::new("Test Session".to_string(), PathBuf::from(env::test::DEFAULT_TEST_DIR));
     metadata.total_tasks = 5;
     metadata.completed_tasks = 3;
     metadata.failed_tasks = 1;
@@ -42,7 +43,7 @@ async fn test_session_metadata_creation() {
 
 #[tokio::test]
 async fn test_session_metadata_checkpoint_management() {
-    let mut metadata = SessionMetadata::new("Test Session".to_string(), PathBuf::from("/tmp"));
+    let mut metadata = SessionMetadata::new("Test Session".to_string(), PathBuf::from(env::test::DEFAULT_TEST_DIR));
 
     let checkpoint_info = CheckpointInfo {
         id: "test_checkpoint".to_string(),

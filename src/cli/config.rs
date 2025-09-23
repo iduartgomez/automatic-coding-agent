@@ -7,11 +7,12 @@
 //! 4. Built-in defaults
 
 use crate::{
-    AgentConfig, claude::ClaudeConfig, session::SessionManagerConfig, task::TaskManagerConfig,
+    AgentConfig, claude::ClaudeConfig, env, session::SessionManagerConfig, task::TaskManagerConfig,
 };
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::{env, fs};
+use std::fs;
+use std::env as std_env;
 use tracing::{debug, info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,7 +40,7 @@ impl DefaultAgentConfig {
     pub fn to_agent_config(&self, workspace_override: Option<PathBuf>) -> AgentConfig {
         let workspace_path = workspace_override
             .or_else(|| self.workspace_path.clone())
-            .unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+            .unwrap_or_else(|| std_env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
         AgentConfig {
             workspace_path,
@@ -102,14 +103,14 @@ impl ConfigDiscovery {
         let mut candidates = Vec::new();
 
         // 1. Current directory: ./aca.toml
-        if let Ok(current_dir) = env::current_dir() {
+        if let Ok(current_dir) = std_env::current_dir() {
             candidates.push(current_dir.join("aca.toml"));
-            candidates.push(current_dir.join(".aca").join("config.toml"));
+            candidates.push(env::local_config_file_path(&current_dir));
         }
 
         // 2. User config: ~/.aca/config.toml
         if let Some(home_dir) = Self::get_home_dir() {
-            candidates.push(home_dir.join(".aca").join("config.toml"));
+            candidates.push(env::user_config_file_path(&home_dir));
         }
 
         // 3. System config: /etc/aca/config.toml (Unix-like systems)
@@ -127,9 +128,9 @@ impl ConfigDiscovery {
 
     /// Get home directory path
     fn get_home_dir() -> Option<PathBuf> {
-        env::var("HOME")
+        std_env::var("HOME")
             .ok()
-            .or_else(|| env::var("USERPROFILE").ok())
+            .or_else(|| std_env::var("USERPROFILE").ok())
             .map(PathBuf::from)
     }
 
@@ -137,8 +138,8 @@ impl ConfigDiscovery {
     pub fn create_default_user_config() -> Result<PathBuf, Box<dyn std::error::Error>> {
         let home_dir = Self::get_home_dir().ok_or("Could not determine home directory")?;
 
-        let config_dir = home_dir.join(".aca");
-        let config_path = config_dir.join("config.toml");
+        let config_dir = env::user_config_dir_path(&home_dir);
+        let config_path = env::user_config_file_path(&home_dir);
 
         // Create directory if it doesn't exist
         if !config_dir.exists() {
