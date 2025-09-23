@@ -16,12 +16,12 @@ use tracing::debug;
 pub enum ExecutionMode {
     Batch(BatchConfig),
     Interactive(InteractiveConfig),
-    Resume(ResumeConfig),      // Resume from checkpoint
-    ListCheckpoints,           // List available checkpoints
-    CreateCheckpoint(String),  // Create manual checkpoint
+    Resume(ResumeConfig),     // Resume from checkpoint
+    ListCheckpoints,          // List available checkpoints
+    CreateCheckpoint(String), // Create manual checkpoint
     Help,
     Version,
-    ShowConfig, // New: Show configuration discovery info
+    ShowConfig,
 }
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ pub struct InteractiveConfig {
 
 #[derive(Debug)]
 pub struct ResumeConfig {
-    pub checkpoint_id: Option<String>,  // Specific checkpoint or latest
+    pub checkpoint_id: Option<String>, // Specific checkpoint or latest
     pub workspace_override: Option<PathBuf>,
     pub verbose: bool,
     pub continue_latest: bool,
@@ -284,7 +284,10 @@ pub fn show_help() {
     println!();
     println!("  # Resume operations");
     println!("    {} --list-checkpoints", env!("CARGO_PKG_NAME"));
-    println!("    {} --resume checkpoint-abc123 --workspace .", env!("CARGO_PKG_NAME"));
+    println!(
+        "    {} --resume checkpoint-abc123 --workspace .",
+        env!("CARGO_PKG_NAME")
+    );
     println!("    {} --continue --workspace .", env!("CARGO_PKG_NAME"));
     println!();
     println!("  # Legacy TOML config format");

@@ -1,13 +1,13 @@
 use automatic_coding_agent::cli::{
     Args, BatchConfig, ConfigDiscovery, ExecutionMode, InteractiveConfig, TaskInput, TaskLoader,
-    args::{show_help, show_version, ResumeConfig},
+    args::{ResumeConfig, show_help, show_version},
 };
-use automatic_coding_agent::{AgentConfig, AgentSystem};
-use automatic_coding_agent::session::{SessionManager, SessionManagerConfig, SessionInitOptions};
 use automatic_coding_agent::session::persistence::PersistenceConfig;
 use automatic_coding_agent::session::recovery::RecoveryConfig;
-use automatic_coding_agent::task::manager::TaskManagerConfig;
+use automatic_coding_agent::session::{SessionInitOptions, SessionManager, SessionManagerConfig};
 use automatic_coding_agent::task::TaskStatus;
+use automatic_coding_agent::task::manager::TaskManagerConfig;
+use automatic_coding_agent::{AgentConfig, AgentSystem};
 use std::io::{self, Write};
 use tracing::{error, info};
 
@@ -331,7 +331,8 @@ async fn show_system_status(agent: &AgentSystem) -> Result<(), Box<dyn std::erro
 async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error::Error>> {
     info!("Running in resume mode");
 
-    let workspace = config.workspace_override
+    let workspace = config
+        .workspace_override
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
     let session_dir = workspace.clone(); // Session data is stored in workspace root
@@ -339,7 +340,10 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
     // Check if session data exists
     let session_file = session_dir.join("session.json");
     if !session_file.exists() {
-        eprintln!("Error: No session data found in directory: {}", workspace.display());
+        eprintln!(
+            "Error: No session data found in directory: {}",
+            workspace.display()
+        );
         eprintln!("Make sure you're in the correct workspace directory.");
         std::process::exit(1);
     }
@@ -396,7 +400,10 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
 
     if !incomplete_tasks.is_empty() {
         if config.verbose {
-            println!("🔄 Found {} incomplete tasks. Continuing processing...", incomplete_tasks.len());
+            println!(
+                "🔄 Found {} incomplete tasks. Continuing processing...",
+                incomplete_tasks.len()
+            );
         }
 
         let mut successful_tasks = 0;
@@ -406,35 +413,49 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
             if config.verbose {
                 println!(
                     "🔄 Processing incomplete task {}/{}: {}",
-                    task_num + 1, total_tasks, task_id
+                    task_num + 1,
+                    total_tasks,
+                    task_id
                 );
             }
 
             match agent.process_task(*task_id).await {
                 Ok(()) => {
-                    info!("Resumed task {}/{} completed successfully! Task ID: {}",
-                         task_num + 1, total_tasks, task_id);
+                    info!(
+                        "Resumed task {}/{} completed successfully! Task ID: {}",
+                        task_num + 1,
+                        total_tasks,
+                        task_id
+                    );
                     if config.verbose {
-                        println!("✅ Task {}/{} completed: {}",
-                               task_num + 1, total_tasks, task_id);
+                        println!(
+                            "✅ Task {}/{} completed: {}",
+                            task_num + 1,
+                            total_tasks,
+                            task_id
+                        );
                     }
                     successful_tasks += 1;
                 }
                 Err(e) => {
                     error!("Failed to process resumed task {}: {}", task_id, e);
                     if config.verbose {
-                        println!("❌ Task {}/{} failed: {}",
-                               task_num + 1, total_tasks, e);
+                        println!("❌ Task {}/{} failed: {}", task_num + 1, total_tasks, e);
                     }
                 }
             }
         }
 
         if successful_tasks == total_tasks {
-            println!("✅ All {} resumed tasks completed successfully!", total_tasks);
+            println!(
+                "✅ All {} resumed tasks completed successfully!",
+                total_tasks
+            );
         } else {
-            println!("⚠️  {}/{} resumed tasks completed successfully",
-                    successful_tasks, total_tasks);
+            println!(
+                "⚠️  {}/{} resumed tasks completed successfully",
+                successful_tasks, total_tasks
+            );
         }
     } else if config.verbose {
         println!("ℹ️  No incomplete tasks found. Session restored successfully.");
@@ -456,7 +477,8 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
     let has_checkpoints = std::fs::read_dir(&session_dir)
         .map(|mut entries| {
             entries.any(|entry| {
-                entry.map(|e| e.file_name().to_string_lossy().starts_with("checkpoint_"))
+                entry
+                    .map(|e| e.file_name().to_string_lossy().starts_with("checkpoint_"))
                     .unwrap_or(false)
             })
         })
@@ -464,7 +486,9 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
 
     if !session_file.exists() && !has_checkpoints {
         println!("No session data found in current directory.");
-        println!("Make sure you're in a workspace that has been used with the automatic-coding-agent.");
+        println!(
+            "Make sure you're in a workspace that has been used with the automatic-coding-agent."
+        );
         return Ok(());
     }
 
@@ -496,7 +520,11 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
         println!("Available checkpoints in {}:", workspace.display());
         println!();
         for checkpoint in checkpoints {
-            println!("📌 {} ({})", checkpoint.id, checkpoint.created_at.format("%Y-%m-%d %H:%M:%S"));
+            println!(
+                "📌 {} ({})",
+                checkpoint.id,
+                checkpoint.created_at.format("%Y-%m-%d %H:%M:%S")
+            );
             println!("   Description: {}", checkpoint.description);
             if checkpoint.task_count > 0 {
                 println!("   Tasks: {} total", checkpoint.task_count);
@@ -534,7 +562,8 @@ async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std
         enable_auto_save: false,
         restore_from_checkpoint: None,
     };
-    let session_manager = match SessionManager::new(session_dir, session_config, init_options).await {
+    let session_manager = match SessionManager::new(session_dir, session_config, init_options).await
+    {
         Ok(session) => session,
         Err(e) => {
             eprintln!("Error: Failed to load session data: {}", e);
@@ -542,16 +571,23 @@ async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std
         }
     };
 
-    let checkpoint = session_manager.create_checkpoint(description.clone()).await?;
+    let checkpoint = session_manager
+        .create_checkpoint(description.clone())
+        .await?;
 
     println!("✅ Checkpoint created: {}", checkpoint.id);
     println!("   Description: {}", description);
-    println!("   Created: {}", checkpoint.created_at.format("%Y-%m-%d %H:%M:%S"));
+    println!(
+        "   Created: {}",
+        checkpoint.created_at.format("%Y-%m-%d %H:%M:%S")
+    );
 
     Ok(())
 }
 
-async fn find_latest_checkpoint(session_dir: &std::path::Path) -> Result<String, Box<dyn std::error::Error>> {
+async fn find_latest_checkpoint(
+    session_dir: &std::path::Path,
+) -> Result<String, Box<dyn std::error::Error>> {
     let session_config = SessionManagerConfig::default();
     let init_options = SessionInitOptions {
         name: "Temporary Session".to_string(),
@@ -563,7 +599,8 @@ async fn find_latest_checkpoint(session_dir: &std::path::Path) -> Result<String,
         enable_auto_save: false,
         restore_from_checkpoint: None,
     };
-    let temp_session = SessionManager::new(session_dir.to_path_buf(), session_config, init_options).await?;
+    let temp_session =
+        SessionManager::new(session_dir.to_path_buf(), session_config, init_options).await?;
     let checkpoints = temp_session.list_checkpoints().await?;
 
     if checkpoints.is_empty() {
@@ -571,16 +608,15 @@ async fn find_latest_checkpoint(session_dir: &std::path::Path) -> Result<String,
     }
 
     // Find the most recent checkpoint
-    let latest = checkpoints
-        .iter()
-        .max_by_key(|c| c.created_at)
-        .unwrap();
+    let latest = checkpoints.iter().max_by_key(|c| c.created_at).unwrap();
 
     Ok(latest.id.clone())
 }
 
 /// Find incomplete tasks that should be continued when resuming
-async fn find_incomplete_tasks(agent: &AgentSystem) -> Result<Vec<uuid::Uuid>, Box<dyn std::error::Error>> {
+async fn find_incomplete_tasks(
+    agent: &AgentSystem,
+) -> Result<Vec<uuid::Uuid>, Box<dyn std::error::Error>> {
     let task_manager = agent.task_manager();
 
     // Look for tasks that are in progress or eligible to be processed
@@ -607,10 +643,12 @@ async fn find_incomplete_tasks(agent: &AgentSystem) -> Result<Vec<uuid::Uuid>, B
         }
     }
 
-    info!("Found {} incomplete tasks for resume: {} in-progress, {} eligible",
-          incomplete_tasks.len(),
-          in_progress_count,
-          eligible_count);
+    info!(
+        "Found {} incomplete tasks for resume: {} in-progress, {} eligible",
+        incomplete_tasks.len(),
+        in_progress_count,
+        eligible_count
+    );
 
     Ok(incomplete_tasks)
 }

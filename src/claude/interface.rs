@@ -110,7 +110,9 @@ impl ClaudeCodeInterface {
             .map_err(|e| ClaudeError::Unknown(e.to_string()))?;
 
         // Execute real Claude Code request with session context
-        let response = self.execute_claude_code_request(session.id, request).await?;
+        let response = self
+            .execute_claude_code_request(session.id, request)
+            .await?;
 
         // Add assistant response to context
         let assistant_message = ClaudeMessage {
@@ -141,7 +143,9 @@ impl ClaudeCodeInterface {
         let log_path = self.create_subprocess_log_file(&request.id).await?;
 
         // Build contextual prompt with conversation history
-        let contextual_prompt = self.build_contextual_prompt(session_id, &request.description).await;
+        let contextual_prompt = self
+            .build_contextual_prompt(session_id, &request.description)
+            .await;
 
         // Prepare Claude Code CLI command
         let mut command = Command::new("claude");
@@ -535,7 +539,11 @@ impl ClaudeCodeInterface {
     }
 
     /// Build a contextual prompt that includes conversation history for better continuity
-    async fn build_contextual_prompt(&self, session_id: SessionId, current_request: &str) -> String {
+    async fn build_contextual_prompt(
+        &self,
+        session_id: SessionId,
+        current_request: &str,
+    ) -> String {
         // Get existing conversation context
         if let Some(context) = self.context_manager.get_context(session_id).await {
             if !context.messages.is_empty() {
@@ -545,8 +553,7 @@ impl ClaudeCodeInterface {
                 // Build contextual prompt with history and current request
                 return format!(
                     "Previous conversation context:\n{}\n\n--- Current Task ---\n{}",
-                    history,
-                    current_request
+                    history, current_request
                 );
             }
         }
@@ -575,12 +582,7 @@ impl ClaudeCodeInterface {
                 message.content.clone()
             };
 
-            history.push_str(&format!(
-                "[{}] {}: {}\n",
-                timestamp,
-                role,
-                content
-            ));
+            history.push_str(&format!("[{}] {}: {}\n", timestamp, role, content));
 
             // Add separator between messages except for the last one
             if i < messages.len() - 1 {

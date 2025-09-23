@@ -108,12 +108,48 @@ enum RollbackOperation {
 
 impl PersistenceManager {
     /// Create a new persistence manager
-    pub fn new(session_dir: PathBuf, config: PersistenceConfig) -> Result<Self> {
+    pub fn new(workspace_root: PathBuf, session_id: &str, config: PersistenceConfig) -> Result<Self> {
+        // Create the .aca directory structure
+        let aca_root = workspace_root.join(".aca");
+        let session_dir = aca_root.join("sessions").join(session_id);
+
+        // Create directory structure as per design specification
+        let meta_dir = session_dir.join("meta");
+        let state_dir = session_dir.join("state");
+        let claude_dir = session_dir.join("claude");
+        let logs_dir = session_dir.join("logs");
+        let checkpoints_dir = session_dir.join("checkpoints");
         let temp_dir = session_dir.join("temp");
 
-        // Ensure directories exist
-        std::fs::create_dir_all(&session_dir).context("Failed to create session directory")?;
-        std::fs::create_dir_all(&temp_dir).context("Failed to create temp directory")?;
+        // Create conversation and other subdirectories
+        let conversation_dir = claude_dir.join("conversation");
+        let context_windows_dir = claude_dir.join("context_windows");
+        let rate_limit_dir = claude_dir.join("rate_limit");
+        let execution_logs_dir = logs_dir.join("execution");
+        let claude_interactions_dir = logs_dir.join("claude_interactions");
+        let errors_dir = logs_dir.join("errors");
+
+        // Ensure all directories exist
+        for dir in [
+            &aca_root,
+            &session_dir,
+            &meta_dir,
+            &state_dir,
+            &claude_dir,
+            &logs_dir,
+            &checkpoints_dir,
+            &temp_dir,
+            &conversation_dir,
+            &context_windows_dir,
+            &rate_limit_dir,
+            &execution_logs_dir,
+            &claude_interactions_dir,
+            &errors_dir,
+        ] {
+            std::fs::create_dir_all(dir).with_context(|| {
+                format!("Failed to create directory: {}", dir.display())
+            })?;
+        }
 
         Ok(Self {
             session_dir,
@@ -154,7 +190,7 @@ impl PersistenceManager {
 
     /// Load session state with validation
     pub async fn load_session_state(&self) -> Result<SessionState> {
-        let session_file = self.session_dir.join("session.json");
+        let session_file = self.session_dir.join("meta").join("session.json");
 
         if !session_file.exists() {
             return Err(anyhow::anyhow!("Session file not found"));
@@ -205,7 +241,7 @@ impl PersistenceManager {
     ) -> Result<CheckpointInfo> {
         let checkpoint_uuid = uuid::Uuid::new_v4().to_string();
         let checkpoint_id = format!("checkpoint_{}", checkpoint_uuid);
-        let checkpoint_file = self.session_dir.join(format!("{}.json", checkpoint_id));
+        let checkpoint_file = self.session_dir.join("checkpoints").join(format!("{}.json", checkpoint_id));
 
         let _start_time = std::time::Instant::now();
 
@@ -232,7 +268,7 @@ impl PersistenceManager {
 
     /// Restore from a specific checkpoint
     pub async fn restore_from_checkpoint(&self, checkpoint_id: &str) -> Result<SessionState> {
-        let checkpoint_file = self.session_dir.join(format!("{}.json", checkpoint_id));
+        let checkpoint_file = self.session_dir.join("checkpoints").join(format!("{}.json", checkpoint_id));
 
         if !checkpoint_file.exists() {
             return Err(anyhow::anyhow!("Checkpoint {} not found", checkpoint_id));
@@ -262,9 +298,14 @@ impl PersistenceManager {
     pub async fn list_checkpoints(&self) -> Result<Vec<String>> {
         let mut checkpoints = Vec::new();
 
-        let mut entries = async_fs::read_dir(&self.session_dir)
+        let checkpoints_dir = self.session_dir.join("checkpoints");
+        if !checkpoints_dir.exists() {
+            return Ok(checkpoints);
+        }
+
+        let mut entries = async_fs::read_dir(&checkpoints_dir)
             .await
-            .context("Failed to read session directory")?;
+            .context("Failed to read checkpoints directory")?;
 
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
