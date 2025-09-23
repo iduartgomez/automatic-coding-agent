@@ -4,8 +4,5 @@
 
 # Test artifacts and session files
 temp/
-test_sessions/
 logs/
-session.json
-checkpoint_*.json
-checkpoint_*.checksum
+.aca/

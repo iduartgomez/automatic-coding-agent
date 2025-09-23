@@ -335,11 +335,11 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
         .workspace_override
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-    let session_dir = workspace.clone(); // Session data is stored in workspace root
+    // Check if .aca directory structure exists
+    let aca_dir = workspace.join(".aca");
+    let sessions_dir = aca_dir.join("sessions");
 
-    // Check if session data exists
-    let session_file = session_dir.join("session.json");
-    if !session_file.exists() {
+    if !sessions_dir.exists() {
         eprintln!(
             "Error: No session data found in directory: {}",
             workspace.display()
@@ -350,7 +350,7 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
 
     // Determine which checkpoint to restore from
     let checkpoint_id = if config.continue_latest {
-        match find_latest_checkpoint(&session_dir).await {
+        match find_latest_checkpoint(&workspace).await {
             Ok(id) => id,
             Err(e) => {
                 eprintln!("Error: Failed to find latest checkpoint: {}", e);
@@ -470,27 +470,47 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
 
 async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> {
     let workspace = std::env::current_dir()?;
-    let session_dir = workspace.clone(); // Session data is stored in workspace root
+    let aca_dir = workspace.join(".aca");
+    let sessions_dir = aca_dir.join("sessions");
 
-    // Check if session data exists (look for session.json or checkpoint files)
-    let session_file = session_dir.join("session.json");
-    let has_checkpoints = std::fs::read_dir(&session_dir)
-        .map(|mut entries| {
-            entries.any(|entry| {
-                entry
-                    .map(|e| e.file_name().to_string_lossy().starts_with("checkpoint_"))
-                    .unwrap_or(false)
-            })
-        })
-        .unwrap_or(false);
-
-    if !session_file.exists() && !has_checkpoints {
+    // Check if .aca directory structure exists
+    if !sessions_dir.exists() {
         println!("No session data found in current directory.");
         println!(
             "Make sure you're in a workspace that has been used with the automatic-coding-agent."
         );
         return Ok(());
     }
+
+    // Find the most recent session directory
+    let mut latest_session_dir = None;
+    let mut latest_time = None;
+
+    if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Ok(metadata) = entry.metadata() {
+                        if let Ok(modified) = metadata.modified() {
+                            if latest_time.is_none() || Some(modified) > latest_time {
+                                latest_time = Some(modified);
+                                latest_session_dir = Some(path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let _session_dir = match latest_session_dir {
+        Some(dir) => dir,
+        None => {
+            println!("No session directories found in .aca/sessions/");
+            return Ok(());
+        }
+    };
 
     // Load existing session to list checkpoints
     let session_config = SessionManagerConfig::default();
@@ -504,7 +524,7 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
         enable_auto_save: false,
         restore_from_checkpoint: None,
     };
-    let temp_session = match SessionManager::new(session_dir, session_config, init_options).await {
+    let temp_session = match SessionManager::new(workspace.clone(), session_config, init_options).await {
         Ok(session) => session,
         Err(e) => {
             eprintln!("Error: Failed to load session data: {}", e);
@@ -540,11 +560,11 @@ async fn list_available_checkpoints() -> Result<(), Box<dyn std::error::Error>> 
 
 async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std::error::Error>> {
     let workspace = std::env::current_dir()?;
-    let session_dir = workspace.clone(); // Session data is stored in workspace root
+    let aca_dir = workspace.join(".aca");
+    let sessions_dir = aca_dir.join("sessions");
 
-    // Check if session data exists
-    let session_file = session_dir.join("session.json");
-    if !session_file.exists() {
+    // Check if .aca directory structure exists
+    if !sessions_dir.exists() {
         eprintln!("Error: No active session found in current directory.");
         eprintln!("Start a task first to create a session, then you can create checkpoints.");
         std::process::exit(1);
@@ -562,7 +582,7 @@ async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std
         enable_auto_save: false,
         restore_from_checkpoint: None,
     };
-    let session_manager = match SessionManager::new(session_dir, session_config, init_options).await
+    let session_manager = match SessionManager::new(workspace.clone(), session_config, init_options).await
     {
         Ok(session) => session,
         Err(e) => {

@@ -79,12 +79,12 @@ impl SessionManager {
 
         // Initialize persistence and recovery managers
         let persistence = Arc::new(
-            PersistenceManager::new(session_dir.clone(), init_options.persistence_config.clone())
+            PersistenceManager::new(session_dir.clone(), &session_id.to_string(), init_options.persistence_config.clone())
                 .context("Failed to create persistence manager")?,
         );
 
         let recovery = Arc::new(RecoveryManager::new(
-            PersistenceManager::new(session_dir, init_options.persistence_config.clone())?,
+            PersistenceManager::new(session_dir, &session_id.to_string(), init_options.persistence_config.clone())?,
             init_options.recovery_config.clone(),
         ));
 

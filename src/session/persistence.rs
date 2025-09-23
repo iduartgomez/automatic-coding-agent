@@ -434,7 +434,7 @@ impl PersistenceManager {
         let result = self.save_to_file(state, &temp_file).await?;
 
         // In this simplified implementation, we'll just copy to the final location
-        let final_file = self.session_dir.join("session.json");
+        let final_file = self.session_dir.join("meta").join("session.json");
         async_fs::copy(&temp_file, &final_file)
             .await
             .context("Failed to copy temp file to final location")?;
@@ -444,7 +444,7 @@ impl PersistenceManager {
 
     /// Save directly without transaction
     async fn save_direct(&self, state: &SessionState) -> Result<PersistenceResult> {
-        let session_file = self.session_dir.join("session.json");
+        let session_file = self.session_dir.join("meta").join("session.json");
         self.save_to_file(state, &session_file).await
     }
 
@@ -510,7 +510,7 @@ impl PersistenceManager {
             && let Some(name_str) = file_name.to_str()
             && name_str.starts_with("session_")
         {
-            return Some(self.session_dir.join("session.json"));
+            return Some(self.session_dir.join("meta").join("session.json"));
         }
         None
     }

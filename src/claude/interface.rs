@@ -140,7 +140,7 @@ impl ClaudeCodeInterface {
         let start_time = Instant::now();
 
         // Create log file for this request
-        let log_path = self.create_subprocess_log_file(&request.id).await?;
+        let log_path = self.create_subprocess_log_file(session_id, &request.id).await?;
 
         // Build contextual prompt with conversation history
         let contextual_prompt = self
@@ -473,9 +473,9 @@ impl ClaudeCodeInterface {
         Ok(updated_task)
     }
 
-    async fn create_subprocess_log_file(&self, task_id: &Uuid) -> Result<PathBuf, ClaudeError> {
-        // Create logs directory in current workspace
-        let logs_dir = PathBuf::from("logs");
+    async fn create_subprocess_log_file(&self, session_id: SessionId, task_id: &Uuid) -> Result<PathBuf, ClaudeError> {
+        // Create logs directory in .aca session structure
+        let logs_dir = PathBuf::from(".aca").join("sessions").join(session_id.to_string()).join("logs").join("claude_interactions");
         tokio::fs::create_dir_all(&logs_dir)
             .await
             .map_err(|e| ClaudeError::Unknown(format!("Failed to create logs directory: {}", e)))?;
