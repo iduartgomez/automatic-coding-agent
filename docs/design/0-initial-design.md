@@ -45,7 +45,7 @@ This design has been broken down into focused deliverable documents:
 │  Volume Mounts:                                             │
 │  /repos     (RO) - Source repositories                     │
 │  /workspace (RW) - Working directory                       │
-│  /session   (RW) - Persistent session data                 │
+│  .aca/      (RW) - Persistent session data                 │
 │  /logs      (RW) - Session logs and outputs                │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -155,9 +155,10 @@ pub struct TaskMetadata {
 ### Persistence Format
 
 ```
-/session/
-├── task_tree.json          # Complete task hierarchy
-├── claude_context/         # Claude Code conversation state
+.aca/sessions/{session_id}/
+├── meta/
+│   └── session.json        # Session metadata and task hierarchy
+├── claude/                 # Claude Code conversation state
 │   ├── messages.json
 │   ├── session_config.json
 │   └── rate_limit_state.json
@@ -237,7 +238,7 @@ docker run \
 
 ### 1. Initialization Phase
 
-1. Load or create session state from `/session`
+1. Load or create session state from `.aca/sessions/{session_id}`
 2. Parse initial task list and build task tree
 3. Initialize Claude Code headless session
 4. Set up rate limiting and logging infrastructure
