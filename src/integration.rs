@@ -249,6 +249,125 @@ impl AgentSystem {
         Ok(task_id)
     }
 
+    /// Execute a complete execution plan with setup commands and tasks
+    pub async fn execute_plan(&self, plan: crate::task::ExecutionPlan) -> Result<Vec<uuid::Uuid>> {
+        use tracing::{info, warn, error};
+
+        info!("Executing plan: {}", plan.summary());
+
+        // Validate the execution plan
+        if let Err(validation_error) = plan.validate() {
+            return Err(anyhow::anyhow!("Invalid execution plan: {}", validation_error));
+        }
+
+        let mut task_ids = Vec::new();
+
+        // Phase 1: Execute setup commands
+        if plan.has_setup_commands() {
+            info!("Executing {} setup commands...", plan.setup_command_count());
+            Self::execute_setup_commands(&plan.setup_commands).await?;
+            info!("Setup commands completed successfully");
+        }
+
+        // Phase 2: Process tasks based on execution mode
+        if plan.has_tasks() {
+            info!("Processing {} tasks with mode: {:?}", plan.task_count(), plan.execution_mode);
+
+            let total_tasks = plan.task_count();
+
+            match plan.execution_mode {
+                crate::task::ExecutionMode::Sequential => {
+                    // Execute tasks one by one
+                    for (index, task_spec) in plan.task_specs.into_iter().enumerate() {
+                        let task_num = index + 1;
+
+                        info!("Processing task {}/{}: {}", task_num, total_tasks, task_spec.title);
+
+                        match self.create_and_process_task_spec(task_spec).await {
+                            Ok(task_id) => {
+                                info!("Task {}/{} completed successfully: {}", task_num, total_tasks, task_id);
+                                task_ids.push(task_id);
+                            }
+                            Err(e) => {
+                                error!("Task {}/{} failed: {}", task_num, total_tasks, e);
+                                // For sequential mode, we can choose to continue or fail
+                                // For now, we'll continue but log the error
+                                warn!("Continuing with remaining tasks despite failure");
+                            }
+                        }
+                    }
+                }
+                crate::task::ExecutionMode::Parallel { max_concurrent: _ } => {
+                    warn!("Parallel execution mode not yet fully implemented, falling back to sequential");
+                    // TODO: Implement parallel execution with semaphore for max_concurrent
+                    // For now, fall back to sequential execution
+                    for task_spec in plan.task_specs {
+                        match self.create_and_process_task_spec(task_spec).await {
+                            Ok(task_id) => task_ids.push(task_id),
+                            Err(e) => warn!("Task failed in parallel mode: {}", e),
+                        }
+                    }
+                }
+                crate::task::ExecutionMode::Intelligent => {
+                    warn!("Intelligent execution mode not yet implemented, falling back to sequential");
+                    // TODO: Implement intelligent scheduling based on task metadata
+                    // For now, fall back to sequential execution
+                    for task_spec in plan.task_specs {
+                        match self.create_and_process_task_spec(task_spec).await {
+                            Ok(task_id) => task_ids.push(task_id),
+                            Err(e) => warn!("Task failed in intelligent mode: {}", e),
+                        }
+                    }
+                }
+            }
+        }
+
+        // Save session state after plan execution
+        self.save_session_state().await?;
+
+        info!("Execution plan completed: {} tasks processed", task_ids.len());
+        Ok(task_ids)
+    }
+
+    /// Create and process a task from a TaskSpec (internal helper)
+    async fn create_and_process_task_spec(&self, task_spec: crate::task::TaskSpec) -> Result<uuid::Uuid> {
+        // Create task in the task manager
+        let task_id = self.task_manager.create_task(task_spec, None).await?;
+
+        // Process the task
+        self.process_task(task_id).await?;
+
+        Ok(task_id)
+    }
+
+    /// Convert AgentConfig to ExecutionPlan (for structured config mode)
+    pub fn agent_config_to_execution_plan(config: &AgentConfig) -> crate::task::ExecutionPlan {
+        use tracing::info;
+
+        info!("Converting AgentConfig to ExecutionPlan with {} setup commands",
+              config.setup_commands.len());
+
+        let plan_name = format!("Structured Config: {}",
+            config.workspace_path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("workspace"));
+
+        let plan = crate::task::ExecutionPlan::new()
+            .with_setup_commands(config.setup_commands.clone())
+            .with_metadata(
+                plan_name,
+                "Execution plan generated from structured TOML configuration"
+            )
+            .with_tags(vec![
+                "structured-config".to_string(),
+                "auto-generated".to_string()
+            ])
+            .with_sequential_execution();
+
+        info!("Created execution plan: {}", plan.summary());
+        plan
+    }
+
     /// Get system status
     pub async fn get_system_status(&self) -> Result<SystemStatus> {
         let task_stats = self.task_manager.get_statistics().await?;

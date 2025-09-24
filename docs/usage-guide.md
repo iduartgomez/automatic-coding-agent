@@ -1,14 +1,17 @@
-# Automatic Coding Agent - Usage Guide
+# ACA (Automatic Coding Agent) - Usage Guide
 
-A powerful Rust-based tool that automates coding tasks using Claude Code in headless mode. The system provides intelligent task execution with full session persistence and resumability.
+A powerful Rust-based tool that automates coding tasks using Claude Code in headless mode. The system provides intelligent task execution with full session persistence, resumability, and unified execution plans.
 
 ## Installation
 
 ```bash
 # Install from source
 git clone <repository-url>
-cd automatic-coding-agent
+cd aca
 cargo install --path .
+
+# The binary is named 'aca'
+aca --help
 ```
 
 ## Quick Start
@@ -19,11 +22,11 @@ Execute any text file as a coding task:
 
 ```bash
 # Execute a task from any text file
-automatic-coding-agent --task-file implement_auth.md --workspace /path/to/project
+aca --task-file examples/task-inputs/single_task.md --workspace /path/to/project
 
 # Works with any file extension
-automatic-coding-agent --task-file bug_report.txt --workspace .
-automatic-coding-agent --task-file requirements --workspace .
+aca --task-file bug_report.txt --workspace .
+aca --task-file requirements --workspace .
 ```
 
 ### Multi-Task Execution
@@ -32,41 +35,106 @@ Create a task list file with multiple tasks:
 
 ```bash
 # Execute multiple tasks from a list
-automatic-coding-agent --tasks project_todos.md --workspace .
+aca --tasks examples/task-inputs/task_list.md --workspace .
+```
+
+### Structured Configuration
+
+Use configuration files with setup commands:
+
+```bash
+# Execute using structured TOML configuration
+aca --config examples/configurations/default-config.toml
 ```
 
 ## Command Line Options
 
 ### Task Input (choose one)
+
 - `--task-file <FILE>` - Execute a single task from any UTF-8 file
 - `--tasks <FILE>` - Execute multiple tasks from a task list file
-- `--config <FILE>` - Load tasks from TOML configuration file (legacy)
+- `--config <FILE>` - Load tasks from TOML configuration file
 
 ### Execution Options
+
 - `--workspace <DIR>` - Override workspace directory (default: current directory)
 - `--interactive` - Run in interactive mode
 - `--verbose` - Enable detailed logging output
 - `--dry-run` - Show what would be executed without running
 
+### Session Management
+
+- `--resume <CHECKPOINT_ID>` - Resume from specific checkpoint
+- `--continue` - Resume from latest checkpoint
+- `--list-checkpoints` - Show available checkpoints
+- `--create-checkpoint <DESCRIPTION>` - Create manual checkpoint
+
 ### Information Options
+
 - `--help` - Show help message
 - `--version` - Show version information
 - `--show-config` - Show configuration discovery information
+
+## Example Files
+
+ACA includes comprehensive examples in the `examples/` directory:
+
+```
+examples/
+├── task-inputs/           # Task input format examples
+│   ├── single_task.md    # Complete feature specification
+│   └── task_list.md      # Multiple tasks with references
+├── configurations/       # Configuration examples
+│   ├── default-config.toml # Standard configuration template
+│   └── simple-tasks.toml   # Legacy format (outdated)
+└── references/           # Reference files for tasks
+    ├── memory_leak_analysis.md
+    └── caching_strategy.txt
+```
+
+**Try the examples:**
+
+```bash
+# Single comprehensive task
+aca --task-file examples/task-inputs/single_task.md --dry-run
+
+# Multiple tasks with references
+aca --tasks examples/task-inputs/task_list.md --dry-run
+
+# Structured configuration
+aca --config examples/configurations/default-config.toml --dry-run
+```
+
+See the [examples README](../examples/README.md) for detailed documentation.
+
+## ExecutionPlan Architecture
+
+ACA uses a unified ExecutionPlan system that processes all input types consistently:
+
+**Task Inputs** → **ExecutionPlan** → **AgentSystem.execute_plan()**
+
+This means:
+- Single files, task lists, and configurations all use the same execution engine
+- Consistent behavior and error handling across all modes
+- Rich metadata and execution mode support
+- Better extensibility for future features
 
 ## Usage Examples
 
 ### Basic File Operations
 
 **Create a simple file:**
+
 ```bash
 echo "Create a hello.txt file with 'Hello World'" > task.md
-automatic-coding-agent --task-file task.md --workspace .
+aca --task-file task.md --workspace .
 ```
 
 **Generate documentation:**
+
 ```bash
 echo "Create a comprehensive README.md for a weather app called WeatherWiz" > task.md
-automatic-coding-agent --task-file task.md --workspace .
+aca --task-file task.md --workspace .
 ```
 
 ### Multi-Task Projects
@@ -84,8 +152,9 @@ Create a `tasks.md` file with multiple tasks:
 ```
 
 Execute all tasks:
+
 ```bash
-automatic-coding-agent --tasks tasks.md --workspace ./my-project
+aca --tasks tasks.md --workspace ./my-project
 ```
 
 ### Supported Task List Formats
@@ -93,14 +162,17 @@ automatic-coding-agent --tasks tasks.md --workspace ./my-project
 The tool supports various task list formats:
 
 **Markdown format:**
+
 ```markdown
 - [ ] Incomplete task
 - [x] Completed task
 - [ ] Another task
+
 * Bullet point task
 ```
 
 **Org-mode format:**
+
 ```org
 * TODO First task
 * DONE Completed task
@@ -108,6 +180,7 @@ The tool supports various task list formats:
 ```
 
 **Numbered lists:**
+
 ```
 1. First task
 2. Second task
@@ -115,6 +188,7 @@ The tool supports various task list formats:
 ```
 
 **Plain text:**
+
 ```
 Task one
 Task two
@@ -126,6 +200,7 @@ Task three
 You can reference external files for detailed task context using the `-> reference_file` syntax:
 
 **Basic reference syntax:**
+
 ```markdown
 - [ ] Implement user authentication -> auth_requirements.md
 - [ ] Fix memory leak issue -> bug_analysis.txt
@@ -135,22 +210,26 @@ You can reference external files for detailed task context using the `-> referen
 **Example with detailed requirements:**
 
 Create `auth_requirements.md`:
+
 ```markdown
 # Authentication Requirements
 
 ## Features Needed
+
 - JWT token-based authentication
 - Password hashing with bcrypt
 - Session management
 - Role-based access control (RBAC)
 
 ## Technical Specifications
+
 - Use FastAPI for endpoints
 - PostgreSQL for user storage
 - Redis for session caching
 - Add rate limiting for login attempts
 
 ## API Endpoints Required
+
 - POST /auth/login
 - POST /auth/register
 - POST /auth/logout
@@ -159,6 +238,7 @@ Create `auth_requirements.md`:
 ```
 
 Create `tasks.md`:
+
 ```markdown
 # Development Tasks
 
@@ -168,6 +248,7 @@ Create `tasks.md`:
 ```
 
 **How it works:**
+
 - The reference file content is automatically included in the task description
 - Supports any UTF-8 text file format
 - Relative paths are resolved relative to the task list file
@@ -183,25 +264,28 @@ Create `tasks.md`:
 
 ```markdown
 # Development Tasks
+
 - [ ] Implement user authentication system -> auth_requirements.md
 - [ ] Create database schema -> database_schema.md
 - [ ] Add unit tests for auth functions
 ```
 
 3. Execute with full context:
+
 ```bash
-automatic-coding-agent --tasks tasks.md --workspace ./my-project
+aca --tasks tasks.md --workspace ./my-project
 ```
 
 The tool will automatically include the entire content of `auth_requirements.md` in the task description, providing Claude with comprehensive context for implementation.
 
 ## Task Trees and Subtasks
 
-The automatic-coding-agent has a sophisticated task management system with hierarchical task trees and subtask support. However, the current CLI interface processes tasks sequentially without exposing the advanced task tree functionality.
+The aca has a sophisticated task management system with hierarchical task trees and subtask support. However, the current CLI interface processes tasks sequentially without exposing the advanced task tree functionality.
 
 ### Current Functionality
 
 **Sequential Task Processing:**
+
 - Tasks from task lists are processed one by one
 - Each task is independent and complete
 - Session management tracks all task progress
@@ -210,6 +294,7 @@ The automatic-coding-agent has a sophisticated task management system with hiera
 ### Advanced Task Management (API Level)
 
 The underlying system supports:
+
 - **Parent-child task relationships**
 - **Dynamic subtask creation**
 - **Dependency resolution**
@@ -221,8 +306,10 @@ These features are available through the programmatic API but not yet exposed th
 ### Future Enhancement Possibilities
 
 **Potential task hierarchy syntax:**
+
 ```markdown
 # Main Project
+
 - [ ] Setup web application
   - [ ] Create backend API
     - [ ] User authentication
@@ -238,9 +325,58 @@ These features are available through the programmatic API but not yet exposed th
 
 **Note:** This hierarchical syntax is not currently supported but represents the direction for future enhancements.
 
+## Structured Configuration Mode
+
+Use TOML configuration files for comprehensive system setup:
+
+### Basic Configuration
+
+```toml
+workspace_path = "/path/to/your/project"
+
+# Setup commands run before task processing
+setup_commands = [
+    { name = "install_deps", command = "npm install" },
+    { name = "build_project", command = "cargo build" }
+]
+
+[session_config]
+auto_save_interval_minutes = 5
+auto_checkpoint_interval_minutes = 30
+enable_crash_recovery = true
+
+[task_config]
+auto_retry_failed_tasks = true
+max_concurrent_tasks = 3
+
+[claude_config.rate_limits]
+max_tokens_per_minute = 40000
+max_requests_per_minute = 50
+```
+
+### Configuration Benefits
+
+- **Setup automation**: Run environment preparation commands
+- **System configuration**: Fine-tune session, task, and Claude settings
+- **Reproducible environments**: Share configurations across teams
+- **Production ready**: Optimized settings for different environments
+
+### Usage
+
+```bash
+# Execute structured configuration
+aca --config project-config.toml
+
+# Test configuration without execution
+aca --config project-config.toml --dry-run --verbose
+```
+
+See [`examples/configurations/`](../examples/configurations/) for complete examples.
+
 ### Advanced Examples
 
 **Complex web application:**
+
 ```markdown
 # Web App Development Tasks
 
@@ -254,6 +390,7 @@ These features are available through the programmatic API but not yet exposed th
 ```
 
 **Data processing pipeline:**
+
 ```markdown
 # Data Pipeline Tasks
 
@@ -267,24 +404,55 @@ These features are available through the programmatic API but not yet exposed th
 
 ## Session Management
 
-The tool automatically manages sessions with:
+ACA provides comprehensive session management with automatic recovery:
+
+### Automatic Management
 
 - **Auto-save**: Session state saved every 5 minutes
-- **Checkpoints**: Progress snapshots every 30 minutes
-- **Recovery**: Automatic recovery from previous sessions
-- **Persistence**: Complete task history and state tracking
+- **Auto-checkpoints**: Progress snapshots every 30 minutes
+- **Crash recovery**: Automatic recovery from unexpected shutdowns
+- **Complete persistence**: Task history, progress, and file system state
 
-Session files are stored in the workspace directory and can be safely interrupted and resumed.
+### Manual Checkpoint Control
+
+```bash
+# List available checkpoints
+aca --list-checkpoints
+
+# Create a manual checkpoint
+aca --create-checkpoint "Feature implementation complete"
+
+# Resume from latest checkpoint
+aca --continue
+
+# Resume from specific checkpoint
+aca --resume checkpoint-abc-123
+```
+
+### Session Storage
+
+Session data is stored in the `.aca/` directory within your workspace:
+
+```
+your-project/
+├── .aca/
+│   ├── sessions/     # Session data
+│   └── checkpoints/  # Checkpoint storage
+└── your-files/
+```
+
+Sessions can be safely interrupted and resumed across system restarts.
 
 ## Verbose Mode
 
 Use `--verbose` for detailed execution logs:
 
 ```bash
-automatic-coding-agent --task-file task.md --workspace . --verbose
+aca --task-file task.md --workspace . --verbose
 ```
 
 This shows:
+
 - Task loading and parsing details
 - Claude Code integration status
 - File operations and progress
@@ -296,10 +464,11 @@ This shows:
 Test your tasks without execution:
 
 ```bash
-automatic-coding-agent --tasks project_setup.md --workspace . --dry-run
+aca --tasks project_setup.md --workspace . --dry-run
 ```
 
 This will:
+
 - Parse and validate all tasks
 - Show what would be executed
 - Verify file access and permissions
@@ -310,18 +479,21 @@ This will:
 ### Task Description Guidelines
 
 **Be specific and actionable:**
+
 ```markdown
 ✅ Good: "Create a Python FastAPI server with user authentication endpoints"
 ❌ Bad: "Make an API"
 ```
 
 **Include context and requirements:**
+
 ```markdown
 ✅ Good: "Create a responsive CSS layout with header, sidebar, and main content areas"
 ❌ Bad: "Add some CSS"
 ```
 
 **Specify file names and locations:**
+
 ```markdown
 ✅ Good: "Create database models in `models/user.py` using SQLAlchemy"
 ❌ Bad: "Add database stuff"
@@ -330,19 +502,23 @@ This will:
 ### Multi-Task Organization
 
 **Group related tasks:**
+
 ```markdown
 # Frontend Tasks
+
 - [ ] Create HTML structure
 - [ ] Add CSS styling
 - [ ] Implement JavaScript
 
 # Backend Tasks
+
 - [ ] Set up database
 - [ ] Create API endpoints
 - [ ] Add authentication
 ```
 
 **Use logical ordering:**
+
 ```markdown
 - [ ] Create project structure
 - [ ] Add configuration files
@@ -356,45 +532,66 @@ This will:
 ### Common Issues
 
 **Task not executing:**
+
 - Ensure Claude CLI is installed and accessible
 - Check workspace permissions
 - Verify task file is UTF-8 encoded
 
 **Session recovery fails:**
-- Check workspace write permissions
-- Ensure sufficient disk space
+
+- Check workspace write permissions for `.aca/` directory
+- Ensure sufficient disk space for session data
 - Verify session files aren't corrupted
+- Try `aca --list-checkpoints` to see available recovery points
 
 **Multi-task interruption:**
-- Use `--verbose` to see progress
-- Check session files for partial completion
-- Resume execution - the tool will continue from where it left off
+
+- Use `--verbose` to see detailed progress
+- Check `.aca/sessions/` for partial completion status
+- Resume with `aca --continue` for latest checkpoint
+- Use `aca --resume <checkpoint-id>` for specific recovery point
+
+**Configuration issues:**
+
+- Validate TOML syntax in configuration files
+- Check setup command permissions and dependencies
+- Use `--dry-run` to test configuration without execution
+- Verify workspace paths and file permissions
 
 ### Getting Help
 
 ```bash
 # Show detailed help
-automatic-coding-agent --help
+aca --help
 
 # Check configuration discovery
-automatic-coding-agent --show-config
+aca --show-config
+
+# List available checkpoints
+aca --list-checkpoints
 
 # Enable verbose logging for debugging
-automatic-coding-agent --task-file task.md --verbose
+aca --task-file task.md --verbose
+
+# Test commands without execution
+aca --tasks my_tasks.md --dry-run --verbose
 ```
 
 ## Integration with Development Workflow
 
 ### Git Integration
 
-The tool works seamlessly with Git workflows:
+ACA works seamlessly with Git workflows:
 
 ```bash
 # Create a new branch for automated changes
 git checkout -b automated-tasks
 
-# Run your tasks
-automatic-coding-agent --tasks feature_implementation.md --workspace .
+# Run your tasks with checkpointing
+aca --tasks feature_implementation.md --workspace .
+
+# Create checkpoint before review
+aca --create-checkpoint "Implementation complete, ready for review"
 
 # Review changes
 git diff
@@ -404,13 +601,67 @@ git add .
 git commit -m "Automated implementation of feature tasks"
 ```
 
+### Iterative Development
+
+```bash
+# Phase 1: Initial implementation
+aca --tasks phase1_tasks.md
+aca --create-checkpoint "Phase 1 complete"
+
+# Phase 2: Add features
+aca --tasks phase2_tasks.md
+aca --create-checkpoint "Phase 2 complete"
+
+# Phase 3: Testing and refinement
+aca --tasks phase3_tasks.md
+
+# View progress
+aca --list-checkpoints
+```
+
+### Team Collaboration
+
+```bash
+# Share configuration for consistent environments
+aca --config team-config.toml
+
+# Resume colleague's work from checkpoint
+aca --resume checkpoint-shared-123
+
+# Create structured task assignments
+aca --tasks team-assignments.md --verbose
+```
+
 ### CI/CD Integration
 
 Use in automated environments:
 
 ```bash
 # In CI pipeline
-automatic-coding-agent --tasks deployment_tasks.md --workspace . --verbose
+aca --tasks deployment_tasks.md --workspace . --verbose
 ```
 
 The tool's session management ensures reliable execution even in containerized environments.
+
+## Workspace Structure
+
+ACA organizes its data in a predictable structure within your project:
+
+```
+your-project/
+├── .aca/                     # ACA data directory
+│   ├── sessions/            # Session persistence data
+│   │   └── session_xyz/     # Individual session data
+│   └── checkpoints/         # Checkpoint storage
+├── examples/                # Built-in examples (if present)
+│   ├── task-inputs/        # Task input examples
+│   ├── configurations/     # Configuration examples
+│   └── references/         # Reference files
+└── your-project-files/     # Your actual project files
+```
+
+**Key directories:**
+- `.aca/` - All ACA data (can be safely added to .gitignore)
+- `examples/` - Built-in examples and templates (optional)
+- Session data includes complete task history and execution state
+- Checkpoints can be used for recovery and collaboration

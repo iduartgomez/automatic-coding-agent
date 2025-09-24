@@ -95,10 +95,17 @@ pub mod tree;
 /// system including [`Task`], [`TaskStatus`], [`TaskPriority`], etc.
 pub mod types;
 
+/// Unified execution plan abstraction for task processing.
+///
+/// Provides the [`ExecutionPlan`] type that consolidates both simple
+/// task lists and structured configurations into a common execution model.
+pub mod execution_plan;
+
 #[cfg(test)]
 mod tests;
 
 pub use execution::*;
+pub use execution_plan::*;
 pub use manager::*;
 pub use scheduler::*;
 pub use tree::*;

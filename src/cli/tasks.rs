@@ -5,6 +5,9 @@
 //! - Task lists (--tasks): Files containing multiple task specifications
 //! - Reference resolution: Tasks can reference other files for context
 
+use crate::task::{
+    ComplexityLevel, ContextRequirements, ExecutionPlan, FileImportance, FileRef, TaskMetadata, TaskPriority, TaskSpec,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
@@ -254,6 +257,114 @@ impl TaskLoader {
 
         Ok(())
     }
+
+    /// Convert a single SimpleTask to a TaskSpec
+    fn simple_task_to_task_spec(simple_task: SimpleTask) -> TaskSpec {
+        let mut context_requirements = ContextRequirements::default();
+
+        // If the task has a reference file, add it to the context requirements
+        if let Some(ref_path) = &simple_task.reference_file {
+            context_requirements.required_files.push(ref_path.clone());
+        }
+
+        TaskSpec {
+            title: format!("Task: {}",
+                if simple_task.description.len() > 50 {
+                    format!("{}...", &simple_task.description[..47])
+                } else {
+                    simple_task.description.clone()
+                }),
+            description: simple_task.description,
+            dependencies: Vec::new(),
+            metadata: TaskMetadata {
+                priority: TaskPriority::Normal,
+                estimated_complexity: Some(ComplexityLevel::Moderate),
+                estimated_duration: Some(
+                    chrono::Duration::from_std(std::time::Duration::from_secs(300)).unwrap(),
+                ),
+                repository_refs: Vec::new(),
+                file_refs: simple_task.reference_file.map(|p| vec![FileRef {
+                    path: p,
+                    repository: "local".to_string(),
+                    line_range: None,
+                    importance: FileImportance::Medium,
+                }]).unwrap_or_default(),
+                tags: vec!["from-task-file".to_string()],
+                context_requirements,
+            },
+        }
+    }
+
+    /// Convert a single file task to an ExecutionPlan
+    pub fn single_file_to_execution_plan<P: AsRef<Path>>(path: P) -> Result<ExecutionPlan, FileError> {
+        let simple_task = Self::parse_single_file_task(path.as_ref())?;
+        let task_spec = Self::simple_task_to_task_spec(simple_task);
+
+        let plan_name = format!("Single File Task: {}",
+            path.as_ref().file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown"));
+
+        let plan = ExecutionPlan::new()
+            .with_task(task_spec)
+            .with_metadata(plan_name, "Execution plan for single file task")
+            .with_tags(vec!["single-file".to_string(), "auto-generated".to_string()])
+            .with_sequential_execution();
+
+        debug!("Created execution plan for single file: {:?}", path.as_ref());
+        Ok(plan)
+    }
+
+    /// Convert a task list file to an ExecutionPlan
+    pub fn task_list_to_execution_plan<P: AsRef<Path>>(path: P) -> Result<ExecutionPlan, FileError> {
+        let mut simple_tasks = Self::parse_task_list(path.as_ref())?;
+
+        // Resolve references
+        debug!("Resolving task references for execution plan...");
+        Self::resolve_task_references(&mut simple_tasks)?;
+
+        // Convert to TaskSpec instances
+        let task_specs: Vec<TaskSpec> = simple_tasks
+            .into_iter()
+            .map(Self::simple_task_to_task_spec)
+            .collect();
+
+        let plan_name = format!("Task List: {}",
+            path.as_ref().file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown"));
+
+        let task_count = task_specs.len();
+        let estimated_duration = chrono::Duration::from_std(
+            std::time::Duration::from_secs(300 * task_count as u64)
+        ).unwrap_or_else(|_| chrono::Duration::minutes(5));
+
+        let plan = ExecutionPlan::new()
+            .with_tasks(task_specs)
+            .with_metadata(plan_name, format!("Execution plan for {} tasks from task list", task_count))
+            .with_tags(vec!["task-list".to_string(), "auto-generated".to_string()])
+            .with_estimated_duration(estimated_duration)
+            .with_sequential_execution();
+
+        debug!("Created execution plan for task list: {:?} with {} tasks",
+               path.as_ref(), plan.task_count());
+        Ok(plan)
+    }
+
+    /// Convert TaskInput to ExecutionPlan
+    pub fn task_input_to_execution_plan(task_input: &TaskInput) -> Result<ExecutionPlan, FileError> {
+        match task_input {
+            TaskInput::SingleFile(path) => Self::single_file_to_execution_plan(path),
+            TaskInput::TaskList(path) => Self::task_list_to_execution_plan(path),
+            TaskInput::ConfigWithTasks(_path) => {
+                // This should be handled by the structured config mode, not TaskLoader
+                Err(FileError::ParseError {
+                    path: _path.clone(),
+                    reason: "ConfigWithTasks should be handled by structured config mode".to_string(),
+                })
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -352,5 +463,101 @@ mod tests {
         let error_msg = format!("{}", result.unwrap_err());
         assert!(error_msg.contains("not UTF-8 encoded"));
         assert!(error_msg.contains("binary"));
+    }
+
+    #[test]
+    fn test_single_file_to_execution_plan() {
+        let temp_file = NamedTempFile::new().unwrap();
+        fs::write(&temp_file, "Implement user authentication system").unwrap();
+
+        let plan = TaskLoader::single_file_to_execution_plan(temp_file.path()).unwrap();
+
+        assert_eq!(plan.task_count(), 1);
+        assert_eq!(plan.setup_command_count(), 0);
+        assert!(plan.has_tasks());
+        assert!(!plan.has_setup_commands());
+
+        let task = &plan.task_specs[0];
+        assert_eq!(task.description, "Implement user authentication system");
+        assert!(task.title.contains("Task:"));
+        assert!(task.metadata.tags.contains(&"from-task-file".to_string()));
+
+        assert!(plan.metadata.name.is_some());
+        assert!(plan.metadata.tags.contains(&"single-file".to_string()));
+    }
+
+    #[test]
+    fn test_task_list_to_execution_plan() {
+        let temp_file = NamedTempFile::new().unwrap();
+        fs::write(
+            &temp_file,
+            "- [ ] Fix authentication bug\n\
+             - [x] Add comprehensive tests\n\
+             * Update documentation\n\
+             \n\
+             - [ ] Deploy to staging",
+        )
+        .unwrap();
+
+        let plan = TaskLoader::task_list_to_execution_plan(temp_file.path()).unwrap();
+
+        assert_eq!(plan.task_count(), 4);
+        assert_eq!(plan.setup_command_count(), 0);
+        assert!(plan.has_tasks());
+        assert!(!plan.has_setup_commands());
+
+        let task_descriptions: Vec<&str> = plan.task_specs.iter()
+            .map(|t| t.description.as_str())
+            .collect();
+
+        assert!(task_descriptions.contains(&"Fix authentication bug"));
+        assert!(task_descriptions.contains(&"Add comprehensive tests"));
+        assert!(task_descriptions.contains(&"Update documentation"));
+        assert!(task_descriptions.contains(&"Deploy to staging"));
+
+        assert!(plan.metadata.name.is_some());
+        assert!(plan.metadata.tags.contains(&"task-list".to_string()));
+        assert!(plan.metadata.estimated_duration.is_some());
+    }
+
+    #[test]
+    fn test_task_input_to_execution_plan() {
+        let temp_file = NamedTempFile::new().unwrap();
+        fs::write(&temp_file, "Test task description").unwrap();
+
+        // Test single file input
+        let single_input = TaskInput::SingleFile(temp_file.path().to_path_buf());
+        let plan = TaskLoader::task_input_to_execution_plan(&single_input).unwrap();
+        assert_eq!(plan.task_count(), 1);
+
+        // Test task list input
+        let list_input = TaskInput::TaskList(temp_file.path().to_path_buf());
+        let plan = TaskLoader::task_input_to_execution_plan(&list_input).unwrap();
+        assert_eq!(plan.task_count(), 1);
+
+        // Test config with tasks (should return error)
+        let config_input = TaskInput::ConfigWithTasks(temp_file.path().to_path_buf());
+        let result = TaskLoader::task_input_to_execution_plan(&config_input);
+        assert!(result.is_err());
+        assert!(format!("{}", result.unwrap_err()).contains("structured config mode"));
+    }
+
+    #[test]
+    fn test_simple_task_to_task_spec() {
+        let simple_task = SimpleTask {
+            description: "Test task description".to_string(),
+            reference_file: Some(PathBuf::from("reference.md")),
+        };
+
+        let task_spec = TaskLoader::simple_task_to_task_spec(simple_task);
+
+        assert_eq!(task_spec.description, "Test task description");
+        assert!(task_spec.title.starts_with("Task:"));
+        assert_eq!(task_spec.metadata.file_refs.len(), 1);
+        assert_eq!(task_spec.metadata.file_refs[0].path, PathBuf::from("reference.md"));
+        assert_eq!(task_spec.metadata.file_refs[0].repository, "local");
+        assert_eq!(task_spec.metadata.file_refs[0].importance, FileImportance::Medium);
+        assert!(task_spec.metadata.context_requirements.required_files.contains(&PathBuf::from("reference.md")));
+        assert!(task_spec.metadata.tags.contains(&"from-task-file".to_string()));
     }
 }

@@ -2,7 +2,7 @@
 
 ## High Priority Tasks
 
-- [ ] Fix memory leak in data processor module -> memory_leak_analysis.md
+- [ ] Fix memory leak in data processor module -> ../references/memory_leak_analysis.md
 - [ ] Implement user registration endpoint
 - [ ] Add unit tests for payment processing
 - [x] Update API documentation
@@ -11,7 +11,7 @@
 
 * Add logging to all service endpoints
 * Optimize database queries in user service
-* Implement caching for frequently accessed data -> caching_strategy.txt
+* Implement caching for frequently accessed data -> ../references/caching_strategy.txt
 
 ## Low Priority Tasks
 

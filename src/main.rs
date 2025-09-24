@@ -62,46 +62,45 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
         default_config.to_agent_config(config.workspace_override.clone())
     };
 
-    // Load and process tasks based on input type
-    let tasks = match &config.task_input {
-        TaskInput::SingleFile(path) => {
-            info!("Loading single task from file: {:?}", path);
-            vec![TaskLoader::parse_single_file_task(path)?]
-        }
-        TaskInput::TaskList(path) => {
-            info!("Loading task list from file: {:?}", path);
-            let mut tasks = TaskLoader::parse_task_list(path)?;
-
-            // Resolve references
-            info!("Resolving task references...");
-            TaskLoader::resolve_task_references(&mut tasks)?;
-
-            tasks
-        }
+    // Convert task input to execution plan
+    let execution_plan = match &config.task_input {
         TaskInput::ConfigWithTasks(path) => {
             // This is the structured TOML configuration with tasks - handle it differently
             info!("Loading structured TOML configuration with tasks: {:?}", path);
             return run_structured_config_mode(path.clone(), config).await;
         }
+        _ => {
+            info!("Converting task input to execution plan...");
+            TaskLoader::task_input_to_execution_plan(&config.task_input)?
+        }
     };
 
     if config.verbose {
-        println!("📁 Loaded {} tasks", tasks.len());
-        for (i, task) in tasks.iter().enumerate() {
-            let description = if task.description.len() > 100 {
-                format!("{}...", &task.description[..97])
-            } else {
-                task.description.clone()
-            };
-            println!("  📋 {}: {}", i + 1, description);
-            if task.reference_file.is_some() {
-                println!("      └─ Has reference file");
+        println!("📁 Created execution plan: {}", execution_plan.summary());
+        if let Some(ref name) = execution_plan.metadata.name {
+            println!("  📋 Plan: {}", name);
+        }
+        if let Some(ref description) = execution_plan.metadata.description {
+            println!("  📝 Description: {}", description);
+        }
+        if execution_plan.has_setup_commands() {
+            println!("  ⚙️  Setup commands: {}", execution_plan.setup_command_count());
+        }
+        if execution_plan.has_tasks() {
+            println!("  🎯 Tasks: {}", execution_plan.task_count());
+            for (i, task_spec) in execution_plan.task_specs.iter().enumerate() {
+                let title = if task_spec.title.len() > 80 {
+                    format!("{}...", &task_spec.title[..77])
+                } else {
+                    task_spec.title.clone()
+                };
+                println!("      {}. {}", i + 1, title);
             }
         }
     }
 
     if config.dry_run {
-        println!("🔍 Dry run mode - tasks would be executed but won't actually run");
+        println!("🔍 Dry run mode - execution plan would be processed but won't actually run");
         return Ok(());
     }
 
@@ -111,64 +110,21 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
 
     info!("Agent system initialized successfully!");
 
-    // Process each task using the same pattern as interactive mode
-    let mut successful_tasks = 0;
-    let total_tasks = tasks.len();
-
-    for (i, task) in tasks.into_iter().enumerate() {
-        let task_num = i + 1;
-        info!(
-            "Processing task {}/{}: {}",
-            task_num, total_tasks, task.description
-        );
-
-        if config.verbose {
-            println!(
-                "🔄 Processing task {}/{}: {}",
-                task_num,
-                total_tasks,
-                if task.description.len() > 100 {
-                    format!("{}...", &task.description[..97])
-                } else {
-                    task.description.clone()
-                }
-            );
-        }
-
-        match agent
-            .create_and_process_task(&format!("Batch Task {}", task_num), &task.description)
-            .await
-        {
-            Ok(task_id) => {
-                info!(
-                    "Task {}/{} completed successfully! Task ID: {}",
-                    task_num, total_tasks, task_id
-                );
-                if config.verbose {
-                    println!(
-                        "✅ Task {}/{} completed: {}",
-                        task_num, total_tasks, task_id
-                    );
-                }
-                successful_tasks += 1;
-            }
-            Err(e) => {
-                error!("Task {}/{} failed: {}", task_num, total_tasks, e);
-                if config.verbose {
-                    println!("❌ Task {}/{} failed: {}", task_num, total_tasks, e);
-                }
-            }
-        }
-    }
+    // Execute the plan using the unified execution path
+    info!("Executing plan with unified agent system...");
+    let task_ids = agent.execute_plan(execution_plan).await?;
 
     if config.verbose {
-        if successful_tasks == total_tasks {
-            println!("✅ All {} tasks completed successfully!", total_tasks);
+        if !task_ids.is_empty() {
+            println!("✅ All {} tasks in plan completed successfully!", task_ids.len());
+            if task_ids.len() <= 5 {
+                // Show task IDs for small numbers of tasks
+                for (i, task_id) in task_ids.iter().enumerate() {
+                    println!("    {}. {}", i + 1, task_id);
+                }
+            }
         } else {
-            println!(
-                "⚠️  {}/{} tasks completed successfully",
-                successful_tasks, total_tasks
-            );
+            println!("ℹ️  No tasks were executed (setup-only plan)");
         }
     }
 
@@ -186,29 +142,50 @@ async fn run_structured_config_mode(
     // This handles the structured TOML format with embedded tasks and configuration
     info!("Running structured TOML configuration mode");
 
-    // For now, load it as AgentConfig directly
+    // Load the agent config from TOML file
     let agent_config = AgentConfig::from_toml_file(config_path)?;
 
+    // Convert the agent config to execution plan
+    info!("Converting structured configuration to execution plan...");
+    let execution_plan = AgentSystem::agent_config_to_execution_plan(&agent_config);
+
     if config.verbose {
-        println!(
-            "📁 Loaded structured configuration with {} setup commands",
-            agent_config.setup_commands.len()
-        );
+        println!("📁 Created execution plan from structured config: {}", execution_plan.summary());
+        if let Some(ref name) = execution_plan.metadata.name {
+            println!("  📋 Plan: {}", name);
+        }
+        if let Some(ref description) = execution_plan.metadata.description {
+            println!("  📝 Description: {}", description);
+        }
+        if execution_plan.has_setup_commands() {
+            println!("  ⚙️  Setup commands: {}", execution_plan.setup_command_count());
+            for (i, setup_cmd) in execution_plan.setup_commands.iter().enumerate() {
+                println!("      {}. {} ({})", i + 1, setup_cmd.name, setup_cmd.command);
+            }
+        }
     }
 
     if config.dry_run {
-        println!("🔍 Dry run mode - structured tasks would be executed but won't actually run");
+        println!("🔍 Dry run mode - structured execution plan would be processed but won't actually run");
         return Ok(());
     }
 
-    // Initialize and run agent system
+    // Initialize agent system
     info!("Initializing agent system for structured batch execution...");
     let agent = AgentSystem::new(agent_config).await?;
 
     info!("Agent system initialized successfully!");
 
+    // Execute the plan using the unified execution path
+    info!("Executing structured configuration plan...");
+    let task_ids = agent.execute_plan(execution_plan).await?;
+
     if config.verbose {
-        println!("✅ All structured tasks completed successfully!");
+        if !task_ids.is_empty() {
+            println!("✅ All {} tasks in structured plan completed successfully!", task_ids.len());
+        } else {
+            println!("✅ Structured configuration setup completed successfully!");
+        }
     }
 
     // Graceful shutdown
