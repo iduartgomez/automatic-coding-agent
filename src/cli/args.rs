@@ -8,9 +8,8 @@
 //! - Default configuration discovery when no explicit config
 
 use super::tasks::TaskInput;
-use lexopt::prelude::*;
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use tracing::debug;
 
 #[derive(Debug)]
 pub enum ExecutionMode {
@@ -19,9 +18,7 @@ pub enum ExecutionMode {
     Resume(ResumeConfig),     // Resume from checkpoint
     ListCheckpoints { all_sessions: bool }, // List available checkpoints
     CreateCheckpoint(String), // Create manual checkpoint
-    Help,
-    Version,
-    ShowConfig, // New: Show configuration discovery info
+    ShowConfig, // Show configuration discovery info
 }
 
 #[derive(Debug)]
@@ -47,154 +44,149 @@ pub struct ResumeConfig {
     pub continue_latest: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Parser)]
+#[command(name = "aca")]
+#[command(author = "Automatic Coding Agent Team")]
+#[command(version = env!("CARGO_PKG_VERSION"))]
+#[command(about = "A Rust-based agentic tool that automates coding tasks using Claude Code in headless mode")]
+#[command(long_about = None)]
 pub struct Args {
-    pub mode: ExecutionMode,
+    #[command(subcommand)]
+    pub command: Option<Commands>,
+
+    /// Configuration file path
+    #[arg(short = 'c', long = "config")]
+    pub config: Option<PathBuf>,
+
+    /// Single task file to execute
+    #[arg(long = "task-file")]
+    pub task_file: Option<PathBuf>,
+
+    /// Task list file to execute
+    #[arg(long = "tasks")]
+    pub tasks: Option<PathBuf>,
+
+    /// Workspace directory
+    #[arg(short = 'w', long = "workspace")]
+    pub workspace: Option<PathBuf>,
+
+    /// Run in interactive mode
+    #[arg(short = 'i', long = "interactive")]
+    pub interactive: bool,
+
+    /// Run in batch mode (default)
+    #[arg(short = 'b', long = "batch")]
+    pub batch: bool,
+
+    /// Enable verbose output
+    #[arg(short = 'v', long = "verbose")]
+    pub verbose: bool,
+
+    /// Show what would be executed without running
+    #[arg(short = 'n', long = "dry-run")]
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum Commands {
+    /// Resume from specific checkpoint ID
+    Resume {
+        /// Checkpoint ID to resume from
+        checkpoint_id: String,
+        /// Workspace directory override
+        #[arg(short = 'w', long = "workspace")]
+        workspace: Option<PathBuf>,
+        /// Enable verbose output
+        #[arg(short = 'v', long = "verbose")]
+        verbose: bool,
+    },
+    /// Resume from latest checkpoint
+    Continue {
+        /// Workspace directory override
+        #[arg(short = 'w', long = "workspace")]
+        workspace: Option<PathBuf>,
+        /// Enable verbose output
+        #[arg(short = 'v', long = "verbose")]
+        verbose: bool,
+    },
+    /// List available checkpoints
+    ListCheckpoints {
+        /// Include checkpoints from all sessions
+        #[arg(long = "all-sessions")]
+        all_sessions: bool,
+    },
+    /// Create manual checkpoint
+    CreateCheckpoint {
+        /// Checkpoint description
+        description: String,
+    },
+    /// Show configuration discovery information
+    ShowConfig,
 }
 
 impl Args {
-    pub fn parse() -> Result<Self, lexopt::Error> {
-        let mut parser = lexopt::Parser::from_env();
-        let mut config_path: Option<PathBuf> = None;
-        let mut task_file: Option<PathBuf> = None;
-        let mut tasks_file: Option<PathBuf> = None;
-        let mut workspace: Option<PathBuf> = None;
-        let mut verbose = false;
-        let mut dry_run = false;
-        let mut force_interactive = false;
-        let mut show_config = false;
-        let mut resume_checkpoint: Option<String> = None;
-        let mut continue_latest = false;
-        let mut list_checkpoints = false;
-        let mut all_sessions = false;
-        let mut create_checkpoint: Option<String> = None;
+    pub fn parse() -> Self {
+        Parser::parse()
+    }
 
-        while let Some(arg) = parser.next()? {
-            match arg {
-                // Configuration and task input
-                Short('c') | Long("config") => {
-                    config_path = Some(parser.value()?.parse()?);
+    pub fn mode(&self) -> Result<ExecutionMode, String> {
+        // Handle subcommands first
+        if let Some(command) = &self.command {
+            return match command {
+                Commands::Resume { checkpoint_id, workspace, verbose } => {
+                    Ok(ExecutionMode::Resume(ResumeConfig {
+                        checkpoint_id: Some(checkpoint_id.clone()),
+                        workspace_override: workspace.clone(),
+                        verbose: *verbose,
+                        continue_latest: false,
+                    }))
                 }
-                Long("task-file") => {
-                    task_file = Some(parser.value()?.parse()?);
+                Commands::Continue { workspace, verbose } => {
+                    Ok(ExecutionMode::Resume(ResumeConfig {
+                        checkpoint_id: None,
+                        workspace_override: workspace.clone(),
+                        verbose: *verbose,
+                        continue_latest: true,
+                    }))
                 }
-                Long("tasks") => {
-                    tasks_file = Some(parser.value()?.parse()?);
+                Commands::ListCheckpoints { all_sessions } => {
+                    Ok(ExecutionMode::ListCheckpoints { all_sessions: *all_sessions })
                 }
-
-                // Workspace and execution options
-                Short('w') | Long("workspace") => {
-                    workspace = Some(parser.value()?.parse()?);
+                Commands::CreateCheckpoint { description } => {
+                    Ok(ExecutionMode::CreateCheckpoint(description.clone()))
                 }
-                Short('i') | Long("interactive") => {
-                    force_interactive = true;
+                Commands::ShowConfig => {
+                    Ok(ExecutionMode::ShowConfig)
                 }
-                Short('b') | Long("batch") => {
-                    // Explicit batch mode (default anyway)
-                }
-                Short('v') | Long("verbose") => {
-                    verbose = true;
-                }
-                Short('n') | Long("dry-run") => {
-                    dry_run = true;
-                }
-
-                // Information commands
-                Short('h') | Long("help") => {
-                    return Ok(Args {
-                        mode: ExecutionMode::Help,
-                    });
-                }
-                Short('V') | Long("version") => {
-                    return Ok(Args {
-                        mode: ExecutionMode::Version,
-                    });
-                }
-                Long("show-config") => {
-                    show_config = true;
-                }
-
-                // Resume functionality
-                Long("resume") => {
-                    resume_checkpoint = Some(parser.value()?.to_string_lossy().to_string());
-                }
-                Long("continue") => {
-                    continue_latest = true;
-                }
-                Long("list-checkpoints") => {
-                    list_checkpoints = true;
-                }
-                Long("all-sessions") => {
-                    all_sessions = true;
-                }
-                Long("create-checkpoint") => {
-                    create_checkpoint = Some(parser.value()?.to_string_lossy().to_string());
-                }
-
-                _ => return Err(arg.unexpected()),
-            }
+            };
         }
 
-        // Handle special modes first
-        if show_config {
-            return Ok(Args {
-                mode: ExecutionMode::ShowConfig,
-            });
+        // Handle interactive mode
+        if self.interactive {
+            return Ok(ExecutionMode::Interactive(InteractiveConfig {
+                workspace: self.workspace.clone(),
+                verbose: self.verbose,
+            }));
         }
 
-        if list_checkpoints {
-            return Ok(Args {
-                mode: ExecutionMode::ListCheckpoints { all_sessions },
-            });
-        }
-
-        if let Some(description) = create_checkpoint {
-            return Ok(Args {
-                mode: ExecutionMode::CreateCheckpoint(description),
-            });
-        }
-
-        if resume_checkpoint.is_some() || continue_latest {
-            return Ok(Args {
-                mode: ExecutionMode::Resume(ResumeConfig {
-                    checkpoint_id: resume_checkpoint,
-                    workspace_override: workspace,
-                    verbose,
-                    continue_latest,
-                }),
-            });
-        }
-
-        if force_interactive {
-            return Ok(Args {
-                mode: ExecutionMode::Interactive(InteractiveConfig { workspace, verbose }),
-            });
-        }
-
-        // Determine task input for batch mode
-        let task_input = Self::determine_task_input(config_path.clone(), task_file, tasks_file)?;
+        // Handle batch mode (default)
+        let task_input = self.determine_task_input()?;
 
         let mode = ExecutionMode::Batch(BatchConfig {
             task_input,
-            config_override: config_path,
-            workspace_override: workspace,
-            verbose,
-            dry_run,
+            config_override: self.config.clone(),
+            workspace_override: self.workspace.clone(),
+            verbose: self.verbose,
+            dry_run: self.dry_run,
         });
 
-        debug!("Parsed CLI arguments: {:?}", mode);
-
-        Ok(Args { mode })
+        Ok(mode)
     }
 
     /// Determine the task input based on provided arguments
-    fn determine_task_input(
-        config_path: Option<PathBuf>,
-        task_file: Option<PathBuf>,
-        tasks_file: Option<PathBuf>,
-    ) -> Result<TaskInput, lexopt::Error> {
+    fn determine_task_input(&self) -> Result<TaskInput, String> {
         // Count how many task inputs were provided
-        let inputs = [&config_path, &task_file, &tasks_file]
+        let inputs = [&self.config, &self.task_file, &self.tasks]
             .iter()
             .filter(|x| x.is_some())
             .count();
@@ -203,115 +195,28 @@ impl Args {
             0 => {
                 // No explicit task input - this is an error for now
                 // In the future, we might support a default task discovery
-                Err(lexopt::Error::MissingValue {
-                    option: Some("task input (use --task-file, --tasks, or --config)".to_string()),
-                })
+                Err("task input required (use --task-file, --tasks, or --config)".to_string())
             }
             1 => {
                 // Exactly one input - determine which one
-                if let Some(path) = task_file {
-                    Ok(TaskInput::SingleFile(path))
-                } else if let Some(path) = tasks_file {
-                    Ok(TaskInput::TaskList(path))
-                } else if let Some(path) = config_path {
-                    Ok(TaskInput::ConfigWithTasks(path))
+                if let Some(path) = &self.task_file {
+                    Ok(TaskInput::SingleFile(path.clone()))
+                } else if let Some(path) = &self.tasks {
+                    Ok(TaskInput::TaskList(path.clone()))
+                } else if let Some(path) = &self.config {
+                    Ok(TaskInput::ConfigWithTasks(path.clone()))
                 } else {
                     unreachable!("One input was counted but none found")
                 }
             }
             _ => {
                 // Multiple task inputs - this is ambiguous
-                Err(lexopt::Error::Custom(
-                    "Only one task input method can be specified (--task-file, --tasks, or --config)".into()
-                ))
+                Err("Only one task input method can be specified (--task-file, --tasks, or --config)".to_string())
             }
         }
     }
 }
 
-/// Display help information
-pub fn show_help() {
-    println!("Automatic Coding Agent - AI-powered task automation");
-    println!();
-    println!("USAGE:");
-    println!("    {} [OPTIONS]", env!("CARGO_PKG_NAME"));
-    println!();
-    println!("TASK INPUT OPTIONS (choose one):");
-    println!("        --task-file <FILE>      Execute a single task from any UTF-8 file");
-    println!("        --tasks <FILE>          Execute multiple tasks from a task list file");
-    println!("    -c, --config <FILE>         Load tasks from TOML configuration file (legacy)");
-    println!();
-    println!("EXECUTION OPTIONS:");
-    println!("    -w, --workspace <DIR>       Override workspace directory");
-    println!("    -i, --interactive           Run in interactive mode");
-    println!("    -b, --batch                 Run in batch mode (default)");
-    println!("    -v, --verbose               Enable verbose output");
-    println!("    -n, --dry-run               Show what would be executed without running");
-    println!();
-    println!("RESUME OPTIONS:");
-    println!("        --resume <CHECKPOINT>   Resume from specific checkpoint ID");
-    println!("        --continue              Resume from latest checkpoint");
-    println!("        --list-checkpoints      List available checkpoints");
-    println!("        --all-sessions          Include checkpoints from all sessions (use with --list-checkpoints)");
-    println!("        --create-checkpoint <DESC> Create manual checkpoint");
-    println!();
-    println!("INFORMATION OPTIONS:");
-    println!("    -h, --help                  Show this help message");
-    println!("    -V, --version               Show version information");
-    println!("        --show-config           Show configuration discovery information");
-    println!();
-    println!("EXAMPLES:");
-    println!();
-    println!("  # Execute a single task from any text file");
-    println!(
-        "    {} --task-file implement_auth.md",
-        env!("CARGO_PKG_NAME")
-    );
-    println!("    {} --task-file bug_report.txt", env!("CARGO_PKG_NAME"));
-    println!("    {} --task-file requirements", env!("CARGO_PKG_NAME"));
-    println!();
-    println!("  # Execute multiple tasks from a list");
-    println!("    {} --tasks project_todos.md", env!("CARGO_PKG_NAME"));
-    println!("    {} --tasks task_list.org", env!("CARGO_PKG_NAME"));
-    println!();
-    println!("  # Use with options");
-    println!(
-        "    {} --task-file task.md --verbose --dry-run",
-        env!("CARGO_PKG_NAME")
-    );
-    println!(
-        "    {} --tasks todos.txt --workspace /path/to/project",
-        env!("CARGO_PKG_NAME")
-    );
-    println!();
-    println!("  # Interactive mode");
-    println!("    {} --interactive", env!("CARGO_PKG_NAME"));
-    println!();
-    println!("  # Resume operations");
-    println!("    {} --list-checkpoints", env!("CARGO_PKG_NAME"));
-    println!(
-        "    {} --resume checkpoint-abc123 --workspace .",
-        env!("CARGO_PKG_NAME")
-    );
-    println!("    {} --continue --workspace .", env!("CARGO_PKG_NAME"));
-    println!();
-    println!("  # Legacy TOML config format");
-    println!("    {} --config full_config.toml", env!("CARGO_PKG_NAME"));
-    println!();
-    println!("CONFIGURATION:");
-    println!("  The tool searches for default configuration in this order:");
-    println!("    1. ./aca.toml or ./.aca/config.toml");
-    println!("    2. ~/.aca/config.toml");
-    println!("    3. /etc/aca/config.toml (Unix) or %PROGRAMDATA%\\aca\\config.toml (Windows)");
-    println!("    4. Built-in defaults");
-    println!();
-    println!("  Use --show-config to see the current configuration discovery status.");
-}
-
-/// Display version information
-pub fn show_version() {
-    println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-}
 
 #[cfg(test)]
 mod tests {
@@ -320,8 +225,18 @@ mod tests {
     #[test]
     fn test_task_input_determination() {
         // Single task file
-        let result =
-            Args::determine_task_input(None, Some(PathBuf::from("task.md")), None).unwrap();
+        let args = Args {
+            command: None,
+            config: None,
+            task_file: Some(PathBuf::from("task.md")),
+            tasks: None,
+            workspace: None,
+            interactive: false,
+            batch: false,
+            verbose: false,
+            dry_run: false,
+        };
+        let result = args.determine_task_input().unwrap();
 
         if let TaskInput::SingleFile(path) = result {
             assert_eq!(path, PathBuf::from("task.md"));
@@ -330,8 +245,18 @@ mod tests {
         }
 
         // Task list
-        let result =
-            Args::determine_task_input(None, None, Some(PathBuf::from("tasks.txt"))).unwrap();
+        let args = Args {
+            command: None,
+            config: None,
+            task_file: None,
+            tasks: Some(PathBuf::from("tasks.txt")),
+            workspace: None,
+            interactive: false,
+            batch: false,
+            verbose: false,
+            dry_run: false,
+        };
+        let result = args.determine_task_input().unwrap();
 
         if let TaskInput::TaskList(path) = result {
             assert_eq!(path, PathBuf::from("tasks.txt"));
@@ -340,8 +265,18 @@ mod tests {
         }
 
         // Config with tasks
-        let result =
-            Args::determine_task_input(Some(PathBuf::from("config.toml")), None, None).unwrap();
+        let args = Args {
+            command: None,
+            config: Some(PathBuf::from("config.toml")),
+            task_file: None,
+            tasks: None,
+            workspace: None,
+            interactive: false,
+            batch: false,
+            verbose: false,
+            dry_run: false,
+        };
+        let result = args.determine_task_input().unwrap();
 
         if let TaskInput::ConfigWithTasks(path) = result {
             assert_eq!(path, PathBuf::from("config.toml"));
@@ -353,19 +288,36 @@ mod tests {
     #[test]
     fn test_multiple_inputs_error() {
         // Should error with multiple inputs
-        let result = Args::determine_task_input(
-            Some(PathBuf::from("config.toml")),
-            Some(PathBuf::from("task.md")),
-            None,
-        );
-
+        let args = Args {
+            command: None,
+            config: Some(PathBuf::from("config.toml")),
+            task_file: Some(PathBuf::from("task.md")),
+            tasks: None,
+            workspace: None,
+            interactive: false,
+            batch: false,
+            verbose: false,
+            dry_run: false,
+        };
+        let result = args.determine_task_input();
         assert!(result.is_err());
     }
 
     #[test]
     fn test_no_inputs_error() {
         // Should error with no inputs
-        let result = Args::determine_task_input(None, None, None);
+        let args = Args {
+            command: None,
+            config: None,
+            task_file: None,
+            tasks: None,
+            workspace: None,
+            interactive: false,
+            batch: false,
+            verbose: false,
+            dry_run: false,
+        };
+        let result = args.determine_task_input();
         assert!(result.is_err());
     }
 }

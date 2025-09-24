@@ -1,6 +1,6 @@
 use aca::cli::{
     Args, BatchConfig, ConfigDiscovery, ExecutionMode, InteractiveConfig, TaskInput, TaskLoader,
-    args::{ResumeConfig, show_help, show_version},
+    args::ResumeConfig,
 };
 use aca::env;
 use aca::session::persistence::PersistenceConfig;
@@ -22,30 +22,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting Automatic Coding Agent");
 
     // Parse command line arguments
-    let args = match Args::parse() {
-        Ok(args) => args,
+    let args = Args::parse();
+
+    // Execute based on mode
+    let mode = match args.mode() {
+        Ok(mode) => mode,
         Err(e) => {
             eprintln!("Error: {}", e);
-            show_help();
             std::process::exit(1);
         }
     };
 
-    // Execute based on mode
-    match args.mode {
+    match mode {
         ExecutionMode::Batch(config) => run_batch_mode(config).await,
         ExecutionMode::Interactive(config) => run_interactive_mode(config).await,
         ExecutionMode::Resume(config) => run_resume_mode(config).await,
         ExecutionMode::ListCheckpoints { all_sessions } => list_available_checkpoints(all_sessions).await,
         ExecutionMode::CreateCheckpoint(description) => create_manual_checkpoint(description).await,
-        ExecutionMode::Help => {
-            show_help();
-            Ok(())
-        }
-        ExecutionMode::Version => {
-            show_version();
-            Ok(())
-        }
         ExecutionMode::ShowConfig => {
             ConfigDiscovery::show_discovery_info();
             Ok(())
