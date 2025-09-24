@@ -79,9 +79,9 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
             tasks
         }
         TaskInput::ConfigWithTasks(path) => {
-            // This is the legacy TOML format - handle it differently
-            info!("Loading legacy TOML configuration with tasks: {:?}", path);
-            return run_legacy_config_mode(path.clone(), config).await;
+            // This is the structured TOML configuration with tasks - handle it differently
+            info!("Loading structured TOML configuration with tasks: {:?}", path);
+            return run_structured_config_mode(path.clone(), config).await;
         }
     };
 
@@ -179,37 +179,36 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-async fn run_legacy_config_mode(
+async fn run_structured_config_mode(
     config_path: std::path::PathBuf,
     config: BatchConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // This handles the old TOML format with embedded tasks
-    // Keep for backward compatibility
-    info!("Running legacy TOML configuration mode");
+    // This handles the structured TOML format with embedded tasks and configuration
+    info!("Running structured TOML configuration mode");
 
     // For now, load it as AgentConfig directly
     let agent_config = AgentConfig::from_toml_file(config_path)?;
 
     if config.verbose {
         println!(
-            "📁 Loaded legacy configuration with {} setup commands",
+            "📁 Loaded structured configuration with {} setup commands",
             agent_config.setup_commands.len()
         );
     }
 
     if config.dry_run {
-        println!("🔍 Dry run mode - legacy tasks would be executed but won't actually run");
+        println!("🔍 Dry run mode - structured tasks would be executed but won't actually run");
         return Ok(());
     }
 
     // Initialize and run agent system
-    info!("Initializing agent system for legacy batch execution...");
+    info!("Initializing agent system for structured batch execution...");
     let agent = AgentSystem::new(agent_config).await?;
 
     info!("Agent system initialized successfully!");
 
     if config.verbose {
-        println!("✅ All legacy tasks completed successfully!");
+        println!("✅ All structured tasks completed successfully!");
     }
 
     // Graceful shutdown

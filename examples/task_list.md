@@ -15,7 +15,7 @@
 
 ## Low Priority Tasks
 
-1. Refactor legacy authentication code
+1. Refactor authentication code
 2. Update development environment setup
 3. Add monitoring and alerting
 
