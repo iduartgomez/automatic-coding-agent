@@ -133,7 +133,11 @@ impl ExecutionPlan {
     }
 
     /// Set the plan name and description
-    pub fn with_metadata(mut self, name: impl Into<String>, description: impl Into<String>) -> Self {
+    pub fn with_metadata(
+        mut self,
+        name: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
         self.metadata.name = Some(name.into());
         self.metadata.description = Some(description.into());
         self
@@ -203,7 +207,10 @@ impl ExecutionPlan {
                 return Err(format!("Setup command {} has empty name", i));
             }
             if command.command.is_empty() {
-                return Err(format!("Setup command '{}' has empty command", command.name));
+                return Err(format!(
+                    "Setup command '{}' has empty command",
+                    command.name
+                ));
             }
         }
 
@@ -275,7 +282,12 @@ mod tests {
         assert!(plan.has_setup_commands());
         assert_eq!(plan.setup_command_count(), 1);
         assert_eq!(plan.summary(), "1 setup command");
-        assert_eq!(plan.execution_mode, ExecutionMode::Parallel { max_concurrent: Some(2) });
+        assert_eq!(
+            plan.execution_mode,
+            ExecutionMode::Parallel {
+                max_concurrent: Some(2)
+            }
+        );
     }
 
     #[test]
@@ -286,9 +298,15 @@ mod tests {
             .with_estimated_duration(chrono::Duration::minutes(30));
 
         assert_eq!(plan.metadata.name, Some("Test Plan".to_string()));
-        assert_eq!(plan.metadata.description, Some("A test execution plan".to_string()));
+        assert_eq!(
+            plan.metadata.description,
+            Some("A test execution plan".to_string())
+        );
         assert_eq!(plan.metadata.tags, vec!["test", "example"]);
-        assert_eq!(plan.metadata.estimated_duration, Some(chrono::Duration::minutes(30)));
+        assert_eq!(
+            plan.metadata.estimated_duration,
+            Some(chrono::Duration::minutes(30))
+        );
     }
 
     #[test]
@@ -298,23 +316,21 @@ mod tests {
         assert!(empty_plan.validate().is_err());
 
         // Valid plan should pass validation
-        let valid_plan = ExecutionPlan::new()
-            .with_task(TaskSpec {
-                title: "Valid Task".to_string(),
-                description: "Valid description".to_string(),
-                dependencies: Vec::new(),
-                metadata: TaskMetadata::default(),
-            });
+        let valid_plan = ExecutionPlan::new().with_task(TaskSpec {
+            title: "Valid Task".to_string(),
+            description: "Valid description".to_string(),
+            dependencies: Vec::new(),
+            metadata: TaskMetadata::default(),
+        });
         assert!(valid_plan.validate().is_ok());
 
         // Plan with empty task title should fail
-        let invalid_plan = ExecutionPlan::new()
-            .with_task(TaskSpec {
-                title: "".to_string(),
-                description: "Valid description".to_string(),
-                dependencies: Vec::new(),
-                metadata: TaskMetadata::default(),
-            });
+        let invalid_plan = ExecutionPlan::new().with_task(TaskSpec {
+            title: "".to_string(),
+            description: "Valid description".to_string(),
+            dependencies: Vec::new(),
+            metadata: TaskMetadata::default(),
+        });
         assert!(invalid_plan.validate().is_err());
     }
 
@@ -345,7 +361,9 @@ mod tests {
         assert_eq!(ExecutionMode::default(), ExecutionMode::Sequential);
 
         let sequential = ExecutionMode::Sequential;
-        let parallel = ExecutionMode::Parallel { max_concurrent: Some(4) };
+        let parallel = ExecutionMode::Parallel {
+            max_concurrent: Some(4),
+        };
         let _intelligent = ExecutionMode::Intelligent;
 
         // Test serialization/deserialization

@@ -6,7 +6,8 @@
 //! - Reference resolution: Tasks can reference other files for context
 
 use crate::task::{
-    ComplexityLevel, ContextRequirements, ExecutionPlan, FileImportance, FileRef, TaskMetadata, TaskPriority, TaskSpec,
+    ComplexityLevel, ContextRequirements, ExecutionPlan, FileImportance, FileRef, TaskMetadata,
+    TaskPriority, TaskSpec,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -268,12 +269,14 @@ impl TaskLoader {
         }
 
         TaskSpec {
-            title: format!("Task: {}",
+            title: format!(
+                "Task: {}",
                 if simple_task.description.len() > 50 {
                     format!("{}...", &simple_task.description[..47])
                 } else {
                     simple_task.description.clone()
-                }),
+                }
+            ),
             description: simple_task.description,
             dependencies: Vec::new(),
             metadata: TaskMetadata {
@@ -283,12 +286,17 @@ impl TaskLoader {
                     chrono::Duration::from_std(std::time::Duration::from_secs(300)).unwrap(),
                 ),
                 repository_refs: Vec::new(),
-                file_refs: simple_task.reference_file.map(|p| vec![FileRef {
-                    path: p,
-                    repository: "local".to_string(),
-                    line_range: None,
-                    importance: FileImportance::Medium,
-                }]).unwrap_or_default(),
+                file_refs: simple_task
+                    .reference_file
+                    .map(|p| {
+                        vec![FileRef {
+                            path: p,
+                            repository: "local".to_string(),
+                            line_range: None,
+                            importance: FileImportance::Medium,
+                        }]
+                    })
+                    .unwrap_or_default(),
                 tags: vec!["from-task-file".to_string()],
                 context_requirements,
             },
@@ -296,27 +304,40 @@ impl TaskLoader {
     }
 
     /// Convert a single file task to an ExecutionPlan
-    pub fn single_file_to_execution_plan<P: AsRef<Path>>(path: P) -> Result<ExecutionPlan, FileError> {
+    pub fn single_file_to_execution_plan<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<ExecutionPlan, FileError> {
         let simple_task = Self::parse_single_file_task(path.as_ref())?;
         let task_spec = Self::simple_task_to_task_spec(simple_task);
 
-        let plan_name = format!("Single File Task: {}",
-            path.as_ref().file_name()
+        let plan_name = format!(
+            "Single File Task: {}",
+            path.as_ref()
+                .file_name()
                 .and_then(|n| n.to_str())
-                .unwrap_or("unknown"));
+                .unwrap_or("unknown")
+        );
 
         let plan = ExecutionPlan::new()
             .with_task(task_spec)
             .with_metadata(plan_name, "Execution plan for single file task")
-            .with_tags(vec!["single-file".to_string(), "auto-generated".to_string()])
+            .with_tags(vec![
+                "single-file".to_string(),
+                "auto-generated".to_string(),
+            ])
             .with_sequential_execution();
 
-        debug!("Created execution plan for single file: {:?}", path.as_ref());
+        debug!(
+            "Created execution plan for single file: {:?}",
+            path.as_ref()
+        );
         Ok(plan)
     }
 
     /// Convert a task list file to an ExecutionPlan
-    pub fn task_list_to_execution_plan<P: AsRef<Path>>(path: P) -> Result<ExecutionPlan, FileError> {
+    pub fn task_list_to_execution_plan<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<ExecutionPlan, FileError> {
         let mut simple_tasks = Self::parse_task_list(path.as_ref())?;
 
         // Resolve references
@@ -329,30 +350,41 @@ impl TaskLoader {
             .map(Self::simple_task_to_task_spec)
             .collect();
 
-        let plan_name = format!("Task List: {}",
-            path.as_ref().file_name()
+        let plan_name = format!(
+            "Task List: {}",
+            path.as_ref()
+                .file_name()
                 .and_then(|n| n.to_str())
-                .unwrap_or("unknown"));
+                .unwrap_or("unknown")
+        );
 
         let task_count = task_specs.len();
-        let estimated_duration = chrono::Duration::from_std(
-            std::time::Duration::from_secs(300 * task_count as u64)
-        ).unwrap_or_else(|_| chrono::Duration::minutes(5));
+        let estimated_duration =
+            chrono::Duration::from_std(std::time::Duration::from_secs(300 * task_count as u64))
+                .unwrap_or_else(|_| chrono::Duration::minutes(5));
 
         let plan = ExecutionPlan::new()
             .with_tasks(task_specs)
-            .with_metadata(plan_name, format!("Execution plan for {} tasks from task list", task_count))
+            .with_metadata(
+                plan_name,
+                format!("Execution plan for {} tasks from task list", task_count),
+            )
             .with_tags(vec!["task-list".to_string(), "auto-generated".to_string()])
             .with_estimated_duration(estimated_duration)
             .with_sequential_execution();
 
-        debug!("Created execution plan for task list: {:?} with {} tasks",
-               path.as_ref(), plan.task_count());
+        debug!(
+            "Created execution plan for task list: {:?} with {} tasks",
+            path.as_ref(),
+            plan.task_count()
+        );
         Ok(plan)
     }
 
     /// Convert TaskInput to ExecutionPlan
-    pub fn task_input_to_execution_plan(task_input: &TaskInput) -> Result<ExecutionPlan, FileError> {
+    pub fn task_input_to_execution_plan(
+        task_input: &TaskInput,
+    ) -> Result<ExecutionPlan, FileError> {
         match task_input {
             TaskInput::SingleFile(path) => Self::single_file_to_execution_plan(path),
             TaskInput::TaskList(path) => Self::task_list_to_execution_plan(path),
@@ -360,7 +392,8 @@ impl TaskLoader {
                 // This should be handled by the structured config mode, not TaskLoader
                 Err(FileError::ParseError {
                     path: _path.clone(),
-                    reason: "ConfigWithTasks should be handled by structured config mode".to_string(),
+                    reason: "ConfigWithTasks should be handled by structured config mode"
+                        .to_string(),
                 })
             }
         }
@@ -506,7 +539,9 @@ mod tests {
         assert!(plan.has_tasks());
         assert!(!plan.has_setup_commands());
 
-        let task_descriptions: Vec<&str> = plan.task_specs.iter()
+        let task_descriptions: Vec<&str> = plan
+            .task_specs
+            .iter()
             .map(|t| t.description.as_str())
             .collect();
 
@@ -554,10 +589,27 @@ mod tests {
         assert_eq!(task_spec.description, "Test task description");
         assert!(task_spec.title.starts_with("Task:"));
         assert_eq!(task_spec.metadata.file_refs.len(), 1);
-        assert_eq!(task_spec.metadata.file_refs[0].path, PathBuf::from("reference.md"));
+        assert_eq!(
+            task_spec.metadata.file_refs[0].path,
+            PathBuf::from("reference.md")
+        );
         assert_eq!(task_spec.metadata.file_refs[0].repository, "local");
-        assert_eq!(task_spec.metadata.file_refs[0].importance, FileImportance::Medium);
-        assert!(task_spec.metadata.context_requirements.required_files.contains(&PathBuf::from("reference.md")));
-        assert!(task_spec.metadata.tags.contains(&"from-task-file".to_string()));
+        assert_eq!(
+            task_spec.metadata.file_refs[0].importance,
+            FileImportance::Medium
+        );
+        assert!(
+            task_spec
+                .metadata
+                .context_requirements
+                .required_files
+                .contains(&PathBuf::from("reference.md"))
+        );
+        assert!(
+            task_spec
+                .metadata
+                .tags
+                .contains(&"from-task-file".to_string())
+        );
     }
 }

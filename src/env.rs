@@ -89,7 +89,11 @@ pub fn session_state_file_path(workspace_root: &std::path::Path, session_id: &st
 }
 
 /// Build a checkpoint file path
-pub fn checkpoint_file_path(workspace_root: &std::path::Path, session_id: &str, checkpoint_id: &str) -> PathBuf {
+pub fn checkpoint_file_path(
+    workspace_root: &std::path::Path,
+    session_id: &str,
+    checkpoint_id: &str,
+) -> PathBuf {
     session_checkpoints_dir_path(workspace_root, session_id).join(format!("{}.json", checkpoint_id))
 }
 
@@ -118,10 +122,7 @@ mod tests {
         let workspace = Path::new("/test/workspace");
         let session_id = "test-session-123";
 
-        assert_eq!(
-            aca_dir_path(workspace),
-            Path::new("/test/workspace/.aca")
-        );
+        assert_eq!(aca_dir_path(workspace), Path::new("/test/workspace/.aca"));
 
         assert_eq!(
             sessions_dir_path(workspace),
@@ -140,7 +141,9 @@ mod tests {
 
         assert_eq!(
             checkpoint_file_path(workspace, session_id, "checkpoint-456"),
-            Path::new("/test/workspace/.aca/sessions/test-session-123/checkpoints/checkpoint-456.json")
+            Path::new(
+                "/test/workspace/.aca/sessions/test-session-123/checkpoints/checkpoint-456.json"
+            )
         );
     }
 

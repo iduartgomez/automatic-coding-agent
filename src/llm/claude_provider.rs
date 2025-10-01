@@ -1,5 +1,4 @@
 use crate::claude::ClaudeCodeInterface;
-use std::path::PathBuf;
 use crate::llm::provider::LLMProvider;
 use crate::llm::types::{
     LLMError, LLMRequest, LLMResponse, ProviderCapabilities, ProviderConfig, ProviderStatus,
@@ -8,6 +7,7 @@ use crate::llm::types::{
 use chrono::Utc;
 use futures::future::BoxFuture;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::time::Duration;
 
 /// Claude-specific implementation of LLMProvider
@@ -55,9 +55,11 @@ impl ClaudeProvider {
             },
         };
 
-        let claude_interface = ClaudeCodeInterface::new(claude_config, workspace_root).await.map_err(|e| {
-            LLMError::ProviderSpecific(format!("Failed to initialize Claude: {}", e))
-        })?;
+        let claude_interface = ClaudeCodeInterface::new(claude_config, workspace_root)
+            .await
+            .map_err(|e| {
+                LLMError::ProviderSpecific(format!("Failed to initialize Claude: {}", e))
+            })?;
 
         Ok(Self {
             claude_interface,
@@ -140,9 +142,8 @@ impl LLMProvider for ClaudeProvider {
                 supports_vision: false, // Not implemented in mock
                 max_context_tokens: 200000,
                 available_models: vec![
-                    "claude-3-mock".to_string(),
+                    "claude-sonnet".to_string(), // Auto-resolves to latest Sonnet
                     "claude-haiku".to_string(),
-                    "claude-sonnet".to_string(),
                     "claude-opus".to_string(),
                 ],
             })
@@ -187,9 +188,8 @@ impl LLMProvider for ClaudeProvider {
     fn list_models(&self) -> BoxFuture<'_, Result<Vec<String>, LLMError>> {
         Box::pin(async move {
             Ok(vec![
-                "claude-3-mock".to_string(),
+                "claude-sonnet".to_string(), // Auto-resolves to latest Sonnet
                 "claude-haiku".to_string(),
-                "claude-sonnet".to_string(),
                 "claude-opus".to_string(),
             ])
         })

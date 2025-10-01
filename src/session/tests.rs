@@ -13,7 +13,10 @@ fn create_test_session_dir() -> TempDir {
 
 /// Helper function to create a test session state
 fn create_test_session_state() -> SessionState {
-    let mut metadata = SessionMetadata::new("Test Session".to_string(), PathBuf::from(env::test::DEFAULT_TEST_DIR));
+    let mut metadata = SessionMetadata::new(
+        "Test Session".to_string(),
+        PathBuf::from(env::test::DEFAULT_TEST_DIR),
+    );
     metadata.total_tasks = 5;
     metadata.completed_tasks = 3;
     metadata.failed_tasks = 1;
@@ -43,7 +46,10 @@ async fn test_session_metadata_creation() {
 
 #[tokio::test]
 async fn test_session_metadata_checkpoint_management() {
-    let mut metadata = SessionMetadata::new("Test Session".to_string(), PathBuf::from(env::test::DEFAULT_TEST_DIR));
+    let mut metadata = SessionMetadata::new(
+        "Test Session".to_string(),
+        PathBuf::from(env::test::DEFAULT_TEST_DIR),
+    );
 
     let checkpoint_info = CheckpointInfo {
         id: "test_checkpoint".to_string(),
@@ -471,8 +477,9 @@ async fn test_list_all_checkpoints_in_workspace() {
     });
     std::fs::write(
         session1_checkpoints_dir.join("checkpoint_001.json"),
-        serde_json::to_string_pretty(&checkpoint1_data).unwrap()
-    ).unwrap();
+        serde_json::to_string_pretty(&checkpoint1_data).unwrap(),
+    )
+    .unwrap();
 
     let checkpoint2_data = serde_json::json!({
         "metadata": {
@@ -489,8 +496,9 @@ async fn test_list_all_checkpoints_in_workspace() {
     });
     std::fs::write(
         session1_checkpoints_dir.join("checkpoint_002.json"),
-        serde_json::to_string_pretty(&checkpoint2_data).unwrap()
-    ).unwrap();
+        serde_json::to_string_pretty(&checkpoint2_data).unwrap(),
+    )
+    .unwrap();
 
     // Create session 2 with 1 checkpoint
     let session2_dir = sessions_dir.join("session-2");
@@ -512,8 +520,9 @@ async fn test_list_all_checkpoints_in_workspace() {
     });
     std::fs::write(
         session2_checkpoints_dir.join("checkpoint_003.json"),
-        serde_json::to_string_pretty(&checkpoint3_data).unwrap()
-    ).unwrap();
+        serde_json::to_string_pretty(&checkpoint3_data).unwrap(),
+    )
+    .unwrap();
 
     // Test listing all checkpoints across sessions using a temporary session manager
     let temp_session_config = SessionManagerConfig::default();
@@ -522,7 +531,13 @@ async fn test_list_all_checkpoints_in_workspace() {
         workspace_root: workspace_root.clone(),
         ..Default::default()
     };
-    let temp_session = SessionManager::new(workspace_root.clone(), temp_session_config, temp_init_options).await.unwrap();
+    let temp_session = SessionManager::new(
+        workspace_root.clone(),
+        temp_session_config,
+        temp_init_options,
+    )
+    .await
+    .unwrap();
     let checkpoints = temp_session.list_checkpoints(true).await.unwrap();
 
     // Should return all checkpoints sorted by creation time (most recent first)
@@ -545,7 +560,13 @@ async fn test_list_all_checkpoints_in_workspace() {
         workspace_root: empty_workspace.clone(),
         ..Default::default()
     };
-    let empty_session = SessionManager::new(empty_workspace.clone(), empty_session_config, empty_init_options).await.unwrap();
+    let empty_session = SessionManager::new(
+        empty_workspace.clone(),
+        empty_session_config,
+        empty_init_options,
+    )
+    .await
+    .unwrap();
     let empty_checkpoints = empty_session.list_checkpoints(true).await.unwrap();
     assert_eq!(empty_checkpoints.len(), 0);
 }
@@ -577,10 +598,17 @@ async fn test_create_checkpoint_in_latest_session() {
         workspace_root: workspace_root.clone(),
         ..Default::default()
     };
-    let checkpoint_session = SessionManager::new(workspace_root.clone(), checkpoint_session_config, checkpoint_init_options).await.unwrap();
-    let checkpoint = checkpoint_session.create_checkpoint_in_latest_session_of_workspace(
-        "Test manual checkpoint".to_string()
-    ).await.unwrap();
+    let checkpoint_session = SessionManager::new(
+        workspace_root.clone(),
+        checkpoint_session_config,
+        checkpoint_init_options,
+    )
+    .await
+    .unwrap();
+    let checkpoint = checkpoint_session
+        .create_checkpoint_in_latest_session_of_workspace("Test manual checkpoint".to_string())
+        .await
+        .unwrap();
 
     // Verify checkpoint was created
     assert!(checkpoint.id.starts_with("checkpoint_"));
@@ -606,8 +634,11 @@ async fn test_create_checkpoint_in_latest_session() {
             }
         }
     }
-    assert!(found_checkpoint_file,
-           "Checkpoint file {} should exist in some session directory", checkpoint.id);
+    assert!(
+        found_checkpoint_file,
+        "Checkpoint file {} should exist in some session directory",
+        checkpoint.id
+    );
 
     // Verify checkpoint can be listed
     let all_checkpoints = checkpoint_session.list_checkpoints(true).await.unwrap();
@@ -626,11 +657,22 @@ async fn test_create_checkpoint_in_latest_session() {
         workspace_root: fresh_workspace.clone(),
         ..Default::default()
     };
-    let fresh_session = SessionManager::new(fresh_workspace.clone(), fresh_session_config, fresh_init_options).await.unwrap();
-    let result = fresh_session.create_checkpoint_in_latest_session_of_workspace(
-        "Should succeed in fresh session".to_string()
-    ).await;
-    assert!(result.is_ok(), "Creating checkpoint in fresh session should succeed");
+    let fresh_session = SessionManager::new(
+        fresh_workspace.clone(),
+        fresh_session_config,
+        fresh_init_options,
+    )
+    .await
+    .unwrap();
+    let result = fresh_session
+        .create_checkpoint_in_latest_session_of_workspace(
+            "Should succeed in fresh session".to_string(),
+        )
+        .await;
+    assert!(
+        result.is_ok(),
+        "Creating checkpoint in fresh session should succeed"
+    );
 }
 
 #[tokio::test]
@@ -661,8 +703,9 @@ async fn test_manual_checkpoint_visibility_integration() {
     });
     std::fs::write(
         checkpoints_dir.join("checkpoint_auto_001.json"),
-        serde_json::to_string_pretty(&auto_checkpoint_data).unwrap()
-    ).unwrap();
+        serde_json::to_string_pretty(&auto_checkpoint_data).unwrap(),
+    )
+    .unwrap();
 
     // Create a session manager for testing
     let test_session_config = SessionManagerConfig::default();
@@ -671,7 +714,13 @@ async fn test_manual_checkpoint_visibility_integration() {
         workspace_root: workspace_root.clone(),
         ..Default::default()
     };
-    let test_session = SessionManager::new(workspace_root.clone(), test_session_config, test_init_options).await.unwrap();
+    let test_session = SessionManager::new(
+        workspace_root.clone(),
+        test_session_config,
+        test_init_options,
+    )
+    .await
+    .unwrap();
 
     // Test 1: List checkpoints should show the auto-checkpoint
     let checkpoints_before = test_session.list_checkpoints(true).await.unwrap();
@@ -680,9 +729,10 @@ async fn test_manual_checkpoint_visibility_integration() {
     assert_eq!(checkpoints_before[0].description, "auto_save");
 
     // Test 2: Create a manual checkpoint (this was failing before the fix)
-    let manual_checkpoint = test_session.create_checkpoint_in_latest_session_of_workspace(
-        "Manual test checkpoint".to_string()
-    ).await.unwrap();
+    let manual_checkpoint = test_session
+        .create_checkpoint_in_latest_session_of_workspace("Manual test checkpoint".to_string())
+        .await
+        .unwrap();
 
     // Test 3: List checkpoints should now show BOTH auto and manual checkpoints
     let checkpoints_after = test_session.list_checkpoints(true).await.unwrap();
@@ -698,9 +748,10 @@ async fn test_manual_checkpoint_visibility_integration() {
     assert!(checkpoints_after[1].is_automatic);
 
     // Test 4: Create another manual checkpoint to verify continued functionality
-    let second_manual = test_session.create_checkpoint_in_latest_session_of_workspace(
-        "Second manual checkpoint".to_string()
-    ).await.unwrap();
+    let second_manual = test_session
+        .create_checkpoint_in_latest_session_of_workspace("Second manual checkpoint".to_string())
+        .await
+        .unwrap();
 
     let final_checkpoints = test_session.list_checkpoints(true).await.unwrap();
     assert_eq!(final_checkpoints.len(), 3);

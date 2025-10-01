@@ -37,7 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ExecutionMode::Batch(config) => run_batch_mode(config).await,
         ExecutionMode::Interactive(config) => run_interactive_mode(config).await,
         ExecutionMode::Resume(config) => run_resume_mode(config).await,
-        ExecutionMode::ListCheckpoints { all_sessions } => list_available_checkpoints(all_sessions).await,
+        ExecutionMode::ListCheckpoints { all_sessions } => {
+            list_available_checkpoints(all_sessions).await
+        }
         ExecutionMode::CreateCheckpoint(description) => create_manual_checkpoint(description).await,
         ExecutionMode::ShowConfig => {
             ConfigDiscovery::show_discovery_info();
@@ -66,7 +68,10 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
     let execution_plan = match &config.task_input {
         TaskInput::ConfigWithTasks(path) => {
             // This is the structured TOML configuration with tasks - handle it differently
-            info!("Loading structured TOML configuration with tasks: {:?}", path);
+            info!(
+                "Loading structured TOML configuration with tasks: {:?}",
+                path
+            );
             return run_structured_config_mode(path.clone(), config).await;
         }
         _ => {
@@ -84,7 +89,10 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
             println!("  📝 Description: {}", description);
         }
         if execution_plan.has_setup_commands() {
-            println!("  ⚙️  Setup commands: {}", execution_plan.setup_command_count());
+            println!(
+                "  ⚙️  Setup commands: {}",
+                execution_plan.setup_command_count()
+            );
         }
         if execution_plan.has_tasks() {
             println!("  🎯 Tasks: {}", execution_plan.task_count());
@@ -116,7 +124,10 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
 
     if config.verbose {
         if !task_ids.is_empty() {
-            println!("✅ All {} tasks in plan completed successfully!", task_ids.len());
+            println!(
+                "✅ All {} tasks in plan completed successfully!",
+                task_ids.len()
+            );
             if task_ids.len() <= 5 {
                 // Show task IDs for small numbers of tasks
                 for (i, task_id) in task_ids.iter().enumerate() {
@@ -150,7 +161,10 @@ async fn run_structured_config_mode(
     let execution_plan = AgentSystem::agent_config_to_execution_plan(&agent_config);
 
     if config.verbose {
-        println!("📁 Created execution plan from structured config: {}", execution_plan.summary());
+        println!(
+            "📁 Created execution plan from structured config: {}",
+            execution_plan.summary()
+        );
         if let Some(ref name) = execution_plan.metadata.name {
             println!("  📋 Plan: {}", name);
         }
@@ -158,15 +172,25 @@ async fn run_structured_config_mode(
             println!("  📝 Description: {}", description);
         }
         if execution_plan.has_setup_commands() {
-            println!("  ⚙️  Setup commands: {}", execution_plan.setup_command_count());
+            println!(
+                "  ⚙️  Setup commands: {}",
+                execution_plan.setup_command_count()
+            );
             for (i, setup_cmd) in execution_plan.setup_commands.iter().enumerate() {
-                println!("      {}. {} ({})", i + 1, setup_cmd.name, setup_cmd.command);
+                println!(
+                    "      {}. {} ({})",
+                    i + 1,
+                    setup_cmd.name,
+                    setup_cmd.command
+                );
             }
         }
     }
 
     if config.dry_run {
-        println!("🔍 Dry run mode - structured execution plan would be processed but won't actually run");
+        println!(
+            "🔍 Dry run mode - structured execution plan would be processed but won't actually run"
+        );
         return Ok(());
     }
 
@@ -182,7 +206,10 @@ async fn run_structured_config_mode(
 
     if config.verbose {
         if !task_ids.is_empty() {
-            println!("✅ All {} tasks in structured plan completed successfully!", task_ids.len());
+            println!(
+                "✅ All {} tasks in structured plan completed successfully!",
+                task_ids.len()
+            );
         } else {
             println!("✅ Structured configuration setup completed successfully!");
         }
@@ -446,9 +473,7 @@ async fn list_available_checkpoints(_all_sessions: bool) -> Result<(), Box<dyn s
     // Check if .aca directory structure exists
     if !sessions_dir.exists() {
         println!("No session data found in current directory.");
-        println!(
-            "Make sure you're in a workspace that has been used with aca."
-        );
+        println!("Make sure you're in a workspace that has been used with aca.");
         return Ok(());
     }
 
@@ -470,12 +495,9 @@ async fn list_available_checkpoints(_all_sessions: bool) -> Result<(), Box<dyn s
         }
     }
 
-    let _session_dir = match latest_session_dir {
-        Some(dir) => dir,
-        None => {
-            println!("No session directories found in .aca/sessions/");
-            return Ok(());
-        }
+    let Some(_session_dir) = latest_session_dir else {
+        println!("No session directories found in .aca/sessions/");
+        return Ok(());
     };
 
     // Create a temporary session manager to list all checkpoints across sessions
@@ -491,13 +513,14 @@ async fn list_available_checkpoints(_all_sessions: bool) -> Result<(), Box<dyn s
         restore_from_checkpoint: None,
     };
 
-    let temp_session = match SessionManager::new(workspace.clone(), session_config, init_options).await {
-        Ok(session) => session,
-        Err(e) => {
-            eprintln!("Error: Failed to create session for listing: {}", e);
-            std::process::exit(1);
-        }
-    };
+    let temp_session =
+        match SessionManager::new(workspace.clone(), session_config, init_options).await {
+            Ok(session) => session,
+            Err(e) => {
+                eprintln!("Error: Failed to create session for listing: {}", e);
+                std::process::exit(1);
+            }
+        };
 
     // For CLI usage, default to showing all checkpoints across sessions
     // The --all-sessions flag is currently redundant but kept for explicit behavior
@@ -553,15 +576,19 @@ async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std
         restore_from_checkpoint: None,
     };
 
-    let temp_session = match SessionManager::new(workspace.clone(), session_config, init_options).await {
-        Ok(session) => session,
-        Err(e) => {
-            eprintln!("Error: Failed to create session for checkpoint: {}", e);
-            std::process::exit(1);
-        }
-    };
+    let temp_session =
+        match SessionManager::new(workspace.clone(), session_config, init_options).await {
+            Ok(session) => session,
+            Err(e) => {
+                eprintln!("Error: Failed to create session for checkpoint: {}", e);
+                std::process::exit(1);
+            }
+        };
 
-    let checkpoint = match temp_session.create_checkpoint_in_latest_session_of_workspace(description.clone()).await {
+    let checkpoint = match temp_session
+        .create_checkpoint_in_latest_session_of_workspace(description.clone())
+        .await
+    {
         Ok(checkpoint) => checkpoint,
         Err(e) => {
             eprintln!("Error: Failed to create checkpoint: {}", e);

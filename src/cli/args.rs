@@ -15,10 +15,10 @@ use std::path::PathBuf;
 pub enum ExecutionMode {
     Batch(BatchConfig),
     Interactive(InteractiveConfig),
-    Resume(ResumeConfig),     // Resume from checkpoint
+    Resume(ResumeConfig),                   // Resume from checkpoint
     ListCheckpoints { all_sessions: bool }, // List available checkpoints
-    CreateCheckpoint(String), // Create manual checkpoint
-    ShowConfig, // Show configuration discovery info
+    CreateCheckpoint(String),               // Create manual checkpoint
+    ShowConfig,                             // Show configuration discovery info
 }
 
 #[derive(Debug)]
@@ -48,7 +48,9 @@ pub struct ResumeConfig {
 #[command(name = "aca")]
 #[command(author = "Automatic Coding Agent Team")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
-#[command(about = "A Rust-based agentic tool that automates coding tasks using Claude Code in headless mode")]
+#[command(
+    about = "A Rust-based agentic tool that automates coding tasks using Claude Code in headless mode"
+)]
 #[command(long_about = None)]
 pub struct Args {
     #[command(subcommand)]
@@ -133,14 +135,16 @@ impl Args {
         // Handle subcommands first
         if let Some(command) = &self.command {
             return match command {
-                Commands::Resume { checkpoint_id, workspace, verbose } => {
-                    Ok(ExecutionMode::Resume(ResumeConfig {
-                        checkpoint_id: Some(checkpoint_id.clone()),
-                        workspace_override: workspace.clone(),
-                        verbose: *verbose,
-                        continue_latest: false,
-                    }))
-                }
+                Commands::Resume {
+                    checkpoint_id,
+                    workspace,
+                    verbose,
+                } => Ok(ExecutionMode::Resume(ResumeConfig {
+                    checkpoint_id: Some(checkpoint_id.clone()),
+                    workspace_override: workspace.clone(),
+                    verbose: *verbose,
+                    continue_latest: false,
+                })),
                 Commands::Continue { workspace, verbose } => {
                     Ok(ExecutionMode::Resume(ResumeConfig {
                         checkpoint_id: None,
@@ -149,15 +153,13 @@ impl Args {
                         continue_latest: true,
                     }))
                 }
-                Commands::ListCheckpoints { all_sessions } => {
-                    Ok(ExecutionMode::ListCheckpoints { all_sessions: *all_sessions })
-                }
+                Commands::ListCheckpoints { all_sessions } => Ok(ExecutionMode::ListCheckpoints {
+                    all_sessions: *all_sessions,
+                }),
                 Commands::CreateCheckpoint { description } => {
                     Ok(ExecutionMode::CreateCheckpoint(description.clone()))
                 }
-                Commands::ShowConfig => {
-                    Ok(ExecutionMode::ShowConfig)
-                }
+                Commands::ShowConfig => Ok(ExecutionMode::ShowConfig),
             };
         }
 
@@ -216,7 +218,6 @@ impl Args {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

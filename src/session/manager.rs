@@ -272,7 +272,10 @@ impl SessionManager {
     /// # Arguments
     /// * `include_all_sessions` - If true, lists checkpoints from all sessions in the workspace.
     ///   If false, lists only checkpoints from the current session.
-    pub async fn list_checkpoints(&self, include_all_sessions: bool) -> Result<Vec<CheckpointInfo>> {
+    pub async fn list_checkpoints(
+        &self,
+        include_all_sessions: bool,
+    ) -> Result<Vec<CheckpointInfo>> {
         if include_all_sessions {
             let metadata = self.metadata.read().await;
             let workspace_root = &metadata.workspace_root;
@@ -293,10 +296,12 @@ impl SessionManager {
         }
     }
 
-
     /// Create a checkpoint in the latest session of the workspace
     /// This is useful for CLI operations that want to add checkpoints to existing sessions
-    pub async fn create_checkpoint_in_latest_session_of_workspace(&self, description: String) -> Result<CheckpointInfo> {
+    pub async fn create_checkpoint_in_latest_session_of_workspace(
+        &self,
+        description: String,
+    ) -> Result<CheckpointInfo> {
         let metadata = self.metadata.read().await;
         let workspace_root = &metadata.workspace_root;
         Self::create_checkpoint_in_latest_session(workspace_root, description).await
@@ -538,7 +543,9 @@ impl SessionManager {
 
     /// List all checkpoints across all sessions in a workspace
     /// This is a private static method used internally
-    async fn list_all_checkpoints_in_workspace(workspace_root: &std::path::Path) -> Result<Vec<CheckpointInfo>> {
+    async fn list_all_checkpoints_in_workspace(
+        workspace_root: &std::path::Path,
+    ) -> Result<Vec<CheckpointInfo>> {
         use crate::env;
         use std::collections::BTreeMap;
 
@@ -556,25 +563,31 @@ impl SessionManager {
                 let session_path = entry.path();
                 if session_path.is_dir() {
                     let checkpoints_dir = session_path.join("checkpoints");
-                    if checkpoints_dir.exists() {
-                        if let Ok(checkpoint_entries) = std::fs::read_dir(&checkpoints_dir) {
-                            for checkpoint_entry in checkpoint_entries.flatten() {
-                                let checkpoint_path = checkpoint_entry.path();
-                                if checkpoint_path.extension().and_then(|s| s.to_str()) == Some("json") {
-                                    if let Ok(content) = std::fs::read_to_string(&checkpoint_path) {
-                                        // Parse the session data and extract checkpoints from metadata
-                                        if let Ok(session_data) = serde_json::from_str::<serde_json::Value>(&content) {
-                                            if let Some(metadata) = session_data.get("metadata") {
-                                                if let Some(checkpoints_array) = metadata.get("checkpoints") {
-                                                    if let Some(checkpoints) = checkpoints_array.as_array() {
-                                                        for checkpoint_value in checkpoints {
-                                                            if let Ok(checkpoint_info) = serde_json::from_value::<CheckpointInfo>(checkpoint_value.clone()) {
-                                                                all_checkpoints.insert(checkpoint_info.created_at, checkpoint_info);
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
+                    if checkpoints_dir.exists()
+                        && let Ok(checkpoint_entries) = std::fs::read_dir(&checkpoints_dir)
+                    {
+                        for checkpoint_entry in checkpoint_entries.flatten() {
+                            let checkpoint_path = checkpoint_entry.path();
+                            if checkpoint_path.extension().and_then(|s| s.to_str()) == Some("json")
+                                && let Ok(content) = std::fs::read_to_string(&checkpoint_path)
+                            {
+                                // Parse the session data and extract checkpoints from metadata
+                                if let Ok(session_data) =
+                                    serde_json::from_str::<serde_json::Value>(&content)
+                                    && let Some(metadata) = session_data.get("metadata")
+                                    && let Some(checkpoints_array) = metadata.get("checkpoints")
+                                    && let Some(checkpoints) = checkpoints_array.as_array()
+                                {
+                                    for checkpoint_value in checkpoints {
+                                        if let Ok(checkpoint_info) =
+                                            serde_json::from_value::<CheckpointInfo>(
+                                                checkpoint_value.clone(),
+                                            )
+                                        {
+                                            all_checkpoints.insert(
+                                                checkpoint_info.created_at,
+                                                checkpoint_info,
+                                            );
                                         }
                                     }
                                 }
@@ -614,21 +627,19 @@ impl SessionManager {
         if let Ok(entries) = std::fs::read_dir(&sessions_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_dir() {
-                    if let Ok(metadata) = entry.metadata() {
-                        if let Ok(modified) = metadata.modified() {
-                            if latest_time.is_none() || Some(modified) > latest_time {
-                                latest_time = Some(modified);
-                                latest_session_dir = Some(path);
-                            }
-                        }
-                    }
+                if path.is_dir()
+                    && let Ok(metadata) = entry.metadata()
+                    && let Ok(modified) = metadata.modified()
+                    && (latest_time.is_none() || Some(modified) > latest_time)
+                {
+                    latest_time = Some(modified);
+                    latest_session_dir = Some(path);
                 }
             }
         }
 
-        let session_dir = latest_session_dir
-            .ok_or_else(|| anyhow::anyhow!("No session directories found"))?;
+        let session_dir =
+            latest_session_dir.ok_or_else(|| anyhow::anyhow!("No session directories found"))?;
 
         // Load the session and add checkpoint to it
         let _session_config = SessionManagerConfig::default();
@@ -736,9 +747,16 @@ impl SessionManager {
         });
 
         // Write the checkpoint file
-        std::fs::write(&checkpoint_file, serde_json::to_string_pretty(&session_data)?)?;
+        std::fs::write(
+            &checkpoint_file,
+            serde_json::to_string_pretty(&session_data)?,
+        )?;
 
-        info!("Manual checkpoint created: {} in session: {:?}", checkpoint_id, session_dir.file_name());
+        info!(
+            "Manual checkpoint created: {} in session: {:?}",
+            checkpoint_id,
+            session_dir.file_name()
+        );
 
         Ok(checkpoint_info)
     }

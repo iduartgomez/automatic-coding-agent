@@ -484,7 +484,8 @@ impl ClaudeCodeInterface {
         task_id: &Uuid,
     ) -> Result<PathBuf, ClaudeError> {
         // Create logs directory in .aca session structure
-        let logs_dir = env::claude_interactions_dir_path(&self.workspace_root, &session_id.to_string());
+        let logs_dir =
+            env::claude_interactions_dir_path(&self.workspace_root, &session_id.to_string());
         tokio::fs::create_dir_all(&logs_dir)
             .await
             .map_err(|e| ClaudeError::Unknown(format!("Failed to create logs directory: {}", e)))?;

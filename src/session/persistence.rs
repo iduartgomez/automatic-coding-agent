@@ -249,7 +249,8 @@ impl PersistenceManager {
     ) -> Result<CheckpointInfo> {
         let checkpoint_uuid = uuid::Uuid::new_v4().to_string();
         let checkpoint_id = format!("checkpoint_{}", checkpoint_uuid);
-        let checkpoint_file = env::checkpoint_file_path(&self.workspace_root, &self.session_id, &checkpoint_id);
+        let checkpoint_file =
+            env::checkpoint_file_path(&self.workspace_root, &self.session_id, &checkpoint_id);
 
         let _start_time = std::time::Instant::now();
 
@@ -276,7 +277,8 @@ impl PersistenceManager {
 
     /// Restore from a specific checkpoint
     pub async fn restore_from_checkpoint(&self, checkpoint_id: &str) -> Result<SessionState> {
-        let checkpoint_file = env::checkpoint_file_path(&self.workspace_root, &self.session_id, checkpoint_id);
+        let checkpoint_file =
+            env::checkpoint_file_path(&self.workspace_root, &self.session_id, checkpoint_id);
 
         if !checkpoint_file.exists() {
             return Err(anyhow::anyhow!("Checkpoint {} not found", checkpoint_id));
@@ -306,7 +308,8 @@ impl PersistenceManager {
     pub async fn list_checkpoints(&self) -> Result<Vec<String>> {
         let mut checkpoints = Vec::new();
 
-        let checkpoints_dir = env::session_checkpoints_dir_path(&self.workspace_root, &self.session_id);
+        let checkpoints_dir =
+            env::session_checkpoints_dir_path(&self.workspace_root, &self.session_id);
         if !checkpoints_dir.exists() {
             return Ok(checkpoints);
         }
@@ -518,7 +521,10 @@ impl PersistenceManager {
             && let Some(name_str) = file_name.to_str()
             && name_str.starts_with("session_")
         {
-            return Some(env::session_state_file_path(&self.workspace_root, &self.session_id));
+            return Some(env::session_state_file_path(
+                &self.workspace_root,
+                &self.session_id,
+            ));
         }
         None
     }

@@ -137,7 +137,7 @@ impl Default for ProviderConfig {
             provider_type: ProviderType::Claude,
             api_key: None,
             base_url: None,
-            model: None,
+            model: Some("claude-sonnet".to_string()), // Auto-resolves to latest Sonnet
             rate_limits: RateLimitConfig::default(),
             additional_config: HashMap::new(),
         }
