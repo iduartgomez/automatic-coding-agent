@@ -33,6 +33,9 @@ pub enum FileError {
 
     #[error("Task parsing error in '{path}': {reason}")]
     ParseError { path: PathBuf, reason: String },
+
+    #[error("Parse error: {0}")]
+    Parse(String),
 }
 
 #[derive(Debug, Clone)]
@@ -58,6 +61,66 @@ pub struct SimpleTask {
 pub struct TaskLoader;
 
 impl TaskLoader {
+    /// Convert a TaskInput to an ExecutionPlan using intelligent or naive parser
+    pub async fn task_input_to_execution_plan_with_options(
+        input: &TaskInput,
+        use_intelligent: bool,
+        context_hints: Vec<String>,
+    ) -> Result<ExecutionPlan, FileError> {
+        if use_intelligent {
+            Self::task_input_to_execution_plan_intelligent(input, context_hints).await
+        } else {
+            Self::task_input_to_execution_plan(input)
+        }
+    }
+
+    /// Convert a TaskInput to an ExecutionPlan using intelligent parser
+    async fn task_input_to_execution_plan_intelligent(
+        input: &TaskInput,
+        context_hints: Vec<String>,
+    ) -> Result<ExecutionPlan, FileError> {
+        use crate::cli::IntelligentTaskParser;
+        use crate::llm::provider::LLMProviderFactory;
+        use crate::llm::types::{ProviderConfig, ProviderType};
+
+        // Create LLM provider
+        let api_key = std::env::var("ANTHROPIC_API_KEY").map_err(|_| {
+            FileError::Parse(
+                "ANTHROPIC_API_KEY environment variable required for intelligent parser".to_string(),
+            )
+        })?;
+
+        let provider_config = ProviderConfig {
+            provider_type: ProviderType::Claude,
+            api_key: Some(api_key),
+            base_url: None,
+            model: Some("claude-sonnet".to_string()),
+            rate_limits: Default::default(),
+            additional_config: Default::default(),
+        };
+
+        let workspace = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let provider = LLMProviderFactory::create_provider(provider_config, workspace)
+            .await
+            .map_err(|e| FileError::Parse(format!("Failed to create LLM provider: {}", e)))?;
+
+        let parser = IntelligentTaskParser::new(provider);
+
+        // Parse based on input type
+        match input {
+            TaskInput::SingleFile(path) | TaskInput::TaskList(path) => {
+                parser
+                    .parse_file(path.clone(), context_hints)
+                    .await
+                    .map_err(|e| FileError::Parse(format!("Intelligent parsing failed: {}", e)))
+            }
+            TaskInput::ConfigWithTasks(_) => {
+                // For TOML configs, fall back to naive parsing
+                Self::task_input_to_execution_plan(input)
+            }
+        }
+    }
+
     /// Load a UTF-8 file with proper error handling
     fn load_utf8_file<P: AsRef<Path>>(path: P) -> Result<Utf8File, FileError> {
         let path = path.as_ref().to_path_buf();

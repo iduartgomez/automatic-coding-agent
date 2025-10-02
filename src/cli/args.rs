@@ -28,6 +28,10 @@ pub struct BatchConfig {
     pub workspace_override: Option<PathBuf>,
     pub verbose: bool,
     pub dry_run: bool,
+    pub use_intelligent_parser: bool,
+    pub force_naive_parser: bool,
+    pub context_hints: Vec<String>,
+    pub dump_plan: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -87,6 +91,22 @@ pub struct Args {
     /// Show what would be executed without running
     #[arg(short = 'n', long = "dry-run")]
     pub dry_run: bool,
+
+    /// Use intelligent LLM-based task parser (auto-enabled for complex files)
+    #[arg(long = "use-intelligent-parser")]
+    pub use_intelligent_parser: bool,
+
+    /// Force naive parser even for complex files
+    #[arg(long = "force-naive-parser")]
+    pub force_naive_parser: bool,
+
+    /// Context hints for intelligent parser (can be used multiple times)
+    #[arg(long = "context", value_name = "HINT")]
+    pub context_hints: Vec<String>,
+
+    /// Dump execution plan to file (JSON or TOML format based on extension)
+    #[arg(long = "dump-plan", value_name = "FILE")]
+    pub dump_plan: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -180,6 +200,10 @@ impl Args {
             workspace_override: self.workspace.clone(),
             verbose: self.verbose,
             dry_run: self.dry_run,
+            use_intelligent_parser: self.use_intelligent_parser,
+            force_naive_parser: self.force_naive_parser,
+            context_hints: self.context_hints.clone(),
+            dump_plan: self.dump_plan.clone(),
         });
 
         Ok(mode)
@@ -236,6 +260,10 @@ mod tests {
             batch: false,
             verbose: false,
             dry_run: false,
+            use_intelligent_parser: false,
+            force_naive_parser: false,
+            context_hints: vec![],
+            dump_plan: None,
         };
         let result = args.determine_task_input().unwrap();
 
@@ -256,6 +284,10 @@ mod tests {
             batch: false,
             verbose: false,
             dry_run: false,
+            use_intelligent_parser: false,
+            force_naive_parser: false,
+            context_hints: vec![],
+            dump_plan: None,
         };
         let result = args.determine_task_input().unwrap();
 
@@ -276,6 +308,10 @@ mod tests {
             batch: false,
             verbose: false,
             dry_run: false,
+            use_intelligent_parser: false,
+            force_naive_parser: false,
+            context_hints: vec![],
+            dump_plan: None,
         };
         let result = args.determine_task_input().unwrap();
 
@@ -299,6 +335,10 @@ mod tests {
             batch: false,
             verbose: false,
             dry_run: false,
+            use_intelligent_parser: false,
+            force_naive_parser: false,
+            context_hints: vec![],
+            dump_plan: None,
         };
         let result = args.determine_task_input();
         assert!(result.is_err());
@@ -317,6 +357,10 @@ mod tests {
             batch: false,
             verbose: false,
             dry_run: false,
+            use_intelligent_parser: false,
+            force_naive_parser: false,
+            context_hints: vec![],
+            dump_plan: None,
         };
         let result = args.determine_task_input();
         assert!(result.is_err());

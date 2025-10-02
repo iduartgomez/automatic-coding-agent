@@ -2,6 +2,7 @@ use aca::cli::{
     Args, BatchConfig, ConfigDiscovery, ExecutionMode, InteractiveConfig, TaskInput, TaskLoader,
     args::ResumeConfig,
 };
+use aca::task::ExecutionPlan;
 use aca::env;
 use aca::session::persistence::PersistenceConfig;
 use aca::session::recovery::RecoveryConfig;
@@ -11,6 +12,7 @@ use aca::task::manager::TaskManagerConfig;
 use aca::{AgentConfig, AgentSystem};
 use std::io::{self, Write};
 use tracing::{error, info};
+use std::path::Path;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -76,7 +78,28 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
         }
         _ => {
             info!("Converting task input to execution plan...");
-            TaskLoader::task_input_to_execution_plan(&config.task_input)?
+
+            // Determine whether to use intelligent parser
+            let use_intelligent = if config.force_naive_parser {
+                false
+            } else if config.use_intelligent_parser {
+                true
+            } else {
+                // Auto-detect: use intelligent parser for task lists
+                matches!(config.task_input, TaskInput::TaskList(_))
+            };
+
+            if use_intelligent {
+                info!("Using intelligent LLM-based task parser");
+                TaskLoader::task_input_to_execution_plan_with_options(
+                    &config.task_input,
+                    true,
+                    config.context_hints.clone(),
+                )
+                .await?
+            } else {
+                TaskLoader::task_input_to_execution_plan(&config.task_input)?
+            }
         }
     };
 
@@ -104,6 +127,15 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
                 };
                 println!("      {}. {}", i + 1, title);
             }
+        }
+    }
+
+    // Dump execution plan if requested
+    if let Some(ref dump_path) = config.dump_plan {
+        dump_execution_plan(&execution_plan, dump_path)?;
+        println!("📄 Execution plan dumped to: {}", dump_path.display());
+        if config.dry_run {
+            return Ok(());
         }
     }
 
@@ -632,6 +664,31 @@ async fn find_latest_checkpoint(
     let latest = checkpoints.iter().max_by_key(|c| c.created_at).unwrap();
 
     Ok(latest.id.clone())
+}
+
+/// Dump execution plan to JSON or TOML file
+fn dump_execution_plan(plan: &ExecutionPlan, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("json");
+
+    match extension {
+        "json" => {
+            let json = serde_json::to_string_pretty(plan)?;
+            std::fs::write(path, json)?;
+        }
+        "toml" => {
+            let toml = toml::to_string_pretty(plan)?;
+            std::fs::write(path, toml)?;
+        }
+        _ => {
+            return Err(format!(
+                "Unsupported format: {}. Use .json or .toml extension",
+                extension
+            )
+            .into());
+        }
+    }
+
+    Ok(())
 }
 
 /// Find incomplete tasks that should be continued when resuming
