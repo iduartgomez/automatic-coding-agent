@@ -14,8 +14,11 @@
 //!
 //! ### 🔌 Multi-Provider Support
 //! - **Claude**: Full integration with Claude Code interface
+//!   - **CLI Mode (default)**: Uses `claude` command, no API key required
+//!   - **API Mode**: Direct Anthropic API access, requires API key
+//!   - Configure via `CLAUDE_MODE` env var or `additional_config["mode"]`
 //! - **OpenAI**: GPT-3.5, GPT-4, and other OpenAI models (planned)
-//! - **Anthropic API**: Direct Anthropic API integration (planned)
+//! - **Anthropic API**: Direct Anthropic API integration (via API mode)
 //! - **Local Models**: Ollama, LocalAI, and other local inference (planned)
 //! - **Custom Providers**: Extensible architecture for custom implementations
 //!

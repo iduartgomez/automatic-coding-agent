@@ -1,3 +1,39 @@
+//! Claude Code CLI interface for task execution
+//!
+//! This module provides the interface to execute tasks using the `claude` CLI command
+//! in headless mode. It includes:
+//!
+//! - Session management and pooling
+//! - Rate limiting and usage tracking
+//! - Context and conversation history management
+//! - System message support via `--append-system-prompt`
+//! - JSON output parsing from CLI responses
+//!
+//! ## CLI Command Structure
+//!
+//! ```bash
+//! claude --print \
+//!        --output-format json \
+//!        --allowedTools Read,Write,Edit,Bash,Glob,Grep \
+//!        --permission-mode acceptEdits \
+//!        --append-system-prompt "System instructions..." \  # If provided
+//!        --model sonnet \
+//!        -- "User prompt"
+//! ```
+//!
+//! ## Response Format
+//!
+//! The CLI returns JSON in the format:
+//! ```json
+//! {
+//!   "type": "result",
+//!   "result": "Actual Claude response content",
+//!   "usage": { "inputTokens": 100, "outputTokens": 50 }
+//! }
+//! ```
+//!
+//! The `result` field contains the actual response text which is extracted and returned.
+
 use crate::claude::{ContextManager, ErrorRecoveryManager, RateLimiter, UsageTracker, types::*};
 use crate::env;
 use crate::task::types::{Task, TaskStatus};
@@ -152,7 +188,8 @@ impl ClaudeCodeInterface {
             .build_contextual_prompt(session_id, &request.description)
             .await;
 
-        const ALLOWED_TOOLS: &str = "Read,Write,Edit,Bash,Glob,Grep";
+        const ALLOWED_TOOLS: &str =
+            "Read,Write,Edit,Bash,Glob,Grep,MultiEdit,Task,TodoWrite,SlashCommand";
         // Prepare Claude Code CLI command
         let mut command = Command::new("claude");
         command
@@ -160,17 +197,20 @@ impl ClaudeCodeInterface {
             .arg("--output-format")
             .arg("json") // JSON output for easier parsing
             .arg("--allowedTools")
-            .arg("Read,Write,Edit,Bash,Glob,Grep") // Allow file operations
+            .arg(ALLOWED_TOOLS) // Allow file operations
             .arg("--permission-mode")
             .arg("acceptEdits"); // Allow file modifications
 
         // Add system message if provided using --append-system-prompt
-        let mut log_cmd = String::from("claude --print --output-format json --allowedTools Read,Write,Edit,Bash,Glob,Grep --permission-mode acceptEdits");
+        let mut log_cmd = format!(
+            "claude --print --output-format json --allowedTools {ALLOWED_TOOLS} --permission-mode acceptEdits",
+        );
         if let Some(ref system_msg) = request.system_message {
-            command
-                .arg("--append-system-prompt")
-                .arg(system_msg);
-            log_cmd.push_str(&format!(" --append-system-prompt {:?}", system_msg.chars().take(50).collect::<String>()));
+            command.arg("--append-system-prompt").arg(system_msg);
+            log_cmd.push_str(&format!(
+                " --append-system-prompt {:?}",
+                system_msg.chars().take(50).collect::<String>()
+            ));
         }
 
         command
@@ -183,12 +223,16 @@ impl ClaudeCodeInterface {
             .stdin(Stdio::null());
 
         // Log command being executed
-        self.log_subprocess_activity(&log_path, &format!(
-            "[{}] Executing Claude Code command: {} --model sonnet -- {:?}",
-            Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-            log_cmd,
-            request.description
-        )).await;
+        self.log_subprocess_activity(
+            &log_path,
+            &format!(
+                "[{}] Executing Claude Code command: {} --model sonnet -- {:?}",
+                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                log_cmd,
+                request.description
+            ),
+        )
+        .await;
 
         self.log_subprocess_activity(
             &log_path,
@@ -329,7 +373,8 @@ impl ClaudeCodeInterface {
                     // Claude CLI returns: {"result": "actual response as JSON string", ...}
                     if let Some(result_str) = json.get("result").and_then(|r| r.as_str()) {
                         result_str.to_string()
-                    } else if let Some(response_str) = json.get("response").and_then(|r| r.as_str()) {
+                    } else if let Some(response_str) = json.get("response").and_then(|r| r.as_str())
+                    {
                         response_str.to_string()
                     } else if let Some(content_str) = json.get("content").and_then(|c| c.as_str()) {
                         content_str.to_string()

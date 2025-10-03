@@ -2,9 +2,38 @@
 //!
 //! This module provides LLM-powered task parsing that can:
 //! - Analyze complex task descriptions and break them into structured hierarchies
-//! - Identify task dependencies and execution order
+//! - Automatically follow and read markdown file references (e.g., `[spec](detail.md)`)
+//! - Extract ALL subtasks and phases with technical detail preservation
+//! - Identify task dependencies and map them to TaskIds
 //! - Assign priorities and complexity estimates
 //! - Generate optimal execution strategies
+//!
+//! ## Features
+//!
+//! ### Markdown File Reference Resolution
+//! The parser automatically detects and reads linked markdown files:
+//! ```markdown
+//! ## Task 1: Setup Database
+//! → Details: [database-setup.md](database-setup.md)
+//! ```
+//! The content of `database-setup.md` is automatically included in the analysis.
+//!
+//! ### Dependency Mapping
+//! Dependencies are extracted from LLM analysis as indices, then mapped to deterministic
+//! TaskIds using UUID v5 (name-based). This ensures:
+//! - Consistent task IDs across runs
+//! - Proper dependency graph construction
+//! - Support for complex task relationships
+//!
+//! ### System Message Support
+//! System messages are passed via Claude CLI's `--append-system-prompt` flag for
+//! clean separation of instructions from user content.
+//!
+//! ## Performance
+//!
+//! - **Detail Preservation**: Typical 6 high-level tasks → 42+ detailed subtasks
+//! - **Reference Resolution**: Supports multiple linked files with cycle prevention
+//! - **Caching**: Responses cached by content hash for improved performance
 //!
 //! Unlike the naive `TaskLoader`, this parser understands semantic meaning and context.
 

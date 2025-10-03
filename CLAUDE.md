@@ -67,6 +67,28 @@ Tasks are managed in a hierarchical tree structure with support for:
 
 aca interfaces with Claude Code in headless mode with rate limiting, adaptive backoff, and usage tracking.
 
+### LLM Provider System
+
+The system includes a flexible LLM provider abstraction layer:
+
+- **Claude Provider Modes**:
+  - **CLI Mode (default)**: Uses `claude` CLI command, no API key required
+  - **API Mode**: Direct Anthropic API access, requires API key
+  - Configure via `CLAUDE_MODE` environment variable or config file
+
+- **Intelligent Task Parser**:
+  - LLM-powered task decomposition and analysis
+  - Automatic markdown file reference resolution (follows `[text](file.md)` links)
+  - Hierarchical task structure creation with dependencies
+  - Preserves technical details and success criteria
+  - Uses `--append-system-prompt` for clean instruction separation
+
+- **Features**:
+  - Automatic dependency mapping (indices → TaskIds)
+  - Detail preservation (6 high-level tasks → 42+ detailed subtasks)
+  - System message support via `--append-system-prompt`
+  - Caching for improved performance
+
 ## Documentation Structure
 
 - **Core design documents**: Located in `docs/design/` directory
