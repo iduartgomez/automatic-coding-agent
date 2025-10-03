@@ -344,3 +344,99 @@ aca --task-file tasks.md \
 - [Execution Plans](./execution-plans.md)
 - [Configuration Guide](./configuration.md)
 - [Examples](../../examples/intelligent-parsing/README.md)
+
+## Complete Workflow: Analyze → Review → Execute
+
+The execution plan workflow allows you to:
+1. **Analyze** tasks using intelligent parser
+2. **Review** and modify the generated plan
+3. **Execute** the exact plan you approve
+
+### Step-by-Step Example
+
+```bash
+# Step 1: Analyze tasks and generate plan
+aca --task-file .claude/tasks.md \
+    --use-intelligent-parser \
+    --context "React + Node.js stack" \
+    --dry-run \
+    --dump-plan project-plan.json \
+    --verbose
+
+# Step 2: Review the plan
+cat project-plan.json
+
+# Optional: Edit the plan (modify priorities, add/remove tasks, etc.)
+vim project-plan.json
+
+# Step 3: Execute the approved plan
+aca --execution-plan project-plan.json
+
+# Or with verbose output
+aca --execution-plan project-plan.json --verbose
+```
+
+### Why Use This Workflow?
+
+**Traditional Approach (Direct execution):**
+```bash
+aca --task-file tasks.md  # Immediately executes
+```
+
+**Reviewed Approach (Analyze first):**
+```bash
+# 1. Analyze and review
+aca --task-file tasks.md --dry-run --dump-plan plan.json
+cat plan.json  # Review before execution
+
+# 2. Execute when ready
+aca --execution-plan plan.json
+```
+
+**Benefits:**
+- ✅ See exactly what will be executed
+- ✅ Modify plan before execution
+- ✅ Share plans with team for review
+- ✅ Reuse successful plans
+- ✅ Version control your execution plans
+
+### Loading Plans in Different Formats
+
+```bash
+# JSON format (recommended for readability)
+aca --execution-plan plan.json
+
+# TOML format
+aca --execution-plan plan.toml
+
+# Format is auto-detected from extension
+```
+
+### Modifying Execution Plans
+
+You can manually edit dumped plans before execution:
+
+```json
+{
+  "metadata": {
+    "name": "My Project Tasks",
+    "description": "Custom execution plan"
+  },
+  "execution_mode": "Parallel",  // Change from Sequential
+  "task_specs": [
+    {
+      "title": "Task 1",
+      "description": "...",
+      "metadata": {
+        "priority": "Critical",  // Upgrade priority
+        "estimated_complexity": "Moderate"
+      }
+    }
+  ]
+}
+```
+
+After editing, execute:
+```bash
+aca --execution-plan plan.json
+```

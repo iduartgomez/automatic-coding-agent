@@ -43,6 +43,7 @@ pub enum TaskInput {
     SingleFile(PathBuf),      // --task-file (any UTF-8 file)
     TaskList(PathBuf),        // --tasks (any UTF-8 file)
     ConfigWithTasks(PathBuf), // --config (current TOML format)
+    ExecutionPlan(PathBuf),   // --execution-plan (JSON or TOML execution plan)
 }
 
 #[derive(Debug)]
@@ -67,11 +68,45 @@ impl TaskLoader {
         use_intelligent: bool,
         context_hints: Vec<String>,
     ) -> Result<ExecutionPlan, FileError> {
-        if use_intelligent {
-            Self::task_input_to_execution_plan_intelligent(input, context_hints).await
-        } else {
-            Self::task_input_to_execution_plan(input)
+        match input {
+            TaskInput::ExecutionPlan(path) => Self::load_execution_plan(path),
+            _ => {
+                if use_intelligent {
+                    Self::task_input_to_execution_plan_intelligent(input, context_hints).await
+                } else {
+                    Self::task_input_to_execution_plan(input)
+                }
+            }
         }
+    }
+
+    /// Load an execution plan from a JSON or TOML file
+    pub fn load_execution_plan(path: &std::path::Path) -> Result<ExecutionPlan, FileError> {
+        let content = std::fs::read_to_string(path).map_err(|e| FileError::IoError {
+            path: path.to_path_buf(),
+            source: e,
+        })?;
+
+        let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("json");
+
+        let plan: ExecutionPlan = match extension {
+            "json" => serde_json::from_str(&content).map_err(|e| FileError::Parse(format!(
+                "Failed to parse JSON execution plan: {}",
+                e
+            )))?,
+            "toml" => toml::from_str(&content).map_err(|e| FileError::Parse(format!(
+                "Failed to parse TOML execution plan: {}",
+                e
+            )))?,
+            _ => {
+                return Err(FileError::Parse(format!(
+                    "Unsupported execution plan format: {}. Use .json or .toml",
+                    extension
+                )))
+            }
+        };
+
+        Ok(plan)
     }
 
     /// Convert a TaskInput to an ExecutionPlan using intelligent parser
@@ -117,6 +152,9 @@ impl TaskLoader {
             TaskInput::ConfigWithTasks(_) => {
                 // For TOML configs, fall back to naive parsing
                 Self::task_input_to_execution_plan(input)
+            }
+            TaskInput::ExecutionPlan(_) => {
+                unreachable!("ExecutionPlan should be handled by task_input_to_execution_plan_with_options")
             }
         }
     }
@@ -459,6 +497,7 @@ impl TaskLoader {
                         .to_string(),
                 })
             }
+            TaskInput::ExecutionPlan(path) => Self::load_execution_plan(path),
         }
     }
 }

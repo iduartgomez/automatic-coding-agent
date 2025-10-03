@@ -76,6 +76,10 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
             );
             return run_structured_config_mode(path.clone(), config).await;
         }
+        TaskInput::ExecutionPlan(path) => {
+            info!("Loading execution plan from: {:?}", path);
+            TaskLoader::load_execution_plan(path)?
+        }
         _ => {
             info!("Converting task input to execution plan...");
 

@@ -72,6 +72,10 @@ pub struct Args {
     #[arg(long = "tasks")]
     pub tasks: Option<PathBuf>,
 
+    /// Execution plan file to load and execute (JSON or TOML)
+    #[arg(long = "execution-plan")]
+    pub execution_plan: Option<PathBuf>,
+
     /// Workspace directory
     #[arg(short = 'w', long = "workspace")]
     pub workspace: Option<PathBuf>,
@@ -212,7 +216,7 @@ impl Args {
     /// Determine the task input based on provided arguments
     fn determine_task_input(&self) -> Result<TaskInput, String> {
         // Count how many task inputs were provided
-        let inputs = [&self.config, &self.task_file, &self.tasks]
+        let inputs = [&self.config, &self.task_file, &self.tasks, &self.execution_plan]
             .iter()
             .filter(|x| x.is_some())
             .count();
@@ -221,7 +225,7 @@ impl Args {
             0 => {
                 // No explicit task input - this is an error for now
                 // In the future, we might support a default task discovery
-                Err("task input required (use --task-file, --tasks, or --config)".to_string())
+                Err("task input required (use --task-file, --tasks, --config, or --execution-plan)".to_string())
             }
             1 => {
                 // Exactly one input - determine which one
@@ -231,13 +235,15 @@ impl Args {
                     Ok(TaskInput::TaskList(path.clone()))
                 } else if let Some(path) = &self.config {
                     Ok(TaskInput::ConfigWithTasks(path.clone()))
+                } else if let Some(path) = &self.execution_plan {
+                    Ok(TaskInput::ExecutionPlan(path.clone()))
                 } else {
                     unreachable!("One input was counted but none found")
                 }
             }
             _ => {
                 // Multiple task inputs - this is ambiguous
-                Err("Only one task input method can be specified (--task-file, --tasks, or --config)".to_string())
+                Err("Only one task input method can be specified (--task-file, --tasks, --config, or --execution-plan)".to_string())
             }
         }
     }
@@ -264,6 +270,7 @@ mod tests {
             force_naive_parser: false,
             context_hints: vec![],
             dump_plan: None,
+            execution_plan: None,
         };
         let result = args.determine_task_input().unwrap();
 
@@ -288,6 +295,7 @@ mod tests {
             force_naive_parser: false,
             context_hints: vec![],
             dump_plan: None,
+            execution_plan: None,
         };
         let result = args.determine_task_input().unwrap();
 
@@ -312,6 +320,7 @@ mod tests {
             force_naive_parser: false,
             context_hints: vec![],
             dump_plan: None,
+            execution_plan: None,
         };
         let result = args.determine_task_input().unwrap();
 
@@ -339,6 +348,7 @@ mod tests {
             force_naive_parser: false,
             context_hints: vec![],
             dump_plan: None,
+            execution_plan: None,
         };
         let result = args.determine_task_input();
         assert!(result.is_err());
@@ -361,6 +371,7 @@ mod tests {
             force_naive_parser: false,
             context_hints: vec![],
             dump_plan: None,
+            execution_plan: None,
         };
         let result = args.determine_task_input();
         assert!(result.is_err());
