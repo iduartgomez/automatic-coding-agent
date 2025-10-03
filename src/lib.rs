@@ -8,13 +8,27 @@
 //!
 //! The system consists of several key components organized into modules:
 //!
-//! - **[`session`]**: Complete session lifecycle management with atomic persistence
-//! - **[`task`]**: Hierarchical task management with intelligent scheduling
+//! - **[`cli`]**: Command-line interface with intelligent task parsing and simple task loading
+//! - **[`llm`]**: Provider-agnostic LLM interface supporting multiple providers (Claude CLI, API, etc.)
 //! - **[`claude`]**: Claude Code integration with rate limiting and error recovery
-//! - **[`llm`]**: Provider-agnostic LLM interface supporting multiple providers
+//! - **[`task`]**: Hierarchical task management with intelligent scheduling
+//! - **[`session`]**: Complete session lifecycle management with atomic persistence
 //! - **[`integration`]**: High-level system orchestration and agent coordination
 //!
 //! ## Features
+//!
+//! ### 🤖 Intelligent Task Parsing
+//! - **LLM-based decomposition**: Analyzes complex tasks and breaks them into structured hierarchies
+//! - **Markdown file resolution**: Automatically follows and includes referenced files
+//! - **Detail preservation**: Expands 6 high-level tasks into 42+ detailed subtasks
+//! - **Dependency mapping**: Automatic TaskId generation and dependency graph construction
+//!
+//! ### 🔌 LLM Provider System
+//! - **Multi-Provider Support**: Claude CLI (default), Claude API, OpenAI, local models (Ollama)
+//! - **CLI Mode (default)**: Uses `claude` command, no API key required
+//! - **API Mode**: Direct Anthropic API access with API key
+//! - **Provider-Agnostic Interface**: Unified API across all LLM providers
+//! - **Rate Limiting**: Provider-specific rate limiting and cost optimization
 //!
 //! ### 🎯 Task Management
 //! - **Dynamic Task Tree**: Hierarchical task organization with parent-child relationships
@@ -27,12 +41,6 @@
 //! - **Checkpoint System**: UUID-based checkpoint creation with automatic cleanup
 //! - **Recovery Manager**: Intelligent recovery from corruption and failures
 //! - **State Validation**: Comprehensive integrity checking with auto-correction
-//!
-//! ### 🤖 LLM Provider Abstraction
-//! - **Multi-Provider Support**: Claude, OpenAI, Anthropic API, local models (Ollama)
-//! - **Provider-Agnostic Interface**: Unified API across all LLM providers
-//! - **Automatic Fallback**: Seamless fallback between providers for reliability
-//! - **Rate Limiting**: Provider-specific rate limiting and cost optimization
 //!
 //! ## Quick Start
 //!

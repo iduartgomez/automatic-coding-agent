@@ -1,3 +1,58 @@
+//! Claude-specific LLM provider implementation
+//!
+//! Implements the [`LLMProvider`] trait for Claude, supporting both CLI and API modes.
+//!
+//! ## Provider Modes
+//!
+//! ### CLI Mode (Default)
+//! - Uses the `claude` CLI command from Claude Code
+//! - No API key required
+//! - Leverages local Claude Code installation
+//! - Best for development and testing
+//!
+//! ### API Mode
+//! - Direct integration with Anthropic API
+//! - Requires `ANTHROPIC_API_KEY` environment variable or config
+//! - Suitable for production deployments
+//! - Enables advanced features and higher rate limits
+//!
+//! ## Mode Selection
+//!
+//! Mode is determined by this priority:
+//! 1. `additional_config["mode"]` in ProviderConfig ("CLI" or "API")
+//! 2. `CLAUDE_MODE` environment variable ("CLI" or "API")
+//! 3. Default: CLI mode
+//!
+//! ## Example Usage
+//!
+//! ```rust,no_run
+//! use aca::llm::{ClaudeProvider, LLMProvider, ProviderConfig, ProviderType};
+//! use std::path::PathBuf;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // CLI mode (default, no API key needed)
+//!     let config = ProviderConfig {
+//!         provider_type: ProviderType::Claude,
+//!         ..Default::default()
+//!     };
+//!     let provider = ClaudeProvider::new(config, PathBuf::from(".")).await?;
+//!
+//!     // API mode (requires API key)
+//!     let mut additional_config = std::collections::HashMap::new();
+//!     additional_config.insert("mode".to_string(), serde_json::json!("API"));
+//!     let config_api = ProviderConfig {
+//!         provider_type: ProviderType::Claude,
+//!         api_key: Some("sk-ant-...".to_string()),
+//!         additional_config,
+//!         ..Default::default()
+//!     };
+//!     let provider_api = ClaudeProvider::new(config_api, PathBuf::from(".")).await?;
+//!
+//!     Ok(())
+//! }
+//! ```
+
 use crate::claude::ClaudeCodeInterface;
 use crate::llm::provider::LLMProvider;
 use crate::llm::types::{
@@ -10,7 +65,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-/// Claude-specific implementation of LLMProvider
+/// Claude-specific implementation of [`LLMProvider`]
+///
+/// Supports both CLI mode (using `claude` command) and API mode (direct Anthropic API).
+/// Mode is automatically determined from configuration or environment variables.
 pub struct ClaudeProvider {
     claude_interface: ClaudeCodeInterface,
     #[allow(dead_code)]
