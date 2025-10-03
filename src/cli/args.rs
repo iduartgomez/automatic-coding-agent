@@ -216,16 +216,24 @@ impl Args {
     /// Determine the task input based on provided arguments
     fn determine_task_input(&self) -> Result<TaskInput, String> {
         // Count how many task inputs were provided
-        let inputs = [&self.config, &self.task_file, &self.tasks, &self.execution_plan]
-            .iter()
-            .filter(|x| x.is_some())
-            .count();
+        let inputs = [
+            &self.config,
+            &self.task_file,
+            &self.tasks,
+            &self.execution_plan,
+        ]
+        .iter()
+        .filter(|x| x.is_some())
+        .count();
 
         match inputs {
             0 => {
                 // No explicit task input - this is an error for now
                 // In the future, we might support a default task discovery
-                Err("task input required (use --task-file, --tasks, --config, or --execution-plan)".to_string())
+                Err(
+                    "task input required (use --task-file, --tasks, --config, or --execution-plan)"
+                        .to_string(),
+                )
             }
             1 => {
                 // Exactly one input - determine which one

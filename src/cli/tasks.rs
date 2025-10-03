@@ -90,19 +90,17 @@ impl TaskLoader {
         let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("json");
 
         let plan: ExecutionPlan = match extension {
-            "json" => serde_json::from_str(&content).map_err(|e| FileError::Parse(format!(
-                "Failed to parse JSON execution plan: {}",
-                e
-            )))?,
-            "toml" => toml::from_str(&content).map_err(|e| FileError::Parse(format!(
-                "Failed to parse TOML execution plan: {}",
-                e
-            )))?,
+            "json" => serde_json::from_str(&content).map_err(|e| {
+                FileError::Parse(format!("Failed to parse JSON execution plan: {}", e))
+            })?,
+            "toml" => toml::from_str(&content).map_err(|e| {
+                FileError::Parse(format!("Failed to parse TOML execution plan: {}", e))
+            })?,
             _ => {
                 return Err(FileError::Parse(format!(
                     "Unsupported execution plan format: {}. Use .json or .toml",
                     extension
-                )))
+                )));
             }
         };
 
@@ -121,7 +119,8 @@ impl TaskLoader {
         // Create LLM provider
         let api_key = std::env::var("ANTHROPIC_API_KEY").map_err(|_| {
             FileError::Parse(
-                "ANTHROPIC_API_KEY environment variable required for intelligent parser".to_string(),
+                "ANTHROPIC_API_KEY environment variable required for intelligent parser"
+                    .to_string(),
             )
         })?;
 
@@ -143,18 +142,18 @@ impl TaskLoader {
 
         // Parse based on input type
         match input {
-            TaskInput::SingleFile(path) | TaskInput::TaskList(path) => {
-                parser
-                    .parse_file(path.clone(), context_hints)
-                    .await
-                    .map_err(|e| FileError::Parse(format!("Intelligent parsing failed: {}", e)))
-            }
+            TaskInput::SingleFile(path) | TaskInput::TaskList(path) => parser
+                .parse_file(path.clone(), context_hints)
+                .await
+                .map_err(|e| FileError::Parse(format!("Intelligent parsing failed: {}", e))),
             TaskInput::ConfigWithTasks(_) => {
                 // For TOML configs, fall back to naive parsing
                 Self::task_input_to_execution_plan(input)
             }
             TaskInput::ExecutionPlan(_) => {
-                unreachable!("ExecutionPlan should be handled by task_input_to_execution_plan_with_options")
+                unreachable!(
+                    "ExecutionPlan should be handled by task_input_to_execution_plan_with_options"
+                )
             }
         }
     }

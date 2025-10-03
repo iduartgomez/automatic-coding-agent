@@ -2,17 +2,17 @@ use aca::cli::{
     Args, BatchConfig, ConfigDiscovery, ExecutionMode, InteractiveConfig, TaskInput, TaskLoader,
     args::ResumeConfig,
 };
-use aca::task::ExecutionPlan;
 use aca::env;
 use aca::session::persistence::PersistenceConfig;
 use aca::session::recovery::RecoveryConfig;
 use aca::session::{SessionInitOptions, SessionManager, SessionManagerConfig};
+use aca::task::ExecutionPlan;
 use aca::task::TaskStatus;
 use aca::task::manager::TaskManagerConfig;
 use aca::{AgentConfig, AgentSystem};
 use std::io::{self, Write};
-use tracing::{error, info};
 use std::path::Path;
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -671,7 +671,10 @@ async fn find_latest_checkpoint(
 }
 
 /// Dump execution plan to JSON or TOML file
-fn dump_execution_plan(plan: &ExecutionPlan, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn dump_execution_plan(
+    plan: &ExecutionPlan,
+    path: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
     let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("json");
 
     match extension {
