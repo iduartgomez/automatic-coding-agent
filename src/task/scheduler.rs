@@ -1,8 +1,8 @@
 use crate::task::tree::*;
 use crate::task::types::*;
 use chrono::{DateTime, Duration, Utc};
-use rand::seq::SliceRandom;
-use rand::{Rng, thread_rng};
+use rand::prelude::*;
+use rand::rng;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
@@ -404,14 +404,14 @@ impl TaskScheduler {
 
         if randomization >= 1.0 {
             // Pure random - ignore scores
-            let mut rng = thread_rng();
+            let mut rng = rng();
             return selections.choose(&mut rng).cloned();
         }
 
         // Weighted selection based on scores
         let total_score: f64 = selections.iter().map(|s| s.score.max(0.1)).sum();
-        let mut rng = thread_rng();
-        let random_value = rng.gen_range(0.0..total_score);
+        let mut rng = rng();
+        let random_value = rng.random_range(0.0..total_score);
 
         let mut cumulative_score = 0.0;
         for selection in selections {
