@@ -1,4 +1,5 @@
 // use aca::{AgentSystem, AgentConfig};
+use serial_test::serial;
 use std::fs;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -113,6 +114,7 @@ fn copy_dir_all(src: &PathBuf, dst: &PathBuf) -> Result<(), Box<dyn std::error::
 /// Test Claude Code integration with isolated temp workspaces
 #[tokio::test]
 #[tag(claude)]
+#[serial]
 async fn test_claude_integration_with_temp_workspaces() {
     for test_case in get_test_cases() {
         println!("Running test case: {}", test_case.name);
@@ -209,6 +211,7 @@ async fn test_claude_integration_with_temp_workspaces() {
 /// Test individual case with logging
 #[tokio::test]
 #[tag(claude)]
+#[serial]
 async fn test_single_task_with_references() {
     let test_cases = get_test_cases();
     let test_case = &test_cases[4]; // task_references test
@@ -294,6 +297,7 @@ async fn test_single_task_with_references() {
 
 #[tokio::test]
 #[tag(claude)]
+#[serial]
 async fn test_multi_task_execution() {
     let test_cases = get_test_cases();
     let test_case = &test_cases[3]; // multi_task_execution
@@ -373,6 +377,7 @@ async fn test_multi_task_execution() {
 /// Test CLI resume functionality integration
 #[tokio::test]
 #[tag(claude)]
+#[serial]
 async fn test_cli_resume_functionality() {
     use aca::cli::{args::ExecutionMode, tasks::TaskLoader};
     use tempfile::TempDir;
@@ -469,6 +474,7 @@ async fn test_cli_resume_functionality() {
 /// Test checkpoint creation and listing functionality
 #[tokio::test]
 #[tag(claude)]
+#[serial]
 async fn test_checkpoint_operations() {
     use aca::cli::args::{ExecutionMode, ResumeConfig};
 
@@ -531,6 +537,7 @@ async fn test_checkpoint_operations() {
 /// Test task continuation functionality during resume
 #[tokio::test]
 #[tag(claude)]
+#[serial]
 async fn test_task_continuation_on_resume() {
     use aca::cli::args::{ExecutionMode, ResumeConfig};
 
@@ -580,6 +587,7 @@ async fn test_task_continuation_on_resume() {
 /// by creating a sequence of related tasks that build upon each other.
 #[tokio::test]
 #[tag(claude)]
+#[serial]
 async fn test_conversational_state_persistence() {
     use std::fs;
     use tempfile::TempDir;
