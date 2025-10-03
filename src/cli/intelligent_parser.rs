@@ -10,7 +10,8 @@
 
 use crate::llm::{LLMProvider, LLMRequest};
 use crate::task::{
-    ComplexityLevel, ContextRequirements, ExecutionPlan, TaskMetadata, TaskPriority, TaskSpec,
+    ComplexityLevel, ContextRequirements, ExecutionPlan, TaskId, TaskMetadata, TaskPriority,
+    TaskSpec,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -192,11 +193,30 @@ impl IntelligentTaskParser {
         analysis: TaskAnalysisResult,
         source_name: Option<String>,
     ) -> ExecutionPlan {
-        let task_specs: Vec<TaskSpec> = analysis
-            .tasks
-            .into_iter()
-            .map(|analyzed_task| self.analyzed_task_to_spec(analyzed_task))
-            .collect();
+        // First pass: Create all task specs and collect their IDs
+        let mut task_specs: Vec<TaskSpec> = Vec::new();
+        let mut task_ids: Vec<TaskId> = Vec::new();
+
+        // Use a namespace UUID for generating deterministic task IDs
+        let namespace = uuid::Uuid::parse_str("6ba7b810-9dad-11d1-80b4-00c04fd430c8").unwrap(); // DNS namespace
+
+        for analyzed_task in &analysis.tasks {
+            let spec = self.analyzed_task_to_spec(analyzed_task.clone());
+            // Generate a deterministic TaskId using UUID v5 (name-based)
+            let task_name = format!("llm-task-{}", analyzed_task.title);
+            let task_id = uuid::Uuid::new_v5(&namespace, task_name.as_bytes());
+            task_ids.push(task_id);
+            task_specs.push(spec);
+        }
+
+        // Second pass: Map dependency indices to TaskIds
+        for (i, analyzed_task) in analysis.tasks.iter().enumerate() {
+            for dep_index in &analyzed_task.dependencies {
+                if let Some(dep_task_id) = task_ids.get(*dep_index) {
+                    task_specs[i].dependencies.push(dep_task_id.clone());
+                }
+            }
+        }
 
         let execution_mode = match analysis.execution_strategy {
             ExecutionStrategy::Sequential => crate::task::ExecutionMode::Sequential,
@@ -534,9 +554,8 @@ Always respond with valid JSON matching the provided schema. Be precise, thoroug
         TaskSpec {
             title: task.title,
             description: task.description,
-            // TODO: Map dependency indices to TaskIds after tasks are created
-            // Currently AnalyzedTask has Vec<usize> but TaskSpec needs Vec<TaskId>
-            // Dependencies should be resolved in execution_plan.rs when building task tree
+            // Dependencies will be populated in analysis_to_execution_plan()
+            // after all tasks are created and TaskIds are assigned
             dependencies: Vec::new(),
             metadata: TaskMetadata {
                 priority: task.priority,

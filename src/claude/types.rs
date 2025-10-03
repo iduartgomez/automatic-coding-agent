@@ -67,6 +67,7 @@ pub struct TaskRequest {
     pub context: HashMap<String, String>,
     pub priority: TaskPriority,
     pub estimated_tokens: Option<u64>,
+    pub system_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

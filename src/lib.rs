@@ -109,3 +109,16 @@ pub use integration::{AgentConfig, AgentSystem, SystemStatus};
 
 // CLI module for command-line interface
 pub mod cli;
+
+/// Prints "Hello, World!" to stdout.
+///
+/// # Examples
+///
+/// ```
+/// use aca::hello_world;
+///
+/// hello_world();
+/// ```
+pub fn hello_world() {
+    println!("Hello, World!");
+}

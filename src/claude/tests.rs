@@ -31,6 +31,7 @@ async fn test_task_request_execution() {
         context: std::collections::HashMap::new(),
         priority: TaskPriority::Medium,
         estimated_tokens: Some(100),
+        system_message: None,
     };
 
     let response = interface.execute_task_request(request).await;
@@ -60,6 +61,7 @@ async fn test_rate_limiting() {
         context: std::collections::HashMap::new(),
         priority: TaskPriority::Medium,
         estimated_tokens: Some(50),
+        system_message: None,
     };
 
     let response1 = interface.execute_task_request(request1).await;
@@ -73,6 +75,7 @@ async fn test_rate_limiting() {
         context: std::collections::HashMap::new(),
         priority: TaskPriority::Medium,
         estimated_tokens: Some(30),
+        system_message: None,
     };
 
     let response2 = interface.execute_task_request(request2).await;
@@ -86,6 +89,7 @@ async fn test_rate_limiting() {
         context: std::collections::HashMap::new(),
         priority: TaskPriority::Medium,
         estimated_tokens: Some(30),
+        system_message: None,
     };
 
     let response3 = interface.execute_task_request(request3).await;

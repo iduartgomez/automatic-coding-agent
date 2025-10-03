@@ -152,6 +152,7 @@ impl ClaudeCodeInterface {
             .build_contextual_prompt(session_id, &request.description)
             .await;
 
+        const ALLOWED_TOOLS: &str = "Read,Write,Edit,Bash,Glob,Grep";
         // Prepare Claude Code CLI command
         let mut command = Command::new("claude");
         command
@@ -161,7 +162,18 @@ impl ClaudeCodeInterface {
             .arg("--allowedTools")
             .arg("Read,Write,Edit,Bash,Glob,Grep") // Allow file operations
             .arg("--permission-mode")
-            .arg("acceptEdits") // Allow file modifications
+            .arg("acceptEdits"); // Allow file modifications
+
+        // Add system message if provided using --append-system-prompt
+        let mut log_cmd = String::from("claude --print --output-format json --allowedTools Read,Write,Edit,Bash,Glob,Grep --permission-mode acceptEdits");
+        if let Some(ref system_msg) = request.system_message {
+            command
+                .arg("--append-system-prompt")
+                .arg(system_msg);
+            log_cmd.push_str(&format!(" --append-system-prompt {:?}", system_msg.chars().take(50).collect::<String>()));
+        }
+
+        command
             .arg("--model")
             .arg("sonnet") // Use latest Sonnet model
             .arg("--") // Separate options from prompt
@@ -172,8 +184,9 @@ impl ClaudeCodeInterface {
 
         // Log command being executed
         self.log_subprocess_activity(&log_path, &format!(
-            "[{}] Executing Claude Code command: claude --print --output-format json --allowedTools Read,Write,Edit,Bash,Glob,Grep --permission-mode acceptEdits --model sonnet -- {:?}",
+            "[{}] Executing Claude Code command: {} --model sonnet -- {:?}",
             Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+            log_cmd,
             request.description
         )).await;
 
@@ -450,6 +463,7 @@ impl ClaudeCodeInterface {
             context: std::collections::HashMap::new(),
             priority: TaskPriority::Medium,
             estimated_tokens: Some(self.estimate_tokens(description)),
+            system_message: None,
         }
     }
 
@@ -461,6 +475,7 @@ impl ClaudeCodeInterface {
             context: std::collections::HashMap::new(),
             priority: TaskPriority::Medium, // Default priority for now
             estimated_tokens: Some(self.estimate_tokens(&task.description)),
+            system_message: None,
         };
 
         let response = self.execute_task_request(request).await?;
