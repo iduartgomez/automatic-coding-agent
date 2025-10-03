@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-10-04
+
 ### Added
 - Intelligent LLM-based task decomposition system with intelligent parser
 - Markdown file reference resolution in task descriptions
@@ -105,5 +107,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline code documentation with examples
 - Architecture compliance with modular design patterns
 
-[Unreleased]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/automatic-coding-agent/automatic-coding-agent/releases/tag/v0.1.0

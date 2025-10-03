@@ -242,7 +242,7 @@ impl IntelligentTaskParser {
         for (i, analyzed_task) in analysis.tasks.iter().enumerate() {
             for dep_index in &analyzed_task.dependencies {
                 if let Some(dep_task_id) = task_ids.get(*dep_index) {
-                    task_specs[i].dependencies.push(dep_task_id.clone());
+                    task_specs[i].dependencies.push(*dep_task_id);
                 }
             }
         }
