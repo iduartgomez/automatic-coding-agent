@@ -244,11 +244,14 @@ impl IntelligentTaskParser {
     ) -> Result<ExecutionPlan, IntelligentParserError> {
         let content = std::fs::read_to_string(&path)?;
 
+        // Extract and resolve markdown file references
+        let content_with_refs = self.resolve_file_references(&path, &content)?;
+
         let request = TaskAnalysisRequest {
-            content,
+            content: content_with_refs,
             source_path: Some(path.clone()),
             context_hints,
-            max_tokens: Some(4096),
+            max_tokens: Some(8192), // Increased for larger content with references
         };
 
         let analysis = self.analyze_tasks(request).await?;
@@ -262,6 +265,61 @@ impl IntelligentTaskParser {
     }
 
     // Private helper methods
+
+    /// Resolve markdown file references and include their content
+    fn resolve_file_references(
+        &self,
+        base_path: &std::path::Path,
+        content: &str,
+    ) -> Result<String, IntelligentParserError> {
+        use regex::Regex;
+
+        let mut resolved_content = content.to_string();
+
+        // Regex to match markdown links: [text](path.md)
+        let link_regex = Regex::new(r"\[([^\]]+)\]\(([^\)]+\.md)\)").unwrap();
+
+        let base_dir = base_path.parent().unwrap_or(std::path::Path::new("."));
+        let mut referenced_files = Vec::new();
+
+        // Extract all markdown file references
+        for cap in link_regex.captures_iter(content) {
+            if let Some(file_path) = cap.get(2) {
+                let ref_path = base_dir.join(file_path.as_str());
+                if ref_path.exists() && !referenced_files.contains(&ref_path) {
+                    referenced_files.push(ref_path);
+                }
+            }
+        }
+
+        // Read and append referenced files (limit depth to prevent cycles)
+        if !referenced_files.is_empty() {
+            resolved_content.push_str("\n\n---\n\n# Referenced Detail Files\n\n");
+
+            for (idx, ref_path) in referenced_files.iter().enumerate() {
+                if let Ok(ref_content) = std::fs::read_to_string(ref_path) {
+                    let file_name = ref_path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown");
+
+                    resolved_content.push_str(&format!(
+                        "## Referenced File {}: {}\n\n{}\n\n",
+                        idx + 1,
+                        file_name,
+                        ref_content
+                    ));
+
+                    debug!(
+                        "Resolved reference: {} ({} bytes)",
+                        file_name,
+                        ref_content.len()
+                    );
+                }
+            }
+        }
+
+        Ok(resolved_content)
+    }
 
     fn generate_cache_key(&self, request: &TaskAnalysisRequest) -> String {
         use std::hash::{Hash, Hasher};
@@ -476,7 +534,10 @@ Always respond with valid JSON matching the provided schema. Be precise, thoroug
         TaskSpec {
             title: task.title,
             description: task.description,
-            dependencies: Vec::new(), // Task tree handles dependencies separately
+            // TODO: Map dependency indices to TaskIds after tasks are created
+            // Currently AnalyzedTask has Vec<usize> but TaskSpec needs Vec<TaskId>
+            // Dependencies should be resolved in execution_plan.rs when building task tree
+            dependencies: Vec::new(),
             metadata: TaskMetadata {
                 priority: task.priority,
                 estimated_complexity: Some(task.complexity),

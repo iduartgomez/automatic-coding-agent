@@ -119,11 +119,22 @@ impl LLMProvider for ClaudeProvider {
     fn execute_request(&self, request: LLMRequest) -> BoxFuture<'_, Result<LLMResponse, LLMError>> {
         Box::pin(async move {
             // Convert LLMRequest to Claude TaskRequest
+            let mut context = request.context;
+
+            // Pass system message through context if provided
+            // TODO: Use --append-system-prompt CLI flag for better integration
+            let description = if let Some(system_msg) = request.system_message {
+                context.insert("system_prompt".to_string(), system_msg.clone());
+                format!("System Instructions:\n{}\n\nUser Request:\n{}", system_msg, request.prompt)
+            } else {
+                request.prompt
+            };
+
             let claude_request = crate::claude::TaskRequest {
                 id: request.id,
                 task_type: "llm_request".to_string(),
-                description: request.prompt,
-                context: request.context,
+                description,
+                context,
                 priority: crate::claude::TaskPriority::Medium,
                 estimated_tokens: request.max_tokens,
             };
