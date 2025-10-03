@@ -29,6 +29,26 @@ aca --task-file bug_report.txt --workspace .
 aca --task-file requirements --workspace .
 ```
 
+### Intelligent Task Parsing
+
+Analyze complex task files with LLM-powered understanding:
+
+```bash
+# Auto-detect intelligent parsing for task lists
+aca --task-file .claude/tasks.md
+
+# Explicit intelligent parsing with context
+aca --task-file project-tasks.md --use-intelligent-parser \
+    --context "full-stack web application" \
+    --context "React + Node.js stack" \
+    --context "6 month timeline"
+
+# Analyze, review, and execute workflow
+aca --task-file tasks.md --dry-run --dump-plan plan.json  # Step 1: Analyze
+cat plan.json                                              # Step 2: Review
+aca --execution-plan plan.json                             # Step 3: Execute
+```
+
 ### Multi-Task Execution
 
 Create a task list file with multiple tasks:
@@ -665,3 +685,129 @@ your-project/
 - `examples/` - Built-in examples and templates (optional)
 - Session data includes complete task history and execution state
 - Checkpoints can be used for recovery and collaboration
+
+## Intelligent Task Parsing
+
+### Overview
+
+The intelligent parser uses LLM (Claude) to semantically understand task structures:
+
+- **Hierarchical Detection**: Automatically identifies parent-child relationships
+- **Dependency Analysis**: Detects which tasks depend on others
+- **Priority Assignment**: Context-aware prioritization
+- **Complexity Estimation**: Estimates difficulty per task
+- **Execution Strategy**: Determines optimal Sequential/Parallel/Intelligent mode
+
+### Basic Usage
+
+```bash
+# Auto-enable for task lists
+aca --tasks project.md
+
+# Explicit intelligent parsing
+aca --task-file tasks.md --use-intelligent-parser
+
+# Add context hints for better analysis
+aca --tasks tasks.md --use-intelligent-parser \
+    --context "microservices architecture" \
+    --context "Python + FastAPI backend" \
+    --context "team of 3 developers"
+```
+
+### Execution Plan Workflow
+
+**Step 1: Analyze and dump plan**
+```bash
+aca --task-file .claude/tasks.md \
+    --use-intelligent-parser \
+    --dry-run \
+    --dump-plan execution-plan.json \
+    --verbose
+```
+
+**Step 2: Review the plan**
+```bash
+# View full plan
+cat execution-plan.json
+
+# Extract specific info
+jq '.task_specs[] | {title, priority: .metadata.priority}' execution-plan.json
+```
+
+**Step 3: Modify if needed (optional)**
+```bash
+# Edit priorities, execution mode, etc.
+vim execution-plan.json
+```
+
+**Step 4: Execute the approved plan**
+```bash
+aca --execution-plan execution-plan.json --verbose
+```
+
+### Plan Formats
+
+Plans can be dumped and loaded in two formats:
+
+```bash
+# JSON format (recommended for readability)
+aca --tasks tasks.md --dry-run --dump-plan plan.json
+aca --execution-plan plan.json
+
+# TOML format
+aca --tasks tasks.md --dry-run --dump-plan plan.toml
+aca --execution-plan plan.toml
+```
+
+### When to Use Intelligent Parser
+
+**Use intelligent parser when:**
+- ✅ Complex multi-phase projects
+- ✅ Tasks with implicit dependencies
+- ✅ Need to review execution plan before running
+- ✅ Want priority/complexity estimates
+- ✅ Sharing plans with team for review
+
+**Use naive parser when:**
+- ✅ Single simple task
+- ✅ LLM API unavailable
+- ✅ Want faster processing
+- ✅ Explicit TOML configuration
+
+### Examples
+
+**Example 1: Analyze EU Products App Tasks**
+```bash
+export ANTHROPIC_API_KEY=your_key
+
+aca --task-file /path/to/eu-products/app/.claude/tasks.md \
+    --use-intelligent-parser \
+    --context "full-stack Flutter + Rust app" \
+    --context "data-intensive, 6 months" \
+    --dry-run \
+    --dump-plan eu-products-plan.json
+
+# Review
+cat eu-products-plan.json
+
+# Execute
+aca --execution-plan eu-products-plan.json
+```
+
+**Example 2: Team Review Workflow**
+```bash
+# Developer: Analyze and commit plan
+aca --tasks sprint-tasks.md --dry-run --dump-plan sprint-plan.json
+git add sprint-plan.json
+git commit -m "Add sprint execution plan for review"
+git push
+
+# Team: Review in PR, approve
+
+# Execute approved plan
+git pull
+aca --execution-plan sprint-plan.json
+```
+
+**See full documentation**: [Intelligent Task Parsing Guide](user-guide/intelligent-task-parsing.md)
+

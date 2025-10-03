@@ -38,6 +38,14 @@ A Rust-based agentic tool that automates coding tasks using multiple LLM provide
 - **Rate Limiting**: Provider-specific rate limiting and cost optimization
 - **Capability Detection**: Automatic detection of provider features (streaming, function calling, etc.)
 
+### 🧠 **Intelligent Task Parsing**
+- **LLM-Based Analysis**: Semantic understanding of task structures using Claude
+- **Hierarchical Detection**: Automatic parent-child relationship identification
+- **Dependency Analysis**: Smart detection of task dependencies
+- **Priority & Complexity**: Context-aware priority and complexity estimation
+- **Execution Strategies**: Optimal Sequential/Parallel/Intelligent execution planning
+- **Plan Persistence**: Dump, review, modify, and execute execution plans
+
 ## Quick Start
 
 ### Prerequisites
@@ -66,17 +74,24 @@ cargo run
 #### CLI Interface
 
 ```bash
-# Start the agent with default configuration
-cargo run
+# Basic usage
+aca --task-file task.md
+
+# Intelligent task parsing with context
+aca --task-file .claude/tasks.md --use-intelligent-parser \
+    --context "full-stack app" \
+    --context "6 month timeline"
+
+# Analyze, review, and execute workflow
+aca --task-file tasks.md --dry-run --dump-plan plan.json  # Analyze
+cat plan.json                                              # Review
+aca --execution-plan plan.json                             # Execute
 
 # Show help and available commands
-cargo run -- --help
+aca --help
 
-# Generate default configuration
-cargo run -- --generate-config
-
-# Specify custom config file
-cargo run -- --config /path/to/config.toml
+# Resume from checkpoint
+aca resume <checkpoint-id>
 ```
 
 #### Library Interface
@@ -100,6 +115,38 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 ```
+
+## Intelligent Task Parsing
+
+Analyze complex task files using LLM-powered semantic understanding:
+
+```bash
+# Auto-detect and parse .claude/tasks.md files
+aca --task-file .claude/tasks.md
+
+# Add context for better analysis
+aca --task-file tasks.md --use-intelligent-parser \
+    --context "React + Node.js stack" \
+    --context "team of 5, 6 month timeline"
+
+# Generate and examine execution plan
+aca --task-file tasks.md --dry-run --dump-plan plan.json
+cat plan.json
+
+# Execute the approved plan
+aca --execution-plan plan.json
+```
+
+### Benefits
+
+- 🧠 **Semantic Understanding**: Analyzes task meaning, not just text patterns
+- 🔗 **Dependency Detection**: Automatically identifies task relationships
+- 📊 **Smart Prioritization**: Context-aware priority and complexity assessment
+- ⚡ **Optimal Execution**: Determines best execution strategy (sequential/parallel)
+- 📋 **Plan Review**: Dump, review, modify plans before execution
+- 🎯 **Hierarchical Tasks**: Detects parent-child relationships
+
+**See**: [Intelligent Task Parsing Guide](docs/user-guide/intelligent-task-parsing.md)
 
 ## Architecture Overview
 
@@ -131,6 +178,8 @@ The system consists of several key components:
 
 ### 5. CLI Interface (`src/cli/`)
 - **Command Processing**: Full CLI argument parsing and validation
+- **Intelligent Parser**: LLM-based task decomposition and analysis
+- **Execution Plans**: Dump, review, and load execution plans (JSON/TOML)
 - **Configuration Management**: TOML-based configuration with defaults
 - **Interactive Mode**: User-friendly interface for task management
 - **Progress Reporting**: Real-time task progress and system status
