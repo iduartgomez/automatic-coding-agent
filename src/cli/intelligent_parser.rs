@@ -276,7 +276,7 @@ impl IntelligentTaskParser {
 
         prompt.push_str("# Task Analysis Request\n\n");
         prompt.push_str(
-            "Analyze the following task description and provide a structured breakdown.\n\n",
+            "Analyze the following task description and provide a structured breakdown with ALL subtasks and phases.\n\n",
         );
 
         if let Some(ref path) = request.source_path {
@@ -294,6 +294,11 @@ impl IntelligentTaskParser {
         prompt.push_str("**Task Content**:\n```\n");
         prompt.push_str(&request.content);
         prompt.push_str("\n```\n\n");
+
+        prompt.push_str("CRITICAL: Extract ALL subtasks, phases, and implementation details from the content above.\n");
+        prompt.push_str("Create separate task entries for each distinct phase or subtask mentioned.\n");
+        prompt.push_str("Use parent_index to represent hierarchical relationships.\n");
+        prompt.push_str("Include ALL technical details, requirements, and success criteria in task descriptions.\n\n");
 
         prompt.push_str("IMPORTANT: Respond with ONLY a valid JSON object (no markdown code blocks, no explanations, no additional text).\n\n");
         prompt.push_str("Expected JSON schema:\n");
@@ -323,15 +328,29 @@ impl IntelligentTaskParser {
     fn get_system_message(&self) -> String {
         r#"You are an expert task decomposition assistant. Your role is to analyze task descriptions and break them into structured, executable units.
 
-When analyzing tasks:
-1. Identify distinct tasks and subtasks with clear boundaries
-2. Determine logical dependencies and execution order
-3. Assign appropriate priorities based on impact and urgency
-4. Estimate complexity and duration realistically
-5. Extract file references and context requirements
-6. Suggest optimal execution strategy (sequential/parallel/intelligent)
+CRITICAL INSTRUCTIONS:
+1. **Preserve ALL details and nuance** - Do NOT summarize or collapse detailed task information
+2. **Create hierarchical structures** - If tasks have subtasks or phases, represent them as separate tasks with parent_index
+3. **Extract ALL subtasks** - If a task mentions "Phase 1: X, Phase 2: Y", create separate tasks for each phase
+4. **Keep technical details** - Include implementation details, technical requirements, success criteria in descriptions
+5. **Identify nested structures** - Tasks referencing detailed spec files should have child tasks for major components
 
-Always respond with valid JSON matching the provided schema. Be precise and thorough in your analysis."#
+When analyzing tasks:
+1. Identify distinct tasks and ALL subtasks with clear boundaries
+2. Create parent-child relationships for hierarchical task structures (use parent_index)
+3. Determine logical dependencies and execution order
+4. Assign appropriate priorities based on impact and urgency
+5. Estimate complexity and duration realistically for EACH subtask
+6. Extract ALL file references and context requirements mentioned
+7. Preserve technical specifications, metrics, and success criteria
+8. Suggest optimal execution strategy (sequential/parallel/intelligent)
+
+Examples of proper decomposition:
+- If task mentions "Phase 1: Setup (Week 1-2), Phase 2: Implementation (Week 3-4)", create 2 separate tasks
+- If task has "Task 1.1: X, Task 1.2: Y, Task 2.1: Z", create 3 separate tasks with parent relationships
+- If task references detailed files, include those files in required_files
+
+Always respond with valid JSON matching the provided schema. Be precise, thorough, and preserve all detail."#
             .to_string()
     }
 

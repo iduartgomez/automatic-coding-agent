@@ -1,0 +1,199 @@
+{
+  "setup_commands": [],
+  "task_specs": [
+    {
+      "title": "Implement Advanced Search & Filtering System",
+      "description": "Build comprehensive product search with Elasticsearch integration, multi-faceted filtering (price, category, brand, ratings), search result ranking algorithm, auto-complete, suggestions, and search analytics. Must achieve <200ms response time, 95% accuracy, and support 10+ concurrent filter combinations.",
+      "metadata": {
+        "priority": "Critical",
+        "estimated_complexity": "Epic",
+        "estimated_duration": [
+          2592000,
+          0
+        ],
+        "repository_refs": [],
+        "file_refs": [],
+        "tags": [
+          "search",
+          "elasticsearch",
+          "high-priority",
+          "core-feature"
+        ],
+        "context_requirements": {
+          "required_files": [
+            "search-system.md"
+          ],
+          "required_repositories": [],
+          "build_dependencies": [],
+          "environment_vars": {},
+          "claude_context_keys": []
+        }
+      },
+      "dependencies": []
+    },
+    {
+      "title": "Integrate Payment Processing Gateway",
+      "description": "Implement secure payment gateway with Stripe (primary) and PayPal (fallback), credit card tokenization, PCI DSS compliance, fraud detection hooks, refund/chargeback handling. Must support zero raw card storage, end-to-end encryption, transaction audit logging, and 15+ currencies.",
+      "metadata": {
+        "priority": "Critical",
+        "estimated_complexity": "Epic",
+        "estimated_duration": [
+          2592000,
+          0
+        ],
+        "repository_refs": [],
+        "file_refs": [],
+        "tags": [
+          "payment",
+          "security",
+          "pci-dss",
+          "high-priority",
+          "core-feature"
+        ],
+        "context_requirements": {
+          "required_files": [
+            "payment-integration.md"
+          ],
+          "required_repositories": [],
+          "build_dependencies": [],
+          "environment_vars": {},
+          "claude_context_keys": []
+        }
+      },
+      "dependencies": []
+    },
+    {
+      "title": "Build Inventory Management System",
+      "description": "Implement real-time inventory tracking across multiple warehouses, stock level monitoring with alerts, automated reorder triggers, inventory reconciliation, product variants management, and stock reservation. Must support <5s sync latency, 100k+ SKUs, and 3+ warehouse locations.",
+      "metadata": {
+        "priority": "Critical",
+        "estimated_complexity": "Epic",
+        "estimated_duration": [
+          2592000,
+          0
+        ],
+        "repository_refs": [],
+        "file_refs": [],
+        "tags": [
+          "inventory",
+          "real-time",
+          "warehouse",
+          "high-priority",
+          "core-feature"
+        ],
+        "context_requirements": {
+          "required_files": [
+            "inventory-system.md"
+          ],
+          "required_repositories": [],
+          "build_dependencies": [],
+          "environment_vars": {},
+          "claude_context_keys": []
+        }
+      },
+      "dependencies": []
+    },
+    {
+      "title": "Develop ML-Based Recommendation Engine",
+      "description": "Build product recommendation system with collaborative filtering, content-based filtering, real-time updates, A/B testing framework, and performance metrics. Depends on search system and user behavior tracking.",
+      "metadata": {
+        "priority": "High",
+        "estimated_complexity": "Complex",
+        "estimated_duration": [
+          1728000,
+          0
+        ],
+        "repository_refs": [],
+        "file_refs": [],
+        "tags": [
+          "ml",
+          "recommendations",
+          "medium-priority",
+          "user-experience"
+        ],
+        "context_requirements": {
+          "required_files": [
+            "recommendation-engine.md"
+          ],
+          "required_repositories": [],
+          "build_dependencies": [],
+          "environment_vars": {},
+          "claude_context_keys": []
+        }
+      },
+      "dependencies": []
+    },
+    {
+      "title": "Implement Order Management Workflow",
+      "description": "Build complete order lifecycle management including placement, confirmation, status tracking, shipping integration (UPS, FedEx, USPS), returns/exchanges, and order history. Integrates with payment, inventory, and email notification systems.",
+      "metadata": {
+        "priority": "High",
+        "estimated_complexity": "Complex",
+        "estimated_duration": [
+          1728000,
+          0
+        ],
+        "repository_refs": [],
+        "file_refs": [],
+        "tags": [
+          "orders",
+          "shipping",
+          "medium-priority",
+          "user-experience"
+        ],
+        "context_requirements": {
+          "required_files": [
+            "order-workflow.md"
+          ],
+          "required_repositories": [],
+          "build_dependencies": [],
+          "environment_vars": {},
+          "claude_context_keys": []
+        }
+      },
+      "dependencies": []
+    },
+    {
+      "title": "Setup Architecture Infrastructure",
+      "description": "Establish microservices architecture for payment and inventory, event-driven architecture for order updates, Redis for caching/sessions, PostgreSQL for transactional data, and Elasticsearch for search.",
+      "metadata": {
+        "priority": "Critical",
+        "estimated_complexity": "Complex",
+        "estimated_duration": [
+          864000,
+          0
+        ],
+        "repository_refs": [],
+        "file_refs": [],
+        "tags": [
+          "architecture",
+          "infrastructure",
+          "microservices",
+          "foundational"
+        ],
+        "context_requirements": {
+          "required_files": [],
+          "required_repositories": [],
+          "build_dependencies": [],
+          "environment_vars": {},
+          "claude_context_keys": []
+        }
+      },
+      "dependencies": []
+    }
+  ],
+  "execution_mode": "Intelligent",
+  "metadata": {
+    "name": "Tasks from main-tasks.md",
+    "description": "Execution plan generated from intelligent LLM analysis (6 tasks)",
+    "tags": [
+      "llm-analyzed",
+      "intelligent-parser"
+    ],
+    "estimated_duration": [
+      12096000,
+      0
+    ],
+    "custom_metadata": {}
+  }
+}
