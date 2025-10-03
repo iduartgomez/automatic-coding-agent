@@ -114,24 +114,11 @@ impl TaskLoader {
     ) -> Result<ExecutionPlan, FileError> {
         use crate::cli::IntelligentTaskParser;
         use crate::llm::provider::LLMProviderFactory;
-        use crate::llm::types::{ProviderConfig, ProviderType};
+        use crate::llm::types::ProviderConfig;
 
-        // Create LLM provider
-        let api_key = std::env::var("ANTHROPIC_API_KEY").map_err(|_| {
-            FileError::Parse(
-                "ANTHROPIC_API_KEY environment variable required for intelligent parser"
-                    .to_string(),
-            )
-        })?;
-
-        let provider_config = ProviderConfig {
-            provider_type: ProviderType::Claude,
-            api_key: Some(api_key),
-            base_url: None,
-            model: Some("claude-sonnet".to_string()),
-            rate_limits: Default::default(),
-            additional_config: Default::default(),
-        };
+        // Use default provider config (Claude CLI mode)
+        // The provider will handle API key requirements based on its configured mode
+        let provider_config = ProviderConfig::default();
 
         let workspace = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
         let provider = LLMProviderFactory::create_provider(provider_config, workspace)

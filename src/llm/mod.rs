@@ -61,24 +61,27 @@
 //!
 //! ## Example Usage
 //!
+//! ### Using Claude Code CLI (default, no API key required)
+//!
 //! ```rust,no_run
 //! use aca::llm::{
 //!     LLMProvider, LLMRequest, ProviderConfig, ProviderType, ClaudeProvider
 //! };
 //! use std::collections::HashMap;
+//! use std::path::PathBuf;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     // Configure Claude provider
+//!     // Configure Claude provider in CLI mode (default)
+//!     // No API key needed - uses `claude` CLI command
 //!     let config = ProviderConfig {
 //!         provider_type: ProviderType::Claude,
-//!         api_key: Some("your-api-key".to_string()),
-//!         model: Some("claude-3-sonnet".to_string()),
-//!         ..Default::default()
+//!         model: Some("claude-sonnet".to_string()),
+//!         ..Default::default()  // claude_mode defaults to CLI
 //!     };
 //!
 //!     // Create provider instance
-//!     let provider = ClaudeProvider::new(config).await?;
+//!     let provider = ClaudeProvider::new(config, PathBuf::from(".")).await?;
 //!
 //!     // Create a request
 //!     let request = LLMRequest {
@@ -97,6 +100,37 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! ### Using Anthropic API (requires API key)
+//!
+//! ```rust,no_run
+//! use aca::llm::{
+//!     LLMProvider, LLMRequest, ProviderConfig, ProviderType, ClaudeProvider
+//! };
+//! use std::collections::HashMap;
+//! use std::path::PathBuf;
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Configure Claude provider in API mode
+//!     let mut additional_config = HashMap::new();
+//!     additional_config.insert("mode".to_string(), serde_json::json!("API"));
+//!
+//!     let config = ProviderConfig {
+//!         provider_type: ProviderType::Claude,
+//!         api_key: Some("your-api-key".to_string()),  // Required in API mode
+//!         model: Some("claude-3-sonnet".to_string()),
+//!         additional_config,
+//!         ..Default::default()
+//!     };
+//!
+//!     let provider = ClaudeProvider::new(config, PathBuf::from(".")).await?;
+//!     // ... rest of the code is the same
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Alternatively, set the `CLAUDE_MODE=API` environment variable.
 //!
 //! ## Adding New Providers
 //!
@@ -144,3 +178,6 @@ pub mod types;
 pub use claude_provider::ClaudeProvider;
 pub use provider::LLMProvider;
 pub use types::*;
+
+// Re-export ClaudeProviderMode for convenience
+pub use types::ClaudeProviderMode;

@@ -44,6 +44,7 @@ pub struct ProviderConfig {
     pub base_url: Option<String>,
     pub model: Option<String>,
     pub rate_limits: RateLimitConfig,
+    /// Provider-specific configuration (e.g., claude_mode: "CLI" or "API")
     pub additional_config: HashMap<String, serde_json::Value>,
 }
 
@@ -55,6 +56,16 @@ pub enum ProviderType {
     Anthropic,
     LocalModel,
     Custom(String),
+}
+
+/// Provider execution mode for Claude
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum ClaudeProviderMode {
+    /// Use Claude Code CLI (default, no API key required)
+    #[default]
+    CLI,
+    /// Use Anthropic API directly (requires API key)
+    API,
 }
 
 /// Rate limiting configuration

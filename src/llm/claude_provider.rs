@@ -1,8 +1,8 @@
 use crate::claude::ClaudeCodeInterface;
 use crate::llm::provider::LLMProvider;
 use crate::llm::types::{
-    LLMError, LLMRequest, LLMResponse, ProviderCapabilities, ProviderConfig, ProviderStatus,
-    RateLimitStatus,
+    ClaudeProviderMode, LLMError, LLMRequest, LLMResponse, ProviderCapabilities, ProviderConfig,
+    ProviderStatus, RateLimitStatus,
 };
 use chrono::Utc;
 use futures::future::BoxFuture;
@@ -15,10 +15,21 @@ pub struct ClaudeProvider {
     claude_interface: ClaudeCodeInterface,
     #[allow(dead_code)]
     config: ProviderConfig,
+    mode: ClaudeProviderMode,
 }
 
 impl ClaudeProvider {
     pub async fn new(config: ProviderConfig, workspace_root: PathBuf) -> Result<Self, LLMError> {
+        // Determine the provider mode from additional_config or environment, default to CLI
+        let mode = Self::determine_mode(&config)?;
+
+        // Validate configuration based on mode
+        if mode == ClaudeProviderMode::API && config.api_key.is_none() {
+            return Err(LLMError::Authentication(
+                "API key is required when using Claude in API mode. Either set an API key or use CLI mode (default).".to_string()
+            ));
+        }
+
         // Convert ProviderConfig to ClaudeConfig
         let claude_config = crate::claude::ClaudeConfig {
             api_key: config.api_key.clone(),
@@ -64,7 +75,43 @@ impl ClaudeProvider {
         Ok(Self {
             claude_interface,
             config,
+            mode,
         })
+    }
+
+    /// Get the current provider mode
+    pub fn mode(&self) -> &ClaudeProviderMode {
+        &self.mode
+    }
+
+    /// Determine the Claude provider mode from config or environment
+    fn determine_mode(config: &ProviderConfig) -> Result<ClaudeProviderMode, LLMError> {
+        // 1. Check additional_config for "mode" key
+        if let Some(mode_str) = config.additional_config.get("mode").and_then(|v| v.as_str()) {
+            return match mode_str.to_lowercase().as_str() {
+                "cli" => Ok(ClaudeProviderMode::CLI),
+                "api" => Ok(ClaudeProviderMode::API),
+                _ => Err(LLMError::InvalidRequest(format!(
+                    "Invalid Claude mode '{}'. Must be 'CLI' or 'API'",
+                    mode_str
+                ))),
+            };
+        }
+
+        // 2. Check CLAUDE_MODE environment variable
+        if let Ok(mode_env) = std::env::var("CLAUDE_MODE") {
+            return match mode_env.to_lowercase().as_str() {
+                "cli" => Ok(ClaudeProviderMode::CLI),
+                "api" => Ok(ClaudeProviderMode::API),
+                _ => Err(LLMError::InvalidRequest(format!(
+                    "Invalid CLAUDE_MODE environment variable '{}'. Must be 'CLI' or 'API'",
+                    mode_env
+                ))),
+            };
+        }
+
+        // 3. Default to CLI mode
+        Ok(ClaudeProviderMode::CLI)
     }
 }
 
