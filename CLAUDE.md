@@ -1,6 +1,6 @@
 # aca - Automatic Coding Agent
 
-Rust-based agentic tool automating coding tasks via Claude Code CLI.
+Rust-based agentic tool automating coding tasks via multiple LLM providers (Claude, OpenAI, Ollama).
 
 ## Quick Start
 
@@ -38,8 +38,10 @@ src/
 - **Detail preservation**: Keeps technical specs, success criteria, implementation notes
 
 ### 🔌 LLM Provider System
-- **CLI Mode (default)**: Uses `claude` command, no API key needed
-- **API Mode**: Set `CLAUDE_MODE=API` + `ANTHROPIC_API_KEY` for direct API access
+- **Claude CLI (default)**: Uses `claude` command, no API key needed
+- **Claude API**: Set `CLAUDE_MODE=API` + `ANTHROPIC_API_KEY` for direct API access
+- **OpenAI**: Set `OPENAI_API_KEY` for GPT-4 and other models
+- **Ollama**: Local model execution for privacy
 - **System prompts**: Uses `--append-system-prompt` for clean instruction separation
 - **Caching**: Hash-based response caching for performance
 
@@ -115,13 +117,15 @@ cargo test --test claude_integration                # Claude interface
 cargo test test_name -- --nocapture
 ```
 
-## Docker Integration
+## Docker Integration (Planned)
 
-The system supports containerized execution with volume mounts:
+Docker containerization is a planned feature for isolated execution:
 - `/repos` (RO): Source repositories
 - `/workspace` (RW): Working directory
 - `/session` (RW): Persistent state
 - `/logs` (RW): Execution logs
+
+Current implementation uses direct CLI/API execution without containers.
 
 ## Troubleshooting
 

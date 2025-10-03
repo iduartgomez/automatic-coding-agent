@@ -1,6 +1,6 @@
 # ACA (Automatic Coding Agent) - Usage Guide
 
-A powerful Rust-based tool that automates coding tasks using Claude Code in headless mode. The system provides intelligent task execution with full session persistence, resumability, and unified execution plans.
+A powerful Rust-based tool that automates coding tasks using multiple LLM providers (Claude CLI/API, OpenAI, Ollama). The system provides intelligent task execution with full session persistence, resumability, and unified execution plans.
 
 ## Installation
 
@@ -42,6 +42,10 @@ aca --task-file project-tasks.md --use-intelligent-parser \
     --context "full-stack web application" \
     --context "React + Node.js stack" \
     --context "6 month timeline"
+
+# Add custom system prompt for specialized domains
+aca --task-file tasks.md --use-intelligent-parser \
+    --append-system-prompt "Focus on security best practices"
 
 # Analyze, review, and execute workflow
 aca --task-file tasks.md --dry-run --dump-plan plan.json  # Step 1: Analyze
@@ -217,7 +221,10 @@ Task three
 
 ### Task References
 
-You can reference external files for detailed task context using the `-> reference_file` syntax:
+You can reference external files in two ways:
+
+#### 1. Arrow Syntax (`->`)
+Reference files for detailed task context using the `-> reference_file` syntax:
 
 **Basic reference syntax:**
 
@@ -297,6 +304,48 @@ aca --tasks tasks.md --workspace ./my-project
 ```
 
 The tool will automatically include the entire content of `auth_requirements.md` in the task description, providing Claude with comprehensive context for implementation.
+
+#### 2. Markdown File Links
+
+The intelligent parser automatically resolves markdown-style file references in task descriptions:
+
+**Link syntax:**
+```markdown
+# Development Tasks
+
+- [ ] Review the [API specification](docs/api-spec.md) and implement endpoints
+- [ ] Follow [coding standards](CONTRIBUTING.md) for all changes
+- [ ] See [architecture diagram](docs/architecture.png) for system overview
+```
+
+**How it works:**
+- Markdown links like `[text](file.md)` are automatically detected
+- File contents are loaded and included in task context
+- Works with relative and absolute paths
+- Supports any text-based file format
+- Images and binary files are referenced by path only
+
+**Example with intelligent parser:**
+```bash
+# Task file with markdown links
+cat > tasks.md << 'EOF'
+# Implementation Tasks
+
+- [ ] Implement authentication following [security guidelines](docs/security.md)
+- [ ] Add API endpoints per [API spec](docs/api.json)
+- [ ] Update [README](README.md) with new features
+EOF
+
+# Parse with intelligent analysis
+aca --task-file tasks.md --use-intelligent-parser \
+    --context "security-focused implementation"
+```
+
+The intelligent parser will:
+1. Detect all markdown file links
+2. Load file contents
+3. Include them in task analysis
+4. Provide rich context to the LLM
 
 ## Task Trees and Subtasks
 
@@ -553,9 +602,13 @@ This will:
 
 **Task not executing:**
 
-- Ensure Claude CLI is installed and accessible
+- Ensure configured LLM provider is accessible:
+  - Claude CLI mode: `claude` command is installed
+  - Claude API mode: `ANTHROPIC_API_KEY` environment variable is set
+  - OpenAI: `OPENAI_API_KEY` environment variable is set
 - Check workspace permissions
 - Verify task file is UTF-8 encoded
+- Use `--verbose` flag to see detailed provider initialization logs
 
 **Session recovery fails:**
 

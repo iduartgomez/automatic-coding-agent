@@ -145,7 +145,11 @@ impl ClaudeProvider {
     /// Determine the Claude provider mode from config or environment
     fn determine_mode(config: &ProviderConfig) -> Result<ClaudeProviderMode, LLMError> {
         // 1. Check additional_config for "mode" key
-        if let Some(mode_str) = config.additional_config.get("mode").and_then(|v| v.as_str()) {
+        if let Some(mode_str) = config
+            .additional_config
+            .get("mode")
+            .and_then(|v| v.as_str())
+        {
             return match mode_str.to_lowercase().as_str() {
                 "cli" => Ok(ClaudeProviderMode::CLI),
                 "api" => Ok(ClaudeProviderMode::API),

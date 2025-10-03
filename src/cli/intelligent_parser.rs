@@ -347,7 +347,8 @@ impl IntelligentTaskParser {
 
             for (idx, ref_path) in referenced_files.iter().enumerate() {
                 if let Ok(ref_content) = std::fs::read_to_string(ref_path) {
-                    let file_name = ref_path.file_name()
+                    let file_name = ref_path
+                        .file_name()
                         .and_then(|n| n.to_str())
                         .unwrap_or("unknown");
 
@@ -403,14 +404,18 @@ impl IntelligentTaskParser {
         prompt.push_str("\n```\n\n");
 
         prompt.push_str("CRITICAL: Extract ALL subtasks, phases, and implementation details from the content above.\n");
-        prompt.push_str("Create separate task entries for each distinct phase or subtask mentioned.\n");
+        prompt.push_str(
+            "Create separate task entries for each distinct phase or subtask mentioned.\n",
+        );
         prompt.push_str("Use parent_index to represent hierarchical relationships.\n");
         prompt.push_str("Include ALL technical details, requirements, and success criteria in task descriptions.\n\n");
 
         prompt.push_str("IMPORTANT: Respond with ONLY a valid JSON object (no markdown code blocks, no explanations, no additional text).\n\n");
         prompt.push_str("Expected JSON schema:\n");
         prompt.push_str(&self.get_response_schema());
-        prompt.push_str("\n\nYour response must be pure JSON starting with '{' and ending with '}'\n");
+        prompt.push_str(
+            "\n\nYour response must be pure JSON starting with '{' and ending with '}'\n",
+        );
 
         prompt
     }

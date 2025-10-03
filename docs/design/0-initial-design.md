@@ -1,8 +1,8 @@
-# Claude Code Agent - Design Document
+# aca (Automatic Coding Agent) - Design Document
 
 ## Overview
 
-A Rust-based agentic tool that automates coding tasks using Claude Code in headless mode. The system operates in two distinct modes: a host-side session initializer and an in-container agent that executes tasks using a dynamic task tree with full persistence and resumability.
+A Rust-based agentic tool that automates coding tasks using multiple LLM providers. The system features dynamic task trees, comprehensive session persistence, and full resumability for long-running automated coding sessions. Supports Claude (CLI/API), OpenAI, and local models with intelligent task parsing and execution planning.
 
 ## Deliverable Documents
 
@@ -12,72 +12,91 @@ This design has been broken down into focused deliverable documents:
 - **[1.2 Task Management System](1.2-task-management.md)** - Task tree architecture, scheduling algorithms, and dynamic task management
 - **[1.3 Session Persistence System](1.3-session-persistence.md)** - State management, persistence formats, and recovery mechanisms
 - **[1.4 Claude Code Integration](1.4-claude-integration.md)** - Claude Code SDK integration, rate limiting, and conversation management
-- **[1.5 Docker Deployment System](1.5-docker-deployment.md)** - Container orchestration, volume management, and deployment strategies
+- **[1.5 LLM Provider Abstraction](1.5-llm-provider-abstraction.md)** - Multi-provider support, unified interface, and provider capabilities
 - **[1.6 Configuration & Security](1.6-configuration-security.md)** - Configuration management, security controls, and operational monitoring
 
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Host System                          │
-│  ┌─────────────────┐    ┌─────────────────────────────────┐ │
-│  │   CLI Frontend  │    │     Session Manager             │ │
-│  │   - Parse args  │────│   - Docker lifecycle           │ │
-│  │   - Task input  │    │   - Volume management          │ │
-│  │   - Config      │    │   - State persistence          │ │
-│  └─────────────────┘    └─────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                                    │
-                                    │ Docker API
-                                    ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Docker Container                         │
+│                        aca System                           │
 │  ┌─────────────────────────────────────────────────────────┐ │
-│  │                 Agent Runtime                           │ │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ │ │
-│  │  │Task Manager │  │Claude Code  │  │Session Context  │ │ │
-│  │  │- Task tree  │  │Interface    │  │- Conversation   │ │ │
-│  │  │- Scheduler  │  │- Headless   │  │- File changes   │ │ │
-│  │  │- State mgmt │  │- Rate limit │  │- Build state    │ │ │
-│  │  └─────────────┘  └─────────────┘  └─────────────────┘ │ │
+│  │                   CLI Frontend                          │ │
+│  │   - Argument parsing (clap)                            │ │
+│  │   - Task file loading (Markdown/TOML)                   │ │
+│  │   - Execution mode selection                            │ │
+│  │   - Plan dumping and loading                            │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                             │                               │
+│                             ▼                               │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │           Intelligent Task Parser (Optional)            │ │
+│  │   - LLM-based task analysis                            │ │
+│  │   - Dependency detection                                │ │
+│  │   - Priority/complexity estimation                      │ │
+│  │   - Execution strategy planning                         │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                             │                               │
+│                             ▼                               │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              Agent Integration Layer                    │ │
+│  │  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐ │ │
+│  │  │Task Manager │  │LLM Providers │  │Session Manager │ │ │
+│  │  │- Task tree  │  │- Claude CLI  │  │- Checkpoints   │ │ │
+│  │  │- Scheduler  │  │- Claude API  │  │- Persistence   │ │ │
+│  │  │- Execution  │  │- OpenAI      │  │- Recovery      │ │ │
+│  │  │- Progress   │  │- Local (Ollama)│  │- State mgmt  │ │ │
+│  │  └─────────────┘  └──────────────┘  └────────────────┘ │ │
 │  └─────────────────────────────────────────────────────────┘ │
 │                                                             │
-│  Volume Mounts:                                             │
-│  /repos     (RO) - Source repositories                     │
-│  /workspace (RW) - Working directory                       │
-│  .aca/      (RW) - Persistent session data                 │
-│  /logs      (RW) - Session logs and outputs                │
+│  Working Directory:                                         │
+│  .aca/                 - Session metadata and checkpoints   │
+│  .aca/sessions/        - Per-session state                  │
+│  logs/                 - Execution logs                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Core Components
 
-### 1. CLI Frontend & Session Manager (Host)
+### 1. CLI Frontend
 
 **Responsibilities:**
 
-- Parse command-line arguments and configuration
-- Initialize Docker environment with proper volume mounts
-- Manage container lifecycle (start, stop, cleanup)
-- Handle session persistence and resumption
-- Provide status monitoring and progress reporting
+- Parse command-line arguments using clap
+- Load task files (Markdown or TOML formats)
+- Initialize session state or resume from checkpoint
+- Configure LLM provider mode (CLI/API)
+- Handle execution plan dumping and loading
+- Provide progress monitoring and reporting
 
 **Key Operations:**
 
-- `init` - Initialize new session with task list and repository references
-- `resume` - Resume existing session from checkpoint
-- `status` - Query current session state
-- `cleanup` - Clean up Docker resources
+- Task file parsing (structured TOML or intelligent Markdown parsing)
+- Execution plan analysis and review workflow
+- Session checkpoint management
+- Provider configuration and selection
 
-### 2. Agent Runtime (Container)
+### 2. Intelligent Task Parser
 
 **Responsibilities:**
 
-- Execute the actual task automation logic
-- Interface with Claude Code in headless mode
-- Manage dynamic task tree with subtask creation
-- Handle rate limiting and error recovery
-- Maintain session context and logging
+- Analyze unstructured task descriptions using LLM
+- Detect hierarchical task relationships
+- Identify task dependencies
+- Estimate priority and complexity
+- Determine optimal execution strategies
+- Support markdown file references in task descriptions
+
+### 3. Agent Integration Layer
+
+**Responsibilities:**
+
+- Execute task automation logic
+- Interface with configured LLM providers
+- Manage dynamic task tree with execution
+- Handle provider-specific rate limiting
+- Maintain session context and conversation state
+- Persist state for resumability
 
 ## Task Management System
 
@@ -170,78 +189,105 @@ pub struct TaskMetadata {
     └── system_logs/
 ```
 
-## Claude Code Integration
+## LLM Provider Integration
 
-### Headless Mode Interface
+### Provider Abstraction Layer
 
-**Key Reference**: [Claude Code SDK Headless Documentation](https://docs.claude.com/en/docs/claude-code/sdk/sdk-headless)
-
-The headless SDK provides programmatic control over Claude Code sessions through WebSocket connections and structured message passing.
+The system supports multiple LLM providers through a unified async interface:
 
 ```rust
-pub struct ClaudeCodeInterface {
-    session: HeadlessSession,
-    rate_limiter: RateLimiter,
-    context_manager: ContextManager,
-}
-
-impl ClaudeCodeInterface {
-    pub async fn execute_task(&mut self, task: &Task) -> Result<TaskResult>;
-    pub async fn ask_question(&mut self, question: &str) -> Result<String>;
-    pub async fn request_file_analysis(&mut self, files: &[PathBuf]) -> Result<AnalysisResult>;
-    pub async fn create_subtasks(&mut self, context: &str) -> Result<Vec<Task>>;
+pub trait LlmProvider: Send + Sync {
+    fn send_message<'a>(
+        &'a mut self,
+        prompt: &'a str,
+        system_message: Option<&'a str>,
+    ) -> BoxFuture<'a, Result<String, LlmError>>;
 }
 ```
 
-### Rate Limiting Strategy
+### Supported Providers
 
-**Key Reference**: [ccusage Session Blocks Implementation](https://raw.githubusercontent.com/ryoppippi/ccusage/refs/heads/main/apps/ccusage/src/_session-blocks.ts)
+1. **Claude CLI** (Default)
+   - Uses `claude` command-line tool
+   - JSON output format for structured responses
+   - Subprocess-based execution with output parsing
+   - Conversational state persistence
 
-The ccusage project demonstrates effective rate limiting patterns for Claude Code API usage:
+2. **Claude API**
+   - Direct Anthropic API integration
+   - Message-based conversation history
+   - Streaming support (future)
+   - Token usage tracking
 
-- **Token-aware limiting**: Track token usage per model (see ccusage token tracking logic)
-- **Adaptive backoff**: Exponential backoff with jitter (reference ccusage retry mechanisms)
-- **Request queuing**: Queue requests during rate limit periods
-- **Usage reporting**: Real-time usage metrics and projections
+3. **OpenAI**
+   - OpenAI API compatibility
+   - GPT-4 and other models
+   - Standard chat completion interface
 
-**Implementation Notes from ccusage**:
+4. **Local Models (Ollama)**
+   - Local model execution
+   - Privacy-focused option
+   - No external API dependencies
 
-- Session blocking based on usage thresholds
-- Dynamic rate adjustment based on API responses
-- Persistent usage tracking across sessions
+### Provider Mode Configuration
 
-## Docker Environment
+- **CLI Mode**: Default, uses subprocess execution
+- **API Mode**: Direct API calls with credentials
+- Configurable via command-line flags or config file
 
-### Container Configuration
+## Current Implementation Status
 
-```dockerfile
-FROM rust:1.75-slim
-# Install Claude Code CLI and dependencies
-# Set up working environment
-WORKDIR /agent
-COPY agent-binary /agent/
-ENTRYPOINT ["/agent/agent-binary"]
-```
+### ✅ Implemented Features
+- CLI frontend with clap argument parsing
+- Intelligent task parser with LLM-based analysis
+- Task management system with dynamic tree structure
+- Session persistence with checkpoint/resume
+- LLM provider abstraction (Claude CLI/API, OpenAI, Ollama)
+- Execution plan dumping and loading
+- Markdown file reference resolution
+- Dependency mapping and detection
+- `.aca` directory structure for session state
+- TOML configuration support
 
-### Volume Mounting Strategy
+### 🚧 Planned Features
+- Docker containerization for isolated execution
+- Headless Claude Code SDK integration via WebSocket
+- Multi-container distributed execution
+- Advanced rate limiting with usage tracking
+- Web dashboard for real-time monitoring
+- Plugin system for extensible task handlers
 
-```bash
-docker run \
-  -v "$REPOS_DIR:/repos:ro" \
-  -v "$WORKSPACE_DIR:/workspace:rw" \
-  -v "$SESSION_DIR:/session:rw" \
-  -v "$LOGS_DIR:/logs:rw" \
-  claude-code-agent:latest
-```
+## Intelligent Task Parsing (Implemented)
+
+### LLM-Based Analysis
+
+The intelligent parser uses LLM capabilities to analyze unstructured task descriptions:
+
+**Features:**
+- Hierarchical task structure detection
+- Automatic dependency identification
+- Priority and complexity estimation
+- Execution strategy determination (Sequential/Parallel/Intelligent)
+- File reference resolution (markdown links to actual files)
+- Custom system prompt support via `--append-system-prompt`
+
+### Execution Plan Workflow
+
+1. **Analyze**: `aca --task-file tasks.md --dry-run --dump-plan plan.json`
+2. **Review**: Examine and modify `plan.json` as needed
+3. **Execute**: `aca --execution-plan plan.json`
+
+This allows for human review and modification before execution.
 
 ## Agent Execution Flow
 
 ### 1. Initialization Phase
 
 1. Load or create session state from `.aca/sessions/{session_id}`
-2. Parse initial task list and build task tree
-3. Initialize Claude Code headless session
-4. Set up rate limiting and logging infrastructure
+2. Parse task file (structured TOML or intelligent Markdown parsing)
+3. Build task tree from parsed tasks or execution plan
+4. Initialize LLM provider (CLI/API mode)
+5. Set up session logging and progress tracking
 
 ### 2. Task Execution Loop
 
@@ -362,33 +408,37 @@ include_claude_traces = true
 
 ## Deployment & Distribution
 
-### Single Binary Distribution
+### Binary Distribution
 
 ```bash
 # Build optimized release binary
-cargo build --release --target x86_64-unknown-linux-musl
+cargo build --release
 
-# Package with Docker image dependencies
-./package.sh # Creates self-contained executable with embedded Docker image
+# The binary is self-contained with no Docker dependencies
+# Requires only: Rust runtime and configured LLM provider (claude CLI or API keys)
 ```
 
 ### Usage Examples
 
 ```bash
-# Initialize new session
-claude-code-agent init \
-  --tasks tasks.json \
-  --repos /path/to/repos \
-  --workspace /path/to/workspace
+# Structured TOML task file
+aca --task-file tasks.toml
 
-# Resume existing session
-claude-code-agent resume --session-id abc123
+# Intelligent Markdown parsing
+aca --task-file tasks.md --use-intelligent-parser \
+    --context "project context" \
+    --append-system-prompt "additional instructions"
 
-# Monitor progress
-claude-code-agent status --session-id abc123
+# Execution plan workflow
+aca --task-file tasks.md --dry-run --dump-plan plan.json
+# Review and edit plan.json
+aca --execution-plan plan.json
 
-# Clean up
-claude-code-agent cleanup --session-id abc123
+# Resume from checkpoint
+aca resume <checkpoint-id>
+
+# List available checkpoints
+aca --list-checkpoints
 ```
 
 ## Implementation References
@@ -475,16 +525,24 @@ backoff_multiplier = 2.0
 max_backoff_seconds = 300
 ```
 
-### Planned Features
+## Future Enhancements (Planned)
 
+### Docker Containerization
+- Isolated execution environments
+- Read-only repository mounts
+- Separate workspace for modifications
+- Resource limits (CPU, memory, network)
+- Container lifecycle management
+
+### Advanced Features
 1. **Multi-model Support**: Support for different Claude models based on task complexity
 2. **Distributed Execution**: Run multiple agent containers in parallel
 3. **Web Dashboard**: Real-time monitoring and control interface
 4. **Plugin System**: Extensible task handlers for specific domains
 5. **Integration APIs**: REST/GraphQL APIs for external system integration
+6. **Headless Claude Code SDK**: Direct WebSocket integration for better control
 
 ### Scalability Considerations
-
 - **Horizontal scaling**: Multiple agent containers with shared session state
 - **Resource optimization**: Dynamic container sizing based on workload
 - **State sharding**: Distribute large session states across multiple storage backends
