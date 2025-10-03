@@ -378,13 +378,30 @@ Always respond with valid JSON matching the provided schema. Be precise and thor
             content
         };
 
-        serde_json::from_str(json_content).map_err(|e| {
-            IntelligentParserError::ParseError(format!(
-                "Failed to parse JSON response: {}. Content: {}",
-                e,
-                json_content.chars().take(200).collect::<String>()
-            ))
-        })
+        // Try to parse directly first
+        match serde_json::from_str::<TaskAnalysisResult>(json_content) {
+            Ok(result) => Ok(result),
+            Err(first_err) => {
+                // If that fails, try to parse as a JSON-encoded string (double-encoded JSON)
+                // This handles cases where the response is a JSON string containing escaped JSON
+                if let Ok(unescaped) = serde_json::from_str::<String>(json_content) {
+                    serde_json::from_str(&unescaped).map_err(|e| {
+                        IntelligentParserError::ParseError(format!(
+                            "Failed to parse unescaped JSON response: {}. Original error: {}. Content: {}",
+                            e,
+                            first_err,
+                            json_content.chars().take(200).collect::<String>()
+                        ))
+                    })
+                } else {
+                    Err(IntelligentParserError::ParseError(format!(
+                        "Failed to parse JSON response: {}. Content: {}",
+                        first_err,
+                        json_content.chars().take(200).collect::<String>()
+                    )))
+                }
+            }
+        }
     }
 
     fn validate_analysis(
