@@ -309,14 +309,21 @@ impl ClaudeCodeInterface {
                 stderr.to_string()
             }
         } else {
-            // Try to parse JSON response, fall back to raw text if parsing fails
+            // Try to parse JSON response from Claude CLI (--output-format json)
             match serde_json::from_str::<serde_json::Value>(&stdout) {
                 Ok(json) => {
                     // Extract response text from JSON structure
-                    json.get("response")
-                        .and_then(|r| r.as_str())
-                        .unwrap_or(&stdout)
-                        .to_string()
+                    // Claude CLI returns: {"result": "actual response as JSON string", ...}
+                    if let Some(result_str) = json.get("result").and_then(|r| r.as_str()) {
+                        result_str.to_string()
+                    } else if let Some(response_str) = json.get("response").and_then(|r| r.as_str()) {
+                        response_str.to_string()
+                    } else if let Some(content_str) = json.get("content").and_then(|c| c.as_str()) {
+                        content_str.to_string()
+                    } else {
+                        // Fall back to raw stdout if we can't find the response in expected fields
+                        stdout.to_string()
+                    }
                 }
                 Err(_) => stdout.to_string(),
             }
