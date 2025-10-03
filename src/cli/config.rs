@@ -119,7 +119,7 @@ impl ConfigDiscovery {
 
         // Windows system config: C:\ProgramData\aca\config.toml
         #[cfg(windows)]
-        if let Ok(program_data) = env::var("PROGRAMDATA") {
+        if let Ok(program_data) = std_env::var("PROGRAMDATA") {
             candidates.push(PathBuf::from(program_data).join("aca").join("config.toml"));
         }
 
