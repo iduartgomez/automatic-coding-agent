@@ -295,10 +295,10 @@ impl IntelligentTaskParser {
         prompt.push_str(&request.content);
         prompt.push_str("\n```\n\n");
 
-        prompt.push_str("Please provide your analysis as a JSON object following this schema:\n");
-        prompt.push_str("```json\n");
+        prompt.push_str("IMPORTANT: Respond with ONLY a valid JSON object (no markdown code blocks, no explanations, no additional text).\n\n");
+        prompt.push_str("Expected JSON schema:\n");
         prompt.push_str(&self.get_response_schema());
-        prompt.push_str("\n```\n");
+        prompt.push_str("\n\nYour response must be pure JSON starting with '{' and ending with '}'\n");
 
         prompt
     }
