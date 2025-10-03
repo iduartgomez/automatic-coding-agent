@@ -4,6 +4,26 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 use test_tag::tag;
 
+/// RAII guard that restores the original directory when dropped
+struct DirectoryGuard {
+    original_dir: PathBuf,
+}
+
+impl DirectoryGuard {
+    fn new(workspace: &PathBuf) -> Result<Self, std::io::Error> {
+        let original_dir = std::env::current_dir()?;
+        std::env::set_current_dir(workspace)?;
+        Ok(Self { original_dir })
+    }
+}
+
+impl Drop for DirectoryGuard {
+    fn drop(&mut self) {
+        // Restore original directory - ignore errors as we might be in a deleted directory
+        let _ = std::env::set_current_dir(&self.original_dir);
+    }
+}
+
 #[derive(Debug)]
 #[allow(dead_code)]
 struct TestCase {
@@ -111,9 +131,8 @@ async fn test_claude_integration_with_temp_workspaces() {
         let agent_config = default_config.to_agent_config(Some(_workspace_path.clone()));
 
         // Change to the workspace directory to ensure all file operations happen there
-        let original_dir = std::env::current_dir().expect("Failed to get current directory");
-        std::env::set_current_dir(&_workspace_path)
-            .expect("Failed to change to workspace directory");
+        let _dir_guard =
+            DirectoryGuard::new(&_workspace_path).expect("Failed to change to workspace directory");
 
         let agent = aca::AgentSystem::new(agent_config)
             .await
@@ -182,8 +201,8 @@ async fn test_claude_integration_with_temp_workspaces() {
             }
         }
 
-        // Restore original directory
-        std::env::set_current_dir(&original_dir).expect("Failed to restore original directory");
+        // _dir_guard is dropped here, restoring the original directory
+        // Then _temp_dir is dropped, cleaning up the temp workspace
     }
 }
 
@@ -219,8 +238,8 @@ async fn test_single_task_with_references() {
     let agent_config = default_config.to_agent_config(Some(workspace_path.clone()));
 
     // Change to the workspace directory to ensure all file operations happen there
-    let original_dir = std::env::current_dir().expect("Failed to get current directory");
-    std::env::set_current_dir(&workspace_path).expect("Failed to change to workspace directory");
+    let _dir_guard =
+        DirectoryGuard::new(&workspace_path).expect("Failed to change to workspace directory");
 
     let agent = aca::AgentSystem::new(agent_config)
         .await
@@ -270,8 +289,7 @@ async fn test_single_task_with_references() {
         }
     }
 
-    // Restore original directory
-    std::env::set_current_dir(&original_dir).expect("Failed to restore original directory");
+    // _dir_guard is dropped here, restoring the original directory
 }
 
 #[tokio::test]
@@ -295,8 +313,8 @@ async fn test_multi_task_execution() {
     let agent_config = default_config.to_agent_config(Some(_workspace_path.clone()));
 
     // Change to the workspace directory to ensure all file operations happen there
-    let original_dir = std::env::current_dir().expect("Failed to get current directory");
-    std::env::set_current_dir(&_workspace_path).expect("Failed to change to workspace directory");
+    let _dir_guard =
+        DirectoryGuard::new(&_workspace_path).expect("Failed to change to workspace directory");
 
     let agent = aca::AgentSystem::new(agent_config)
         .await
@@ -349,8 +367,7 @@ async fn test_multi_task_execution() {
         }
     }
 
-    // Restore original directory
-    std::env::set_current_dir(&original_dir).expect("Failed to restore original directory");
+    // _dir_guard is dropped here, restoring the original directory
 }
 
 /// Test CLI resume functionality integration
@@ -583,8 +600,8 @@ async fn test_conversational_state_persistence() {
     let agent_config = default_config.to_agent_config(Some(workspace_path.clone()));
 
     // Change to workspace directory for consistent file operations
-    let original_dir = std::env::current_dir().expect("Failed to get current directory");
-    std::env::set_current_dir(&workspace_path).expect("Failed to change to workspace directory");
+    let _dir_guard =
+        DirectoryGuard::new(&workspace_path).expect("Failed to change to workspace directory");
 
     let agent = aca::AgentSystem::new(agent_config)
         .await
@@ -749,8 +766,7 @@ Use Python's unittest framework. Make sure to import the Calculator class from t
         "Tests should properly import the Calculator class, demonstrating conversation memory"
     );
 
-    // Restore original directory
-    std::env::set_current_dir(&original_dir).expect("Failed to restore original directory");
+    // _dir_guard is dropped here, restoring the original directory
 
     println!("  📊 Conversation persistence validation:");
     println!("    - Task 1: Created Calculator class with basic methods");
