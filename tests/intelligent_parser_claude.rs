@@ -1,7 +1,7 @@
 //! Real Claude integration tests for intelligent task parsing
 //!
-//! These tests use the actual Claude API to verify end-to-end functionality.
-//! They require ANTHROPIC_API_KEY environment variable to be set.
+//! These tests use Claude Code CLI (default) or Claude API if ANTHROPIC_API_KEY is set.
+//! CLI mode requires `claude` command to be available in PATH.
 
 use aca::cli::{IntelligentTaskParser, TaskAnalysisRequest};
 use aca::llm::provider::LLMProviderFactory;
@@ -12,13 +12,20 @@ use tempfile::TempDir;
 use test_tag::tag;
 
 /// Helper to create a Claude provider for testing
+/// Uses CLI mode by default (no API key required), or API mode if ANTHROPIC_API_KEY is set
 async fn create_test_claude_provider() -> Arc<dyn aca::llm::LLMProvider> {
-    let api_key = std::env::var("ANTHROPIC_API_KEY")
-        .expect("ANTHROPIC_API_KEY environment variable must be set for Claude tests");
+    let api_key = std::env::var("ANTHROPIC_API_KEY").ok();
+
+    // If API key is set, configure for API mode explicitly
+    let mut additional_config = std::collections::HashMap::new();
+    if api_key.is_some() {
+        additional_config.insert("mode".to_string(), serde_json::json!("API"));
+    }
+    // Otherwise defaults to CLI mode
 
     let config = ProviderConfig {
         provider_type: ProviderType::Claude,
-        api_key: Some(api_key),
+        api_key,
         base_url: None,
         model: Some("claude-sonnet".to_string()),
         rate_limits: RateLimitConfig {
@@ -26,7 +33,7 @@ async fn create_test_claude_provider() -> Arc<dyn aca::llm::LLMProvider> {
             max_tokens_per_minute: 10000,
             burst_allowance: 2,
         },
-        additional_config: std::collections::HashMap::new(),
+        additional_config,
     };
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -307,43 +314,53 @@ async fn test_complex_real_world_task_with_real_claude() {
     let provider = create_test_claude_provider().await;
     let parser = IntelligentTaskParser::new(provider);
 
-    // Use a real-world example similar to eu-products app
-    let task_content = r#"# Supply Chain Transparency App
+    // Use a realistic multi-phase project example
+    let task_content = r#"# Weather Monitoring System
 
-## Phase 1: Data Collection (High Priority)
+## Phase 1: Data Collection Infrastructure (High Priority)
 
-### 1. Company Information Provider
-- [ ] Implement company profile scraper from public databases
-- [ ] Add incorporation data collection from GLEIF
-- [ ] Create Wikidata integration for company metadata
+### 1. Weather API Integration
+- [ ] Implement REST client for OpenWeatherMap API
+- [ ] Add fallback support for WeatherAPI.com
+- [ ] Create caching layer for API responses
+- [ ] Implement rate limiting and quota management
 
-### 2. Supply Chain Data Provider
-- [ ] Implement supplier location tracking
-- [ ] Add raw material sourcing data collection
-- [ ] Create dependency distribution analysis
+### 2. Database Design & Implementation
+- [ ] Design PostgreSQL schema for weather data
+- [ ] Implement time-series data storage
+- [ ] Add geospatial indexing for location queries
+- [ ] Create data retention and archival policies
 
-## Phase 2: Analysis & Scoring (Medium Priority)
+## Phase 2: Core Processing (Medium Priority)
 
-### 3. Transparency Scoring Algorithm
-- [ ] Develop weighted scoring formula combining all data sources
-- [ ] Add score normalization and validation logic
-- [ ] Create transparent methodology documentation
+### 3. Data Processing Pipeline
+- [ ] Build ETL pipeline for raw weather data
+- [ ] Implement data validation and cleaning
+- [ ] Add anomaly detection for sensor errors
+- [ ] Create aggregation for hourly/daily summaries
+
+### 4. Alert System
+- [ ] Develop threshold-based alert engine
+- [ ] Add notification service (email, SMS, webhooks)
+- [ ] Implement alert configuration UI
+- [ ] Create alert history and audit logs
 
 ## Phase 3: User Interface (Lower Priority)
 
-### 4. Web Dashboard
-- [ ] Build company search and filtering interface
-- [ ] Add score visualization components
-- [ ] Implement comparison tools
+### 5. Web Dashboard
+- [ ] Build React-based dashboard for weather visualization
+- [ ] Add interactive maps with weather overlays
+- [ ] Implement historical data charts and graphs
+- [ ] Create mobile-responsive design
 "#;
 
     let request = TaskAnalysisRequest {
         content: task_content.to_string(),
-        source_path: Some(PathBuf::from("supply-chain-app-tasks.md")),
+        source_path: Some(PathBuf::from("weather-monitoring-tasks.md")),
         context_hints: vec![
             "full-stack application".to_string(),
-            "data-intensive".to_string(),
-            "6 month project".to_string(),
+            "real-time data processing".to_string(),
+            "4 month project".to_string(),
         ],
         max_tokens: Some(4096),
     };
