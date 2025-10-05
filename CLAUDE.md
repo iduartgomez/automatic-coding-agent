@@ -13,12 +13,18 @@ cargo fmt                     # Format code
 
 # Usage
 aca run <file>                      # Execute file (auto-detects: .md/.txt=tasks, .json/.toml=plan)
-aca run tasks.md --verbose          # With options
+aca run tasks.md --verbose          # Show real-time subprocess output
+aca run tasks.md -w /path/to/dir    # Specify workspace directory
 aca interactive                     # Run in interactive mode
 aca checkpoint list                 # List checkpoints
 aca checkpoint create "desc"        # Create checkpoint
 aca checkpoint resume <id>          # Resume from specific checkpoint
 aca checkpoint resume <id> --latest # Resume from latest
+
+# Verbose Mode (Real-time Output)
+aca run tasks.md --verbose          # See Claude Code's JSONL stream in real-time
+# Shows tool uses, responses, and progress as they happen
+# All output still captured to .aca/sessions/{id}/logs/ for audit
 
 # Testing
 cargo test                    # All tests
@@ -65,6 +71,13 @@ src/
 - Checkpoint and resume from any point
 - Crash recovery with automatic state restoration
 
+### 📊 Comprehensive Audit Trail
+- **Subprocess output**: Real-time streaming with `--verbose` flag
+- **Full command logging**: Reproducible bash scripts for each task
+- **Complete stdout/stderr**: No truncation, saved to separate files
+- **Tool use tracking**: Captures all Claude Code operations (Write, Edit, Bash, etc.)
+- **Performance metrics**: Token usage, costs, execution time per task
+
 ## File Structure
 
 When running tasks, `aca` creates the following structure in your workspace:
@@ -75,17 +88,24 @@ workspace/
 │   └── sessions/
 │       └── {session-id}/
 │           ├── meta/
-│           │   └── session.json            # Session state
+│           │   └── session.json                           # Session state
 │           ├── checkpoints/
-│           │   └── {checkpoint-id}.json    # Checkpoint snapshots
+│           │   └── {checkpoint-id}.json                   # Checkpoint snapshots
+│           ├── temp/                                      # Temporary files
 │           └── logs/
 │               └── claude_interactions/
-│                   └── claude-subprocess-{task-id}.log  # Claude CLI logs
+│                   ├── claude-subprocess-{task-id}.log     # Human-readable summary
+│                   ├── claude-subprocess-{task-id}.stdout.json  # Full JSON/JSONL output
+│                   ├── claude-subprocess-{task-id}.stderr.txt   # Error output
+│                   ├── claude-subprocess-{task-id}.command.sh   # Reproducible command
+│                   └── claude-subprocess-{task-id}.tools.json   # Tool uses (when enabled)
 ```
 
 **Important Notes:**
 - All files are written to `.aca/` directory (gitignored by default)
-- Claude interaction logs include: commands, stdout, stderr, token usage, costs
+- **Audit files per task**: 5 files provide complete execution history
+- **Real-time output**: Use `--verbose` flag to see subprocess output as it happens
+- **Tool tracking**: Enabled by default, captures all Write/Edit/Bash/Read operations
 - Console output (via `RUST_LOG`) goes to stdout/stderr, not files
 - Session files are only created when tasks are actually executed
 
