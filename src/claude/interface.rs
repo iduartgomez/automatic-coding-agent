@@ -101,6 +101,7 @@ impl ClaudeCodeInterface {
     pub async fn execute_task_request(
         &self,
         request: TaskRequest,
+        session_dir: Option<&std::path::Path>,
     ) -> Result<TaskResponse, ClaudeError> {
         // Get or create a session
         let session = self.get_or_create_session().await?;
@@ -109,7 +110,9 @@ impl ClaudeCodeInterface {
         self.usage_tracker.start_session(session.id).await;
 
         // Execute request directly for now (TODO: add error recovery)
-        let result = self.execute_request_internal(&session, &request).await;
+        let result = self
+            .execute_request_internal(&session, &request, session_dir)
+            .await;
 
         // Update session state
         self.update_session_state(&session).await;
@@ -126,6 +129,7 @@ impl ClaudeCodeInterface {
         &self,
         session: &ClaudeSession,
         request: &TaskRequest,
+        session_dir: Option<&std::path::Path>,
     ) -> Result<TaskResponse, ClaudeError> {
         // Apply rate limiting
         let _permit = self.rate_limiter.acquire_permit(request).await?;
@@ -150,7 +154,7 @@ impl ClaudeCodeInterface {
 
         // Execute real Claude Code request with session context
         let response = self
-            .execute_claude_code_request(session.id, request)
+            .execute_claude_code_request(session.id, request, session_dir)
             .await?;
 
         // Add assistant response to context
@@ -175,12 +179,13 @@ impl ClaudeCodeInterface {
         &self,
         session_id: SessionId,
         request: &TaskRequest,
+        session_dir_override: Option<&std::path::Path>,
     ) -> Result<TaskResponse, ClaudeError> {
         let start_time = Instant::now();
 
         // Create log file for this request
         let log_path = self
-            .create_subprocess_log_file(session_id, &request.id)
+            .create_subprocess_log_file(session_id, &request.id, session_dir_override)
             .await?;
 
         // Build contextual prompt with conversation history
@@ -221,6 +226,19 @@ impl ClaudeCodeInterface {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .stdin(Stdio::null());
+
+        // Save exact command to .command.sh for reproducibility
+        let command_file = log_path.with_extension("command.sh");
+        let full_command = format!(
+            "#!/bin/bash\n# Claude Code Command - Task ID: {}\n# Generated: {}\n\n{} --model sonnet -- {}\n",
+            request.id,
+            Utc::now().format("%Y-%m-%d %H:%M:%S%.3f UTC"),
+            log_cmd,
+            shell_escape::escape(contextual_prompt.clone().into())
+        );
+        if let Err(e) = tokio::fs::write(&command_file, full_command).await {
+            tracing::warn!("Failed to write command file: {}", e);
+        }
 
         // Log command being executed
         self.log_subprocess_activity(
@@ -287,14 +305,27 @@ impl ClaudeCodeInterface {
             output.stderr.len()
         )).await;
 
-        // Log stdout if not empty
+        // Save full stdout/stderr to separate files for audit trail
+        if !output.stdout.is_empty() {
+            let stdout_file = log_path.with_extension("stdout.json");
+            if let Err(e) = tokio::fs::write(&stdout_file, &output.stdout).await {
+                tracing::warn!("Failed to write stdout file: {}", e);
+            }
+        }
+        if !output.stderr.is_empty() {
+            let stderr_file = log_path.with_extension("stderr.txt");
+            if let Err(e) = tokio::fs::write(&stderr_file, &output.stderr).await {
+                tracing::warn!("Failed to write stderr file: {}", e);
+            }
+        }
+
+        // Log stdout summary (first 500 chars for readability)
         if !output.stdout.is_empty() {
             let stdout_preview = String::from_utf8_lossy(&output.stdout);
             let preview = if stdout_preview.len() > 500 {
                 format!(
-                    "{}... (truncated, {} total chars)",
-                    &stdout_preview[..500],
-                    stdout_preview.len()
+                    "{}... (see full output in *.stdout.json)",
+                    &stdout_preview[..500]
                 )
             } else {
                 stdout_preview.to_string()
@@ -310,14 +341,13 @@ impl ClaudeCodeInterface {
             .await;
         }
 
-        // Log stderr if not empty
+        // Log stderr summary (first 500 chars for readability)
         if !output.stderr.is_empty() {
             let stderr_preview = String::from_utf8_lossy(&output.stderr);
             let preview = if stderr_preview.len() > 500 {
                 format!(
-                    "{}... (truncated, {} total chars)",
-                    &stderr_preview[..500],
-                    stderr_preview.len()
+                    "{}... (see full output in *.stderr.txt)",
+                    &stderr_preview[..500]
                 )
             } else {
                 stderr_preview.to_string()
@@ -504,7 +534,11 @@ impl ClaudeCodeInterface {
         }
     }
 
-    pub async fn process_task(&self, task: &Task) -> Result<Task, ClaudeError> {
+    pub async fn process_task(
+        &self,
+        task: &Task,
+        session_dir: Option<&std::path::Path>,
+    ) -> Result<Task, ClaudeError> {
         let request = TaskRequest {
             id: task.id,
             task_type: "task_processing".to_string(),
@@ -515,7 +549,7 @@ impl ClaudeCodeInterface {
             system_message: None,
         };
 
-        let response = self.execute_task_request(request).await?;
+        let response = self.execute_task_request(request, session_dir).await?;
 
         // Create updated task with response
         let mut updated_task = task.clone();
@@ -541,10 +575,17 @@ impl ClaudeCodeInterface {
         &self,
         session_id: SessionId,
         task_id: &Uuid,
+        session_dir_override: Option<&std::path::Path>,
     ) -> Result<PathBuf, ClaudeError> {
-        // Create logs directory in .aca session structure
-        let logs_dir =
-            env::claude_interactions_dir_path(&self.workspace_root, &session_id.to_string());
+        // Use provided session directory if available, otherwise fall back to workspace-based path
+        let logs_dir = if let Some(session_dir) = session_dir_override {
+            session_dir
+                .join("logs")
+                .join(env::session::CLAUDE_INTERACTIONS_DIR_NAME)
+        } else {
+            env::claude_interactions_dir_path(&self.workspace_root, &session_id.to_string())
+        };
+
         tokio::fs::create_dir_all(&logs_dir)
             .await
             .map_err(|e| ClaudeError::Unknown(format!("Failed to create logs directory: {}", e)))?;

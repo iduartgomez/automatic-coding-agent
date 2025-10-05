@@ -178,7 +178,11 @@ impl ClaudeProvider {
 }
 
 impl LLMProvider for ClaudeProvider {
-    fn execute_request(&self, request: LLMRequest) -> BoxFuture<'_, Result<LLMResponse, LLMError>> {
+    fn execute_request(
+        &self,
+        request: LLMRequest,
+        session_dir: Option<std::path::PathBuf>,
+    ) -> BoxFuture<'_, Result<LLMResponse, LLMError>> {
         Box::pin(async move {
             // Convert LLMRequest to Claude TaskRequest
             let claude_request = crate::claude::TaskRequest {
@@ -191,10 +195,10 @@ impl LLMProvider for ClaudeProvider {
                 system_message: request.system_message,
             };
 
-            // Execute via Claude interface
+            // Execute via Claude interface with session directory for audit trail
             let claude_response = self
                 .claude_interface
-                .execute_task_request(claude_request)
+                .execute_task_request(claude_request, session_dir.as_deref())
                 .await
                 .map_err(|e| match e {
                     crate::claude::ClaudeError::RateLimit {

@@ -36,6 +36,7 @@ impl LLMProvider for MockLLMProvider {
     fn execute_request(
         &self,
         _request: LLMRequest,
+        _session_dir: Option<PathBuf>,
     ) -> BoxFuture<'_, Result<LLMResponse, LLMError>> {
         let mut count = self.call_count.lock().unwrap();
         let index = *count % self.responses.len();

@@ -760,6 +760,15 @@ impl SessionManager {
 
         Ok(checkpoint_info)
     }
+
+    /// Get session directory path for audit trail coordination
+    ///
+    /// Returns the full path to this session's directory where audit logs,
+    /// checkpoints, and other session artifacts are stored.
+    pub async fn get_session_dir(&self) -> PathBuf {
+        let metadata = self.metadata.read().await;
+        crate::env::session_dir_path(&metadata.workspace_root, &self.session_id.to_string())
+    }
 }
 
 impl Default for SessionManagerConfig {

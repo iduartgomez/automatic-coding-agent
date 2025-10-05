@@ -34,7 +34,7 @@ async fn test_task_request_execution() {
         system_message: None,
     };
 
-    let response = interface.execute_task_request(request).await;
+    let response = interface.execute_task_request(request, None).await;
     assert!(response.is_ok());
 
     let response = response.unwrap();
@@ -64,7 +64,7 @@ async fn test_rate_limiting() {
         system_message: None,
     };
 
-    let response1 = interface.execute_task_request(request1).await;
+    let response1 = interface.execute_task_request(request1, None).await;
     assert!(response1.is_ok());
 
     // Second request should succeed
@@ -78,7 +78,7 @@ async fn test_rate_limiting() {
         system_message: None,
     };
 
-    let response2 = interface.execute_task_request(request2).await;
+    let response2 = interface.execute_task_request(request2, None).await;
     assert!(response2.is_ok());
 
     // Third request should be rate limited
@@ -92,7 +92,7 @@ async fn test_rate_limiting() {
         system_message: None,
     };
 
-    let response3 = interface.execute_task_request(request3).await;
+    let response3 = interface.execute_task_request(request3, None).await;
     assert!(response3.is_err());
     assert!(matches!(
         response3.unwrap_err(),

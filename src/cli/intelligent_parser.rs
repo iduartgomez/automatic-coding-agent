@@ -192,7 +192,7 @@ impl IntelligentTaskParser {
         };
 
         // Execute LLM request
-        let response = self.llm_provider.execute_request(llm_request).await?;
+        let response = self.llm_provider.execute_request(llm_request, None).await?;
 
         info!(
             "LLM analysis complete (tokens: input={}, output={})",
@@ -627,6 +627,7 @@ mod tests {
         fn execute_request(
             &self,
             _request: LLMRequest,
+            _session_dir: Option<std::path::PathBuf>,
         ) -> BoxFuture<'_, Result<crate::llm::LLMResponse, LLMError>> {
             let response = self.response.clone();
             Box::pin(async move {

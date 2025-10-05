@@ -170,8 +170,9 @@ impl AgentSystem {
         // Save current state
         self.save_session_state().await?;
 
-        // Process with Claude
-        let result = self.claude_interface.process_task(&task).await;
+        // Process with Claude (session_dir coordination will be added in follow-up)
+        // TODO: Pass session_dir from session_manager.get_session_dir().await
+        let result = self.claude_interface.process_task(&task, None).await;
 
         match result {
             Ok(completed_task) => {

@@ -6,7 +6,18 @@ use std::sync::Arc;
 /// Generic LLM Provider trait that can be implemented by any LLM service
 pub trait LLMProvider: Send + Sync {
     /// Execute a single LLM request
-    fn execute_request(&self, request: LLMRequest) -> BoxFuture<'_, Result<LLMResponse, LLMError>>;
+    ///
+    /// # Arguments
+    /// * `request` - The LLM request to execute
+    /// * `session_dir` - Optional session directory for audit logs and coordination with session persistence
+    ///
+    /// When `session_dir` is provided, providers should write audit logs (stdout, stderr, commands)
+    /// to that directory for proper session correlation and audit trail.
+    fn execute_request(
+        &self,
+        request: LLMRequest,
+        session_dir: Option<PathBuf>,
+    ) -> BoxFuture<'_, Result<LLMResponse, LLMError>>;
 
     /// Get provider capabilities
     fn get_capabilities(&self) -> BoxFuture<'_, Result<ProviderCapabilities, LLMError>>;
