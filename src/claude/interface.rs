@@ -38,7 +38,6 @@ use crate::claude::{ContextManager, ErrorRecoveryManager, RateLimiter, UsageTrac
 use crate::env;
 use crate::task::types::{Task, TaskStatus};
 use chrono::{DateTime, Utc};
-use std::path::Path;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -665,12 +664,11 @@ impl ClaudeCodeInterface {
 
         // Read any remaining stderr
         let mut remaining_stderr = Vec::new();
-        if let Ok(n) = stderr_reader.read_to_end(&mut remaining_stderr).await {
-            if n > 0 {
+        if let Ok(n) = stderr_reader.read_to_end(&mut remaining_stderr).await
+            && n > 0 {
                 eprint!("{}", String::from_utf8_lossy(&remaining_stderr));
                 stderr_buffer.extend_from_slice(&remaining_stderr);
             }
-        }
 
         // Wait for process to complete
         let status = child.wait().await.map_err(|e| {
