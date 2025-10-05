@@ -49,6 +49,9 @@ pub struct UsageTrackingConfig {
     pub track_costs: bool,
     pub track_performance: bool,
     pub history_retention: Duration,
+    /// Track tool uses (Write, Edit, Bash, etc.) - Claude Code CLI specific
+    /// Requires --output-format stream-json which provides detailed tool use logs
+    pub track_tool_uses: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -192,6 +195,7 @@ impl Default for ClaudeConfig {
                 track_tokens: true,
                 track_costs: true,
                 track_performance: true,
+                track_tool_uses: true, // Enable tool use tracking by default
                 history_retention: Duration::from_secs(86400 * 7), // 7 days
             },
             error_config: ErrorRecoveryConfig {

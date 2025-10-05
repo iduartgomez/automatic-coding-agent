@@ -195,12 +195,28 @@ impl ClaudeCodeInterface {
 
         const ALLOWED_TOOLS: &str =
             "Read,Write,Edit,Bash,Glob,Grep,MultiEdit,Task,TodoWrite,SlashCommand";
+
+        // Determine output format based on tool tracking config
+        let track_tool_uses = self.config.usage_tracking.track_tool_uses;
+        let output_format = if track_tool_uses {
+            "stream-json"
+        } else {
+            "json"
+        };
+
         // Prepare Claude Code CLI command
         let mut command = Command::new("claude");
         command
             .arg("--print") // Non-interactive mode
             .arg("--output-format")
-            .arg("json") // JSON output for easier parsing
+            .arg(output_format); // stream-json for tool tracking, json otherwise
+
+        // stream-json requires --verbose
+        if track_tool_uses {
+            command.arg("--verbose");
+        }
+
+        command
             .arg("--allowedTools")
             .arg(ALLOWED_TOOLS) // Allow file operations
             .arg("--permission-mode")
@@ -208,7 +224,9 @@ impl ClaudeCodeInterface {
 
         // Add system message if provided using --append-system-prompt
         let mut log_cmd = format!(
-            "claude --print --output-format json --allowedTools {ALLOWED_TOOLS} --permission-mode acceptEdits",
+            "claude --print {}--output-format {} --allowedTools {ALLOWED_TOOLS} --permission-mode acceptEdits",
+            if track_tool_uses { "--verbose " } else { "" },
+            output_format,
         );
         if let Some(ref system_msg) = request.system_message {
             command.arg("--append-system-prompt").arg(system_msg);
@@ -311,6 +329,20 @@ impl ClaudeCodeInterface {
             if let Err(e) = tokio::fs::write(&stdout_file, &output.stdout).await {
                 tracing::warn!("Failed to write stdout file: {}", e);
             }
+
+            // Extract and save tool uses if tool tracking is enabled
+            if track_tool_uses
+                && let Ok(tool_uses) = self.extract_tool_uses_from_stream(&output.stdout)
+                    && !tool_uses.is_empty() {
+                        let tools_file = log_path.with_extension("tools.json");
+                        if let Ok(tools_json) = serde_json::to_string_pretty(&tool_uses) {
+                            if let Err(e) = tokio::fs::write(&tools_file, tools_json).await {
+                                tracing::warn!("Failed to write tools file: {}", e);
+                            } else {
+                                tracing::info!("Captured {} tool uses", tool_uses.len());
+                            }
+                        }
+                    }
         }
         if !output.stderr.is_empty() {
             let stderr_file = log_path.with_extension("stderr.txt");
@@ -385,7 +417,7 @@ impl ClaudeCodeInterface {
             return Err(ClaudeError::Unknown(error_msg));
         }
 
-        // Parse the output
+        // Parse the output based on format
         let stdout = String::from_utf8_lossy(&output.stdout);
         let response_text = if stdout.trim().is_empty() {
             // If no JSON output, fall back to stderr which might contain the response
@@ -395,8 +427,13 @@ impl ClaudeCodeInterface {
             } else {
                 stderr.to_string()
             }
+        } else if track_tool_uses {
+            // Parse stream-json format (JSONL)
+            // Extract result from the final "result" type message
+            self.parse_stream_json_result(&stdout)
+                .unwrap_or_else(|_| "Task completed".to_string())
         } else {
-            // Try to parse JSON response from Claude CLI (--output-format json)
+            // Try to parse regular JSON response from Claude CLI (--output-format json)
             match serde_json::from_str::<serde_json::Value>(&stdout) {
                 Ok(json) => {
                     // Extract response text from JSON structure
@@ -475,6 +512,61 @@ impl ClaudeCodeInterface {
     fn estimate_tokens(&self, text: &str) -> u64 {
         // Simple token estimation: roughly 4 characters per token
         (text.len() as f64 / 4.0).ceil() as u64
+    }
+
+    /// Extract tool uses from stream-json format (JSONL)
+    fn extract_tool_uses_from_stream(
+        &self,
+        stdout: &[u8],
+    ) -> Result<Vec<serde_json::Value>, ClaudeError> {
+        let stdout_str = String::from_utf8_lossy(stdout);
+        let mut tool_uses = Vec::new();
+
+        for line in stdout_str.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                // Look for assistant messages with tool_use content
+                if json.get("type").and_then(|t| t.as_str()) == Some("assistant")
+                    && let Some(content_array) = json
+                        .get("message")
+                        .and_then(|m| m.get("content"))
+                        .and_then(|c| c.as_array())
+                    {
+                        for item in content_array {
+                            if item.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
+                                tool_uses.push(item.clone());
+                            }
+                        }
+                    }
+            }
+        }
+
+        Ok(tool_uses)
+    }
+
+    /// Parse result from stream-json format (JSONL)
+    fn parse_stream_json_result(&self, stdout: &str) -> Result<String, ClaudeError> {
+        // Find the final "result" message
+        for line in stdout.lines().rev() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(line)
+                && json.get("type").and_then(|t| t.as_str()) == Some("result")
+                    && let Some(result) = json.get("result").and_then(|r| r.as_str()) {
+                        return Ok(result.to_string());
+                    }
+        }
+
+        Err(ClaudeError::Unknown(
+            "No result found in stream-json output".to_string(),
+        ))
     }
 
     async fn get_or_create_session(&self) -> Result<ClaudeSession, ClaudeError> {

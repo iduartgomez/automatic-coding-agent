@@ -135,6 +135,7 @@ async fn test_usage_tracking() {
         track_tokens: true,
         track_costs: true,
         track_performance: true,
+        track_tool_uses: false, // Not needed for this test
         history_retention: Duration::from_secs(86400),
     };
 

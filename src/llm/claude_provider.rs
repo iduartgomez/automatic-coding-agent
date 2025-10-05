@@ -114,6 +114,7 @@ impl ClaudeProvider {
                 track_tokens: true,
                 track_costs: true,
                 track_performance: true,
+                track_tool_uses: true, // Enable tool tracking
                 history_retention: Duration::from_secs(86400 * 7),
             },
             error_config: crate::claude::ErrorRecoveryConfig {
