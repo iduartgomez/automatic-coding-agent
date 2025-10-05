@@ -17,6 +17,8 @@ pub struct ClaudeConfig {
     pub context_config: ContextConfig,
     pub usage_tracking: UsageTrackingConfig,
     pub error_config: ErrorRecoveryConfig,
+    /// Show subprocess stdout in real-time during task execution
+    pub show_subprocess_output: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,6 +206,7 @@ impl Default for ClaudeConfig {
                 circuit_breaker_timeout: Duration::from_secs(300), // 5 minutes
                 enable_fallback_models: true,
             },
+            show_subprocess_output: false, // Disabled by default, can be enabled via --verbose
         }
     }
 }

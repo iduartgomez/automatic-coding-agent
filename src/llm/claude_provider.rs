@@ -123,6 +123,7 @@ impl ClaudeProvider {
                 circuit_breaker_timeout: Duration::from_secs(300),
                 enable_fallback_models: true,
             },
+            show_subprocess_output: false, // Controlled via CLI --verbose flag
         };
 
         let claude_interface = ClaudeCodeInterface::new(claude_config, workspace_root)

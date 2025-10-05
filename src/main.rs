@@ -150,6 +150,7 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
 
     // Initialize agent system
     info!("Initializing agent system for batch execution...");
+    let agent_config = agent_config.with_subprocess_output(config.verbose);
     let agent = AgentSystem::new(agent_config).await?;
 
     info!("Agent system initialized successfully!");
@@ -232,6 +233,7 @@ async fn run_structured_config_mode(
 
     // Initialize agent system
     info!("Initializing agent system for structured batch execution...");
+    let agent_config = agent_config.with_subprocess_output(config.verbose);
     let agent = AgentSystem::new(agent_config).await?;
 
     info!("Agent system initialized successfully!");
@@ -267,6 +269,7 @@ async fn run_interactive_mode(config: InteractiveConfig) -> Result<(), Box<dyn s
 
     // Initialize the agent system
     info!("Initializing agent system...");
+    let agent_config = agent_config.with_subprocess_output(config.verbose);
     let agent = AgentSystem::new(agent_config).await?;
 
     info!("Agent system initialized successfully!");

@@ -111,6 +111,15 @@ pub struct AgentConfig {
     pub setup_commands: Vec<SetupCommand>,
 }
 
+impl AgentConfig {
+    /// Enable subprocess output streaming (typically from --verbose flag)
+    pub fn with_subprocess_output(mut self, show_output: bool) -> Self {
+        tracing::info!("Setting show_subprocess_output to: {}", show_output);
+        self.claude_config.show_subprocess_output = show_output;
+        self
+    }
+}
+
 impl AgentSystem {
     pub async fn new(config: AgentConfig) -> Result<Self> {
         // Execute setup commands first, before any other initialization

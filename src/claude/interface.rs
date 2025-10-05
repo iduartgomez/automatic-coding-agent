@@ -38,6 +38,7 @@ use crate::claude::{ContextManager, ErrorRecoveryManager, RateLimiter, UsageTrac
 use crate::env;
 use crate::task::types::{Task, TaskStatus};
 use chrono::{DateTime, Utc};
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -240,10 +241,22 @@ impl ClaudeCodeInterface {
             .arg("--model")
             .arg("sonnet") // Use latest Sonnet model
             .arg("--") // Separate options from prompt
-            .arg(&contextual_prompt) // The task description with conversation context
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .stdin(Stdio::null());
+            .arg(&contextual_prompt); // The task description with conversation context
+
+        // Configure stdio based on show_subprocess_output flag
+        if self.config.show_subprocess_output {
+            // Stream output to terminal in real-time
+            command
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .stdin(Stdio::null());
+        } else {
+            // Capture output silently
+            command
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .stdin(Stdio::null());
+        }
 
         // Save exact command to .command.sh for reproducibility
         let command_file = log_path.with_extension("command.sh");
@@ -282,34 +295,41 @@ impl ClaudeCodeInterface {
         .await;
 
         // Execute the command
-        let output = command.output().await.map_err(|e| {
-            // Log the error
-            let error_msg = format!("Failed to execute claude command: {}", e);
-            tokio::spawn({
-                let log_path = log_path.clone();
-                let error_msg = error_msg.clone();
-                async move {
-                    if let Ok(mut f) = tokio::fs::OpenOptions::new()
-                        .create(true)
-                        .append(true)
-                        .open(&log_path)
-                        .await
-                    {
-                        let _ = f
-                            .write_all(
-                                format!(
-                                    "[{}] ERROR: {}\n",
-                                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                                    error_msg
+        let output = if self.config.show_subprocess_output {
+            tracing::info!("Streaming subprocess output to terminal...");
+            // Stream output to terminal in real-time
+            self.execute_with_streaming(command, &log_path).await?
+        } else {
+            // Capture output silently
+            command.output().await.map_err(|e| {
+                // Log the error
+                let error_msg = format!("Failed to execute claude command: {}", e);
+                tokio::spawn({
+                    let log_path = log_path.clone();
+                    let error_msg = error_msg.clone();
+                    async move {
+                        if let Ok(mut f) = tokio::fs::OpenOptions::new()
+                            .create(true)
+                            .append(true)
+                            .open(&log_path)
+                            .await
+                        {
+                            let _ = f
+                                .write_all(
+                                    format!(
+                                        "[{}] ERROR: {}\n",
+                                        Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                                        error_msg
+                                    )
+                                    .as_bytes(),
                                 )
-                                .as_bytes(),
-                            )
-                            .await;
+                                .await;
+                        }
                     }
-                }
-            });
-            ClaudeError::Unknown(error_msg)
-        })?;
+                });
+                ClaudeError::Unknown(error_msg)
+            })?
+        };
 
         let execution_time = start_time.elapsed();
 
@@ -333,16 +353,17 @@ impl ClaudeCodeInterface {
             // Extract and save tool uses if tool tracking is enabled
             if track_tool_uses
                 && let Ok(tool_uses) = self.extract_tool_uses_from_stream(&output.stdout)
-                    && !tool_uses.is_empty() {
-                        let tools_file = log_path.with_extension("tools.json");
-                        if let Ok(tools_json) = serde_json::to_string_pretty(&tool_uses) {
-                            if let Err(e) = tokio::fs::write(&tools_file, tools_json).await {
-                                tracing::warn!("Failed to write tools file: {}", e);
-                            } else {
-                                tracing::info!("Captured {} tool uses", tool_uses.len());
-                            }
-                        }
+                && !tool_uses.is_empty()
+            {
+                let tools_file = log_path.with_extension("tools.json");
+                if let Ok(tools_json) = serde_json::to_string_pretty(&tool_uses) {
+                    if let Err(e) = tokio::fs::write(&tools_file, tools_json).await {
+                        tracing::warn!("Failed to write tools file: {}", e);
+                    } else {
+                        tracing::info!("Captured {} tool uses", tool_uses.len());
                     }
+                }
+            }
         }
         if !output.stderr.is_empty() {
             let stderr_file = log_path.with_extension("stderr.txt");
@@ -535,13 +556,13 @@ impl ClaudeCodeInterface {
                         .get("message")
                         .and_then(|m| m.get("content"))
                         .and_then(|c| c.as_array())
-                    {
-                        for item in content_array {
-                            if item.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
-                                tool_uses.push(item.clone());
-                            }
+                {
+                    for item in content_array {
+                        if item.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
+                            tool_uses.push(item.clone());
                         }
                     }
+                }
             }
         }
 
@@ -559,14 +580,109 @@ impl ClaudeCodeInterface {
 
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(line)
                 && json.get("type").and_then(|t| t.as_str()) == Some("result")
-                    && let Some(result) = json.get("result").and_then(|r| r.as_str()) {
-                        return Ok(result.to_string());
-                    }
+                && let Some(result) = json.get("result").and_then(|r| r.as_str())
+            {
+                return Ok(result.to_string());
+            }
         }
 
         Err(ClaudeError::Unknown(
             "No result found in stream-json output".to_string(),
         ))
+    }
+
+    /// Execute command with streaming output to terminal
+    async fn execute_with_streaming(
+        &self,
+        mut command: Command,
+        log_path: &Path,
+    ) -> Result<std::process::Output, ClaudeError> {
+        use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+
+        let mut child = command.spawn().map_err(|e| {
+            let error_msg = format!("Failed to spawn claude command: {}", e);
+            ClaudeError::Unknown(error_msg)
+        })?;
+
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| ClaudeError::Unknown("Failed to capture stdout".to_string()))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| ClaudeError::Unknown("Failed to capture stderr".to_string()))?;
+
+        let mut stdout_reader = BufReader::new(stdout);
+        let mut stderr_reader = BufReader::new(stderr);
+
+        let mut stdout_buffer = Vec::new();
+        let mut stderr_buffer = Vec::new();
+        let mut stdout_line = String::new();
+        let mut stderr_line = String::new();
+
+        // Stream output line by line
+        loop {
+            tokio::select! {
+                result = stdout_reader.read_line(&mut stdout_line) => {
+                    match result {
+                        Ok(0) => break, // EOF
+                        Ok(_) => {
+                            // Print to terminal
+                            print!("{}", stdout_line);
+                            use std::io::Write;
+                            let _ = std::io::stdout().flush();
+
+                            // Save to buffer
+                            stdout_buffer.extend_from_slice(stdout_line.as_bytes());
+                            stdout_line.clear();
+                        }
+                        Err(e) => {
+                            tracing::warn!("Error reading stdout: {}", e);
+                            break;
+                        }
+                    }
+                }
+                result = stderr_reader.read_line(&mut stderr_line) => {
+                    match result {
+                        Ok(0) => {}, // EOF on stderr
+                        Ok(_) => {
+                            // Print to terminal (stderr)
+                            eprint!("{}", stderr_line);
+                            use std::io::Write;
+                            let _ = std::io::stderr().flush();
+
+                            // Save to buffer
+                            stderr_buffer.extend_from_slice(stderr_line.as_bytes());
+                            stderr_line.clear();
+                        }
+                        Err(e) => {
+                            tracing::warn!("Error reading stderr: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Read any remaining stderr
+        let mut remaining_stderr = Vec::new();
+        if let Ok(n) = stderr_reader.read_to_end(&mut remaining_stderr).await {
+            if n > 0 {
+                eprint!("{}", String::from_utf8_lossy(&remaining_stderr));
+                stderr_buffer.extend_from_slice(&remaining_stderr);
+            }
+        }
+
+        // Wait for process to complete
+        let status = child.wait().await.map_err(|e| {
+            ClaudeError::Unknown(format!("Failed to wait for child process: {}", e))
+        })?;
+
+        Ok(std::process::Output {
+            status,
+            stdout: stdout_buffer,
+            stderr: stderr_buffer,
+        })
     }
 
     async fn get_or_create_session(&self) -> Result<ClaudeSession, ClaudeError> {
