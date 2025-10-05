@@ -3,10 +3,7 @@
 //! This module handles CLI argument parsing with subcommands:
 //! - `run`: Execute a file (auto-detects: task file, task list, or execution plan)
 //! - `interactive`: Run in interactive mode
-//! - `resume`: Resume from a specific checkpoint
-//! - `continue`: Resume from the latest checkpoint
-//! - `list-checkpoints`: List available checkpoints
-//! - `create-checkpoint`: Create a manual checkpoint
+//! - `checkpoint`: Manage checkpoints (list, create, resume)
 //! - `show-config`: Show configuration discovery information
 
 use super::tasks::TaskInput;
@@ -104,7 +101,29 @@ pub enum Commands {
         #[arg(short = 'v', long = "verbose")]
         verbose: bool,
     },
-    /// Resume from specific checkpoint ID
+    /// Manage checkpoints (list, create, resume)
+    Checkpoint {
+        #[command(subcommand)]
+        command: CheckpointCommands,
+    },
+    /// Show configuration discovery information
+    ShowConfig,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum CheckpointCommands {
+    /// List available checkpoints
+    List {
+        /// Include checkpoints from all sessions
+        #[arg(long = "all-sessions")]
+        all_sessions: bool,
+    },
+    /// Create a manual checkpoint
+    Create {
+        /// Checkpoint description
+        description: String,
+    },
+    /// Resume from a checkpoint
     Resume {
         /// Checkpoint ID to resume from
         checkpoint_id: String,
@@ -114,29 +133,10 @@ pub enum Commands {
         /// Enable verbose output
         #[arg(short = 'v', long = "verbose")]
         verbose: bool,
+        /// Resume from latest checkpoint instead of specific ID
+        #[arg(long = "latest")]
+        latest: bool,
     },
-    /// Resume from latest checkpoint
-    Continue {
-        /// Workspace directory override
-        #[arg(short = 'w', long = "workspace")]
-        workspace: Option<PathBuf>,
-        /// Enable verbose output
-        #[arg(short = 'v', long = "verbose")]
-        verbose: bool,
-    },
-    /// List available checkpoints
-    ListCheckpoints {
-        /// Include checkpoints from all sessions
-        #[arg(long = "all-sessions")]
-        all_sessions: bool,
-    },
-    /// Create manual checkpoint
-    CreateCheckpoint {
-        /// Checkpoint description
-        description: String,
-    },
-    /// Show configuration discovery information
-    ShowConfig,
 }
 
 impl Args {
@@ -179,32 +179,36 @@ impl Args {
                     verbose: *verbose,
                 }))
             }
-            Some(Commands::Resume {
-                checkpoint_id,
-                workspace,
-                verbose,
-            }) => Ok(ExecutionMode::Resume(ResumeConfig {
-                checkpoint_id: Some(checkpoint_id.clone()),
-                workspace_override: workspace.clone(),
-                verbose: *verbose,
-                continue_latest: false,
-            })),
-            Some(Commands::Continue { workspace, verbose }) => {
-                Ok(ExecutionMode::Resume(ResumeConfig {
-                    checkpoint_id: None,
-                    workspace_override: workspace.clone(),
-                    verbose: *verbose,
-                    continue_latest: true,
-                }))
-            }
-            Some(Commands::ListCheckpoints { all_sessions }) => {
-                Ok(ExecutionMode::ListCheckpoints {
+            Some(Commands::Checkpoint { command }) => match command {
+                CheckpointCommands::List { all_sessions } => Ok(ExecutionMode::ListCheckpoints {
                     all_sessions: *all_sessions,
-                })
-            }
-            Some(Commands::CreateCheckpoint { description }) => {
-                Ok(ExecutionMode::CreateCheckpoint(description.clone()))
-            }
+                }),
+                CheckpointCommands::Create { description } => {
+                    Ok(ExecutionMode::CreateCheckpoint(description.clone()))
+                }
+                CheckpointCommands::Resume {
+                    checkpoint_id,
+                    workspace,
+                    verbose,
+                    latest,
+                } => {
+                    if *latest {
+                        Ok(ExecutionMode::Resume(ResumeConfig {
+                            checkpoint_id: None,
+                            workspace_override: workspace.clone(),
+                            verbose: *verbose,
+                            continue_latest: true,
+                        }))
+                    } else {
+                        Ok(ExecutionMode::Resume(ResumeConfig {
+                            checkpoint_id: Some(checkpoint_id.clone()),
+                            workspace_override: workspace.clone(),
+                            verbose: *verbose,
+                            continue_latest: false,
+                        }))
+                    }
+                }
+            },
             Some(Commands::ShowConfig) => Ok(ExecutionMode::ShowConfig),
             None => {
                 Err("No command specified. Use 'aca --help' to see available commands.".to_string())
@@ -438,5 +442,86 @@ mod tests {
         let args = Args { command: None };
         let result = args.mode();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_checkpoint_list() {
+        let args = Args {
+            command: Some(Commands::Checkpoint {
+                command: CheckpointCommands::List { all_sessions: true },
+            }),
+        };
+        let mode = args.mode().unwrap();
+
+        if let ExecutionMode::ListCheckpoints { all_sessions } = mode {
+            assert!(all_sessions);
+        } else {
+            panic!("Expected ListCheckpoints mode");
+        }
+    }
+
+    #[test]
+    fn test_checkpoint_create() {
+        let args = Args {
+            command: Some(Commands::Checkpoint {
+                command: CheckpointCommands::Create {
+                    description: "Test checkpoint".to_string(),
+                },
+            }),
+        };
+        let mode = args.mode().unwrap();
+
+        if let ExecutionMode::CreateCheckpoint(desc) = mode {
+            assert_eq!(desc, "Test checkpoint");
+        } else {
+            panic!("Expected CreateCheckpoint mode");
+        }
+    }
+
+    #[test]
+    fn test_checkpoint_resume_specific() {
+        let args = Args {
+            command: Some(Commands::Checkpoint {
+                command: CheckpointCommands::Resume {
+                    checkpoint_id: "checkpoint-123".to_string(),
+                    workspace: Some(PathBuf::from("/workspace")),
+                    verbose: true,
+                    latest: false,
+                },
+            }),
+        };
+        let mode = args.mode().unwrap();
+
+        if let ExecutionMode::Resume(config) = mode {
+            assert_eq!(config.checkpoint_id, Some("checkpoint-123".to_string()));
+            assert!(!config.continue_latest);
+            assert!(config.verbose);
+            assert!(config.workspace_override.is_some());
+        } else {
+            panic!("Expected Resume mode");
+        }
+    }
+
+    #[test]
+    fn test_checkpoint_resume_latest() {
+        let args = Args {
+            command: Some(Commands::Checkpoint {
+                command: CheckpointCommands::Resume {
+                    checkpoint_id: "ignored".to_string(),
+                    workspace: None,
+                    verbose: false,
+                    latest: true,
+                },
+            }),
+        };
+        let mode = args.mode().unwrap();
+
+        if let ExecutionMode::Resume(config) = mode {
+            assert_eq!(config.checkpoint_id, None);
+            assert!(config.continue_latest);
+            assert!(!config.verbose);
+        } else {
+            panic!("Expected Resume mode");
+        }
     }
 }

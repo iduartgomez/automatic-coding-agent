@@ -12,11 +12,13 @@ cargo clippy                  # Lint code
 cargo fmt                     # Format code
 
 # Usage
-aca run <file>                # Execute file (auto-detects: .md/.txt=tasks, .json/.toml=plan)
-aca run tasks.md --verbose    # With options
-aca interactive               # Run in interactive mode
-aca continue                  # Resume from latest checkpoint
-aca list-checkpoints          # List available checkpoints
+aca run <file>                      # Execute file (auto-detects: .md/.txt=tasks, .json/.toml=plan)
+aca run tasks.md --verbose          # With options
+aca interactive                     # Run in interactive mode
+aca checkpoint list                 # List checkpoints
+aca checkpoint create "desc"        # Create checkpoint
+aca checkpoint resume <id>          # Resume from specific checkpoint
+aca checkpoint resume <id> --latest # Resume from latest
 
 # Testing
 cargo test                    # All tests

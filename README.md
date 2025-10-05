@@ -95,14 +95,11 @@ aca run plan.json                                  # Execute
 # Interactive mode
 aca interactive
 
-# Resume from latest checkpoint
-aca continue
-
-# Resume from specific checkpoint
-aca resume <checkpoint-id>
-
-# List available checkpoints
-aca list-checkpoints
+# Checkpoint management
+aca checkpoint list                    # List available checkpoints
+aca checkpoint create "description"    # Create manual checkpoint
+aca checkpoint resume <checkpoint-id>  # Resume from specific checkpoint
+aca checkpoint resume --latest         # Resume from latest checkpoint
 ```
 
 #### Library Interface
