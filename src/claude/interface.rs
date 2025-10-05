@@ -298,7 +298,7 @@ impl ClaudeCodeInterface {
         let output = if self.config.show_subprocess_output {
             tracing::info!("Streaming subprocess output to terminal...");
             // Stream output to terminal in real-time
-            self.execute_with_streaming(command, &log_path).await?
+            self.execute_with_streaming(command).await?
         } else {
             // Capture output silently
             command.output().await.map_err(|e| {
@@ -595,7 +595,6 @@ impl ClaudeCodeInterface {
     async fn execute_with_streaming(
         &self,
         mut command: Command,
-        log_path: &Path,
     ) -> Result<std::process::Output, ClaudeError> {
         use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 
