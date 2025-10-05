@@ -65,6 +65,30 @@ src/
 - Checkpoint and resume from any point
 - Crash recovery with automatic state restoration
 
+## File Structure
+
+When running tasks, `aca` creates the following structure in your workspace:
+
+```
+workspace/
+├── .aca/                                    # All session data
+│   └── sessions/
+│       └── {session-id}/
+│           ├── meta/
+│           │   └── session.json            # Session state
+│           ├── checkpoints/
+│           │   └── {checkpoint-id}.json    # Checkpoint snapshots
+│           └── logs/
+│               └── claude_interactions/
+│                   └── claude-subprocess-{task-id}.log  # Claude CLI logs
+```
+
+**Important Notes:**
+- All files are written to `.aca/` directory (gitignored by default)
+- Claude interaction logs include: commands, stdout, stderr, token usage, costs
+- Console output (via `RUST_LOG`) goes to stdout/stderr, not files
+- Session files are only created when tasks are actually executed
+
 ## Configuration
 
 ### Provider Modes
@@ -131,8 +155,7 @@ cargo test test_name -- --nocapture
 Docker containerization is a planned feature for isolated execution:
 - `/repos` (RO): Source repositories
 - `/workspace` (RW): Working directory
-- `/session` (RW): Persistent state
-- `/logs` (RW): Execution logs
+- `/session` (RW): Persistent state (maps to `.aca/`)
 
 Current implementation uses direct CLI/API execution without containers.
 

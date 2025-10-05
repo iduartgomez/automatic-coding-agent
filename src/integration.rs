@@ -339,8 +339,9 @@ impl AgentSystem {
             }
         }
 
-        // Save session state after plan execution
-        self.save_session_state().await?;
+        // Save session state with checkpoint after plan execution
+        self.save_session_checkpoint("plan_execution_complete")
+            .await?;
 
         info!(
             "Execution plan completed: {} tasks processed",
@@ -413,12 +414,18 @@ impl AgentSystem {
 
     /// Save current session state
     async fn save_session_state(&self) -> Result<()> {
-        // Save session
+        // Only save session state, don't create checkpoint
+        // Checkpoints are created at major milestones (plan completion, shutdown)
+        self.session_manager.save_session().await?;
+        Ok(())
+    }
+
+    /// Save session state and create a checkpoint
+    async fn save_session_checkpoint(&self, description: &str) -> Result<()> {
         self.session_manager.save_session().await?;
         self.session_manager
-            .create_checkpoint("auto_save".to_string())
+            .create_checkpoint(description.to_string())
             .await?;
-
         Ok(())
     }
 
@@ -426,10 +433,10 @@ impl AgentSystem {
     pub async fn shutdown(&self) -> Result<()> {
         tracing::info!("Shutting down agent system...");
 
-        // Save final state
-        self.save_session_state().await?;
+        // Save final state with checkpoint
+        self.save_session_checkpoint("agent_shutdown").await?;
 
-        // Graceful shutdown of session manager
+        // Graceful shutdown of session manager (this also creates a session_shutdown checkpoint)
         self.session_manager.shutdown().await?;
 
         tracing::info!("Agent system shutdown complete");

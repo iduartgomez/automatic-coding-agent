@@ -120,38 +120,19 @@ impl PersistenceManager {
         let aca_root = env::aca_dir_path(&workspace_root);
         let session_dir = env::session_dir_path(&workspace_root, session_id);
 
-        // Create directory structure as per design specification
+        // Create only essential directory structure
+        // Note: Claude interactions directory is created on-demand by ClaudeCodeInterface
         let meta_dir = session_dir.join(env::session::META_DIR_NAME);
-        let state_dir = session_dir.join("state");
-        let claude_dir = session_dir.join("claude");
-        let logs_dir = session_dir.join(env::session::LOGS_DIR_NAME);
         let checkpoints_dir = session_dir.join(env::session::CHECKPOINTS_DIR_NAME);
         let temp_dir = session_dir.join(env::session::TEMP_DIR_NAME);
 
-        // Create conversation and other subdirectories
-        let conversation_dir = claude_dir.join("conversation");
-        let context_windows_dir = claude_dir.join("context_windows");
-        let rate_limit_dir = claude_dir.join("rate_limit");
-        let execution_logs_dir = logs_dir.join("execution");
-        let claude_interactions_dir = logs_dir.join(env::session::CLAUDE_INTERACTIONS_DIR_NAME);
-        let errors_dir = logs_dir.join(env::session::ERRORS_DIR_NAME);
-
-        // Ensure all directories exist
+        // Ensure essential directories exist
         for dir in [
             &aca_root,
             &session_dir,
             &meta_dir,
-            &state_dir,
-            &claude_dir,
-            &logs_dir,
             &checkpoints_dir,
             &temp_dir,
-            &conversation_dir,
-            &context_windows_dir,
-            &rate_limit_dir,
-            &execution_logs_dir,
-            &claude_interactions_dir,
-            &errors_dir,
         ] {
             std::fs::create_dir_all(dir)
                 .with_context(|| format!("Failed to create directory: {}", dir.display()))?;

@@ -450,27 +450,19 @@ impl ClaudeCodeInterface {
     async fn get_or_create_session(&self) -> Result<ClaudeSession, ClaudeError> {
         let mut pool = self.session_pool.lock().await;
 
-        // Try to get an idle session first
-        if let Some(session) = pool.idle_sessions.pop_front() {
-            pool.active_sessions.insert(session.id, session.clone());
-            return Ok(session);
+        // For Claude Code CLI, we use a single shared session for all tasks
+        // Each task creates its own subprocess, so we don't need separate sessions
+        if let Some(session) = pool.active_sessions.values().next() {
+            return Ok(session.clone());
         }
 
-        // Check if we can create a new session
-        if pool.active_sessions.len() >= self.config.session_config.max_concurrent_sessions as usize
-        {
-            return Err(ClaudeError::ServiceUnavailable(
-                "Maximum number of concurrent sessions reached".to_string(),
-            ));
-        }
-
-        // Create new session
+        // Create the single shared session
         let session = ClaudeSession {
             id: Uuid::new_v4(),
             created_at: Utc::now(),
             last_used: Utc::now(),
             message_count: 0,
-            is_busy: true,
+            is_busy: false,
         };
 
         pool.active_sessions.insert(session.id, session.clone());
