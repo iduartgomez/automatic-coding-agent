@@ -74,24 +74,35 @@ cargo run
 #### CLI Interface
 
 ```bash
-# Basic usage
-aca --task-file task.md
+# Show help (default when no command specified)
+aca
+
+# Execute a file (auto-detects type based on extension)
+aca run tasks.md           # Markdown task list
+aca run config.toml        # TOML config with tasks
+aca run plan.json          # JSON execution plan
 
 # Intelligent task parsing with context
-aca --task-file .claude/tasks.md --use-intelligent-parser \
+aca run .claude/tasks.md --use-intelligent-parser \
     --context "full-stack app" \
     --context "6 month timeline"
 
 # Analyze, review, and execute workflow
-aca --task-file tasks.md --dry-run --dump-plan plan.json  # Analyze
-cat plan.json                                              # Review
-aca --execution-plan plan.json                             # Execute
+aca run tasks.md --dry-run --dump-plan plan.json  # Analyze
+cat plan.json                                      # Review
+aca run plan.json                                  # Execute
 
-# Show help and available commands
-aca --help
+# Interactive mode
+aca interactive
 
-# Resume from checkpoint
+# Resume from latest checkpoint
+aca continue
+
+# Resume from specific checkpoint
 aca resume <checkpoint-id>
+
+# List available checkpoints
+aca list-checkpoints
 ```
 
 #### Library Interface
@@ -122,19 +133,19 @@ Analyze complex task files using LLM-powered semantic understanding:
 
 ```bash
 # Auto-detect and parse .claude/tasks.md files
-aca --task-file .claude/tasks.md
+aca run .claude/tasks.md
 
 # Add context for better analysis
-aca --task-file tasks.md --use-intelligent-parser \
+aca run tasks.md --use-intelligent-parser \
     --context "React + Node.js stack" \
     --context "team of 5, 6 month timeline"
 
 # Generate and examine execution plan
-aca --task-file tasks.md --dry-run --dump-plan plan.json
+aca run tasks.md --dry-run --dump-plan plan.json
 cat plan.json
 
 # Execute the approved plan
-aca --execution-plan plan.json
+aca run plan.json
 ```
 
 ### Benefits

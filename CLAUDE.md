@@ -11,6 +11,13 @@ cargo test --lib              # Run unit tests
 cargo clippy                  # Lint code
 cargo fmt                     # Format code
 
+# Usage
+aca run <file>                # Execute file (auto-detects: .md/.txt=tasks, .json/.toml=plan)
+aca run tasks.md --verbose    # With options
+aca interactive               # Run in interactive mode
+aca continue                  # Resume from latest checkpoint
+aca list-checkpoints          # List available checkpoints
+
 # Testing
 cargo test                    # All tests
 cargo test --tests            # Integration tests only

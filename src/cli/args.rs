@@ -1,11 +1,13 @@
 //! Command line argument parsing
 //!
-//! This module handles CLI argument parsing with support for:
-//! - --task-file: Single file tasks
-//! - --tasks: Task list files
-//! - --config: Configuration override
-//! - --interactive: Interactive mode
-//! - Default configuration discovery when no explicit config
+//! This module handles CLI argument parsing with subcommands:
+//! - `run`: Execute a file (auto-detects: task file, task list, or execution plan)
+//! - `interactive`: Run in interactive mode
+//! - `resume`: Resume from a specific checkpoint
+//! - `continue`: Resume from the latest checkpoint
+//! - `list-checkpoints`: List available checkpoints
+//! - `create-checkpoint`: Create a manual checkpoint
+//! - `show-config`: Show configuration discovery information
 
 use super::tasks::TaskInput;
 use clap::{Parser, Subcommand};
@@ -56,65 +58,52 @@ pub struct ResumeConfig {
     about = "A Rust-based agentic tool that automates coding tasks using Claude Code in headless mode"
 )]
 #[command(long_about = None)]
+#[command(arg_required_else_help = true)]
 pub struct Args {
     #[command(subcommand)]
     pub command: Option<Commands>,
-
-    /// Configuration file path
-    #[arg(short = 'c', long = "config")]
-    pub config: Option<PathBuf>,
-
-    /// Single task file to execute
-    #[arg(long = "task-file")]
-    pub task_file: Option<PathBuf>,
-
-    /// Task list file to execute
-    #[arg(long = "tasks")]
-    pub tasks: Option<PathBuf>,
-
-    /// Execution plan file to load and execute (JSON or TOML)
-    #[arg(long = "execution-plan")]
-    pub execution_plan: Option<PathBuf>,
-
-    /// Workspace directory
-    #[arg(short = 'w', long = "workspace")]
-    pub workspace: Option<PathBuf>,
-
-    /// Run in interactive mode
-    #[arg(short = 'i', long = "interactive")]
-    pub interactive: bool,
-
-    /// Run in batch mode (default)
-    #[arg(short = 'b', long = "batch")]
-    pub batch: bool,
-
-    /// Enable verbose output
-    #[arg(short = 'v', long = "verbose")]
-    pub verbose: bool,
-
-    /// Show what would be executed without running
-    #[arg(short = 'n', long = "dry-run")]
-    pub dry_run: bool,
-
-    /// Use intelligent LLM-based task parser (auto-enabled for complex files)
-    #[arg(long = "use-intelligent-parser")]
-    pub use_intelligent_parser: bool,
-
-    /// Force naive parser even for complex files
-    #[arg(long = "force-naive-parser")]
-    pub force_naive_parser: bool,
-
-    /// Context hints for intelligent parser (can be used multiple times)
-    #[arg(long = "context", value_name = "HINT")]
-    pub context_hints: Vec<String>,
-
-    /// Dump execution plan to file (JSON or TOML format based on extension)
-    #[arg(long = "dump-plan", value_name = "FILE")]
-    pub dump_plan: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Execute a file (auto-detects task file, task list, or execution plan)
+    Run {
+        /// Path to file (task, task list, or execution plan)
+        file: PathBuf,
+        /// Configuration file path
+        #[arg(short = 'c', long = "config")]
+        config: Option<PathBuf>,
+        /// Workspace directory
+        #[arg(short = 'w', long = "workspace")]
+        workspace: Option<PathBuf>,
+        /// Enable verbose output
+        #[arg(short = 'v', long = "verbose")]
+        verbose: bool,
+        /// Show what would be executed without running
+        #[arg(short = 'n', long = "dry-run")]
+        dry_run: bool,
+        /// Use intelligent LLM-based task parser (auto-enabled for task lists)
+        #[arg(long = "use-intelligent-parser")]
+        use_intelligent_parser: bool,
+        /// Force naive parser even for complex files
+        #[arg(long = "force-naive-parser")]
+        force_naive_parser: bool,
+        /// Context hints for intelligent parser (can be used multiple times)
+        #[arg(long = "context", value_name = "HINT")]
+        context_hints: Vec<String>,
+        /// Dump execution plan to file (JSON or TOML format based on extension)
+        #[arg(long = "dump-plan", value_name = "FILE")]
+        dump_plan: Option<PathBuf>,
+    },
+    /// Run in interactive mode
+    Interactive {
+        /// Workspace directory
+        #[arg(short = 'w', long = "workspace")]
+        workspace: Option<PathBuf>,
+        /// Enable verbose output
+        #[arg(short = 'v', long = "verbose")]
+        verbose: bool,
+    },
     /// Resume from specific checkpoint ID
     Resume {
         /// Checkpoint ID to resume from
@@ -156,102 +145,106 @@ impl Args {
     }
 
     pub fn mode(&self) -> Result<ExecutionMode, String> {
-        // Handle subcommands first
-        if let Some(command) = &self.command {
-            return match command {
-                Commands::Resume {
-                    checkpoint_id,
-                    workspace,
-                    verbose,
-                } => Ok(ExecutionMode::Resume(ResumeConfig {
-                    checkpoint_id: Some(checkpoint_id.clone()),
+        // All execution modes are now handled via subcommands
+        match &self.command {
+            Some(Commands::Run {
+                file,
+                config,
+                workspace,
+                verbose,
+                dry_run,
+                use_intelligent_parser,
+                force_naive_parser,
+                context_hints,
+                dump_plan,
+            }) => {
+                // Auto-detect file type based on extension
+                let task_input = Self::detect_file_type(file)?;
+
+                Ok(ExecutionMode::Batch(BatchConfig {
+                    task_input,
+                    config_override: config.clone(),
                     workspace_override: workspace.clone(),
                     verbose: *verbose,
-                    continue_latest: false,
-                })),
-                Commands::Continue { workspace, verbose } => {
-                    Ok(ExecutionMode::Resume(ResumeConfig {
-                        checkpoint_id: None,
-                        workspace_override: workspace.clone(),
-                        verbose: *verbose,
-                        continue_latest: true,
-                    }))
-                }
-                Commands::ListCheckpoints { all_sessions } => Ok(ExecutionMode::ListCheckpoints {
+                    dry_run: *dry_run,
+                    use_intelligent_parser: *use_intelligent_parser,
+                    force_naive_parser: *force_naive_parser,
+                    context_hints: context_hints.clone(),
+                    dump_plan: dump_plan.clone(),
+                }))
+            }
+            Some(Commands::Interactive { workspace, verbose }) => {
+                Ok(ExecutionMode::Interactive(InteractiveConfig {
+                    workspace: workspace.clone(),
+                    verbose: *verbose,
+                }))
+            }
+            Some(Commands::Resume {
+                checkpoint_id,
+                workspace,
+                verbose,
+            }) => Ok(ExecutionMode::Resume(ResumeConfig {
+                checkpoint_id: Some(checkpoint_id.clone()),
+                workspace_override: workspace.clone(),
+                verbose: *verbose,
+                continue_latest: false,
+            })),
+            Some(Commands::Continue { workspace, verbose }) => {
+                Ok(ExecutionMode::Resume(ResumeConfig {
+                    checkpoint_id: None,
+                    workspace_override: workspace.clone(),
+                    verbose: *verbose,
+                    continue_latest: true,
+                }))
+            }
+            Some(Commands::ListCheckpoints { all_sessions }) => {
+                Ok(ExecutionMode::ListCheckpoints {
                     all_sessions: *all_sessions,
-                }),
-                Commands::CreateCheckpoint { description } => {
-                    Ok(ExecutionMode::CreateCheckpoint(description.clone()))
-                }
-                Commands::ShowConfig => Ok(ExecutionMode::ShowConfig),
-            };
+                })
+            }
+            Some(Commands::CreateCheckpoint { description }) => {
+                Ok(ExecutionMode::CreateCheckpoint(description.clone()))
+            }
+            Some(Commands::ShowConfig) => Ok(ExecutionMode::ShowConfig),
+            None => {
+                Err("No command specified. Use 'aca --help' to see available commands.".to_string())
+            }
         }
-
-        // Handle interactive mode
-        if self.interactive {
-            return Ok(ExecutionMode::Interactive(InteractiveConfig {
-                workspace: self.workspace.clone(),
-                verbose: self.verbose,
-            }));
-        }
-
-        // Handle batch mode (default)
-        let task_input = self.determine_task_input()?;
-
-        let mode = ExecutionMode::Batch(BatchConfig {
-            task_input,
-            config_override: self.config.clone(),
-            workspace_override: self.workspace.clone(),
-            verbose: self.verbose,
-            dry_run: self.dry_run,
-            use_intelligent_parser: self.use_intelligent_parser,
-            force_naive_parser: self.force_naive_parser,
-            context_hints: self.context_hints.clone(),
-            dump_plan: self.dump_plan.clone(),
-        });
-
-        Ok(mode)
     }
 
-    /// Determine the task input based on provided arguments
-    fn determine_task_input(&self) -> Result<TaskInput, String> {
-        // Count how many task inputs were provided
-        let inputs = [
-            &self.config,
-            &self.task_file,
-            &self.tasks,
-            &self.execution_plan,
-        ]
-        .iter()
-        .filter(|x| x.is_some())
-        .count();
+    /// Auto-detect file type based on extension
+    ///
+    /// Detection rules:
+    /// - `.json` → ExecutionPlan (structured execution plan)
+    /// - `.toml` → ConfigWithTasks (TOML config with embedded tasks/plan)
+    /// - `.md`, `.txt` → TaskList (markdown task lists)
+    /// - Other → TaskList (default)
+    ///
+    /// Note: Extension matching is case-insensitive
+    fn detect_file_type(path: &std::path::Path) -> Result<TaskInput, String> {
+        let extension = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_lowercase();
 
-        match inputs {
-            0 => {
-                // No explicit task input - this is an error for now
-                // In the future, we might support a default task discovery
-                Err(
-                    "task input required (use --task-file, --tasks, --config, or --execution-plan)"
-                        .to_string(),
-                )
+        match extension.as_str() {
+            "json" => {
+                // JSON files are execution plans
+                Ok(TaskInput::ExecutionPlan(path.to_path_buf()))
             }
-            1 => {
-                // Exactly one input - determine which one
-                if let Some(path) = &self.task_file {
-                    Ok(TaskInput::SingleFile(path.clone()))
-                } else if let Some(path) = &self.tasks {
-                    Ok(TaskInput::TaskList(path.clone()))
-                } else if let Some(path) = &self.config {
-                    Ok(TaskInput::ConfigWithTasks(path.clone()))
-                } else if let Some(path) = &self.execution_plan {
-                    Ok(TaskInput::ExecutionPlan(path.clone()))
-                } else {
-                    unreachable!("One input was counted but none found")
-                }
+            "toml" => {
+                // TOML files can be either execution plans or configs with tasks
+                // We use ConfigWithTasks which handles both formats
+                Ok(TaskInput::ConfigWithTasks(path.to_path_buf()))
+            }
+            "md" | "txt" => {
+                // Markdown/text files are task lists
+                Ok(TaskInput::TaskList(path.to_path_buf()))
             }
             _ => {
-                // Multiple task inputs - this is ambiguous
-                Err("Only one task input method can be specified (--task-file, --tasks, --config, or --execution-plan)".to_string())
+                // Default to task list for unknown extensions
+                Ok(TaskInput::TaskList(path.to_path_buf()))
             }
         }
     }
@@ -262,126 +255,188 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_task_input_determination() {
-        // Single task file
+    fn test_run_command_with_markdown() {
         let args = Args {
-            command: None,
-            config: None,
-            task_file: Some(PathBuf::from("task.md")),
-            tasks: None,
-            workspace: None,
-            interactive: false,
-            batch: false,
-            verbose: false,
-            dry_run: false,
-            use_intelligent_parser: false,
-            force_naive_parser: false,
-            context_hints: vec![],
-            dump_plan: None,
-            execution_plan: None,
+            command: Some(Commands::Run {
+                file: PathBuf::from("tasks.md"),
+                config: None,
+                workspace: None,
+                verbose: true,
+                dry_run: false,
+                use_intelligent_parser: true,
+                force_naive_parser: false,
+                context_hints: vec!["hint1".to_string()],
+                dump_plan: None,
+            }),
         };
-        let result = args.determine_task_input().unwrap();
+        let mode = args.mode().unwrap();
 
-        if let TaskInput::SingleFile(path) = result {
-            assert_eq!(path, PathBuf::from("task.md"));
+        if let ExecutionMode::Batch(config) = mode {
+            assert!(matches!(config.task_input, TaskInput::TaskList(_)));
+            assert!(config.verbose);
+            assert!(config.use_intelligent_parser);
+            assert_eq!(config.context_hints.len(), 1);
         } else {
-            panic!("Expected SingleFile");
-        }
-
-        // Task list
-        let args = Args {
-            command: None,
-            config: None,
-            task_file: None,
-            tasks: Some(PathBuf::from("tasks.txt")),
-            workspace: None,
-            interactive: false,
-            batch: false,
-            verbose: false,
-            dry_run: false,
-            use_intelligent_parser: false,
-            force_naive_parser: false,
-            context_hints: vec![],
-            dump_plan: None,
-            execution_plan: None,
-        };
-        let result = args.determine_task_input().unwrap();
-
-        if let TaskInput::TaskList(path) = result {
-            assert_eq!(path, PathBuf::from("tasks.txt"));
-        } else {
-            panic!("Expected TaskList");
-        }
-
-        // Config with tasks
-        let args = Args {
-            command: None,
-            config: Some(PathBuf::from("config.toml")),
-            task_file: None,
-            tasks: None,
-            workspace: None,
-            interactive: false,
-            batch: false,
-            verbose: false,
-            dry_run: false,
-            use_intelligent_parser: false,
-            force_naive_parser: false,
-            context_hints: vec![],
-            dump_plan: None,
-            execution_plan: None,
-        };
-        let result = args.determine_task_input().unwrap();
-
-        if let TaskInput::ConfigWithTasks(path) = result {
-            assert_eq!(path, PathBuf::from("config.toml"));
-        } else {
-            panic!("Expected ConfigWithTasks");
+            panic!("Expected Batch mode");
         }
     }
 
     #[test]
-    fn test_multiple_inputs_error() {
-        // Should error with multiple inputs
+    fn test_run_command_with_json() {
         let args = Args {
-            command: None,
-            config: Some(PathBuf::from("config.toml")),
-            task_file: Some(PathBuf::from("task.md")),
-            tasks: None,
-            workspace: None,
-            interactive: false,
-            batch: false,
-            verbose: false,
-            dry_run: false,
-            use_intelligent_parser: false,
-            force_naive_parser: false,
-            context_hints: vec![],
-            dump_plan: None,
-            execution_plan: None,
+            command: Some(Commands::Run {
+                file: PathBuf::from("plan.json"),
+                config: None,
+                workspace: None,
+                verbose: false,
+                dry_run: true,
+                use_intelligent_parser: false,
+                force_naive_parser: false,
+                context_hints: vec![],
+                dump_plan: None,
+            }),
         };
-        let result = args.determine_task_input();
-        assert!(result.is_err());
+        let mode = args.mode().unwrap();
+
+        if let ExecutionMode::Batch(config) = mode {
+            assert!(matches!(config.task_input, TaskInput::ExecutionPlan(_)));
+            assert!(config.dry_run);
+        } else {
+            panic!("Expected Batch mode");
+        }
     }
 
     #[test]
-    fn test_no_inputs_error() {
-        // Should error with no inputs
+    fn test_run_command_with_toml() {
         let args = Args {
-            command: None,
-            config: None,
-            task_file: None,
-            tasks: None,
-            workspace: None,
-            interactive: false,
-            batch: false,
-            verbose: false,
-            dry_run: false,
-            use_intelligent_parser: false,
-            force_naive_parser: false,
-            context_hints: vec![],
-            dump_plan: None,
-            execution_plan: None,
+            command: Some(Commands::Run {
+                file: PathBuf::from("config.toml"),
+                config: None,
+                workspace: None,
+                verbose: false,
+                dry_run: false,
+                use_intelligent_parser: false,
+                force_naive_parser: false,
+                context_hints: vec![],
+                dump_plan: None,
+            }),
         };
-        let result = args.determine_task_input();
+        let mode = args.mode().unwrap();
+
+        if let ExecutionMode::Batch(config) = mode {
+            assert!(matches!(config.task_input, TaskInput::ConfigWithTasks(_)));
+        } else {
+            panic!("Expected Batch mode");
+        }
+    }
+
+    #[test]
+    fn test_file_type_detection() {
+        // Markdown files -> TaskList
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("tasks.md")).unwrap(),
+            TaskInput::TaskList(_)
+        ));
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("README.md")).unwrap(),
+            TaskInput::TaskList(_)
+        ));
+
+        // Text files -> TaskList
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("tasks.txt")).unwrap(),
+            TaskInput::TaskList(_)
+        ));
+
+        // JSON files -> ExecutionPlan
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("plan.json")).unwrap(),
+            TaskInput::ExecutionPlan(_)
+        ));
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("execution_plan.json")).unwrap(),
+            TaskInput::ExecutionPlan(_)
+        ));
+
+        // TOML files -> ConfigWithTasks
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("config.toml")).unwrap(),
+            TaskInput::ConfigWithTasks(_)
+        ));
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from(".aca.toml")).unwrap(),
+            TaskInput::ConfigWithTasks(_)
+        ));
+
+        // Unknown extension defaults to TaskList
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("unknown.xyz")).unwrap(),
+            TaskInput::TaskList(_)
+        ));
+
+        // No extension defaults to TaskList
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("tasks")).unwrap(),
+            TaskInput::TaskList(_)
+        ));
+    }
+
+    #[test]
+    fn test_file_type_detection_with_paths() {
+        // Test with full paths
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("/path/to/tasks.md")).unwrap(),
+            TaskInput::TaskList(_)
+        ));
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("./relative/plan.json")).unwrap(),
+            TaskInput::ExecutionPlan(_)
+        ));
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("../config.toml")).unwrap(),
+            TaskInput::ConfigWithTasks(_)
+        ));
+    }
+
+    #[test]
+    fn test_file_type_detection_case_sensitivity() {
+        // Extensions should be lowercase matched
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("tasks.MD")).unwrap(),
+            TaskInput::TaskList(_)
+        ));
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("plan.JSON")).unwrap(),
+            TaskInput::ExecutionPlan(_)
+        ));
+        assert!(matches!(
+            Args::detect_file_type(&PathBuf::from("config.TOML")).unwrap(),
+            TaskInput::ConfigWithTasks(_)
+        ));
+    }
+
+    #[test]
+    fn test_interactive_command() {
+        let args = Args {
+            command: Some(Commands::Interactive {
+                workspace: Some(PathBuf::from("/workspace")),
+                verbose: true,
+            }),
+        };
+        let mode = args.mode().unwrap();
+
+        if let ExecutionMode::Interactive(config) = mode {
+            assert!(config.workspace.is_some());
+            assert!(config.verbose);
+        } else {
+            panic!("Expected Interactive mode");
+        }
+    }
+
+    #[test]
+    fn test_no_command_error() {
+        let args = Args { command: None };
+        let result = args.mode();
         assert!(result.is_err());
     }
 }
