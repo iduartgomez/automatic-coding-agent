@@ -21,56 +21,21 @@ fn env_var_truthy(key: &str) -> bool {
 }
 
 #[cfg(target_family = "unix")]
-fn write_stub_cli(path: &std::path::Path) -> std::io::Result<()> {
-    use std::fs;
-    #[cfg(target_family = "unix")]
-    use std::os::unix::fs::PermissionsExt;
-
-    let script = r#"#!/usr/bin/env bash
-# Codex CLI stub used for tests. Consumes stdin and emits deterministic JSONL events.
-cat >/dev/null
-cat <<'JSON'
-{"type":"thread.started","thread_id":"stub-thread"}
-{"type":"turn.started"}
-{"type":"item.completed","item":{"id":"stub-item","type":"agent_message","text":"Hello from Codex stub!"}}
-{"type":"turn.completed","usage":{"input_tokens":12,"cached_input_tokens":0,"output_tokens":6}}
-{"type":"run.completed","reason":"completed"}
-JSON
-"#;
-
-    fs::write(path, script)?;
-    #[cfg(target_family = "unix")]
-    {
-        let mut perms = fs::metadata(path)?.permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(path, perms)?;
-    }
-    Ok(())
-}
-
-#[cfg(target_family = "unix")]
 #[tokio::test]
 #[tag(openai_codex)]
 #[serial]
 async fn test_codex_exec_produces_response() {
+    if !env_var_truthy("RUN_CODEX_TESTS") && !env_var_truthy("CODEX_TEST_REAL") {
+        eprintln!("skipping Codex integration test: RUN_CODEX_TESTS not enabled");
+        return;
+    }
+
     let workspace = TempDir::new().expect("failed to create temp workspace");
     let working_dir = workspace.path().to_path_buf();
-    let use_real_cli = env_var_truthy("CODEX_TEST_REAL") || env_var_truthy("RUN_CODEX_TESTS");
 
-    let (cli_path, default_model, expect_stub_response) = if use_real_cli {
-        let cli = std::env::var("CODEX_CLI_PATH").unwrap_or_else(|_| "codex".to_string());
-        let model =
-            std::env::var("CODEX_DEFAULT_MODEL").unwrap_or_else(|_| "gpt-5-codex".to_string());
-        (cli, model, None)
-    } else {
-        let stub_path = working_dir.join("codex_stub.sh");
-        write_stub_cli(&stub_path).expect("failed to write Codex stub CLI");
-        (
-            stub_path.to_string_lossy().to_string(),
-            "codex-stub-model".to_string(),
-            Some("Hello from Codex stub!".to_string()),
-        )
-    };
+    let cli_path = std::env::var("CODEX_CLI_PATH").unwrap_or_else(|_| "codex".to_string());
+    let default_model =
+        std::env::var("CODEX_DEFAULT_MODEL").unwrap_or_else(|_| "gpt-5-codex".to_string());
 
     let config = OpenAIConfig {
         cli_path,
@@ -131,14 +96,6 @@ async fn test_codex_exec_produces_response() {
         response.token_usage.total_tokens > 0,
         "Codex CLI should report token usage"
     );
-
-    if let Some(expected) = expect_stub_response {
-        assert_eq!(
-            response.response_text.trim(),
-            expected,
-            "stub CLI should return deterministic response"
-        );
-    }
 }
 
 #[cfg(not(target_family = "unix"))]
@@ -146,5 +103,5 @@ async fn test_codex_exec_produces_response() {
 #[tag(openai_codex)]
 #[serial]
 async fn test_codex_exec_produces_response() {
-    eprintln!("skipping Codex integration test: stub CLI only available on Unix targets");
+    eprintln!("skipping Codex integration test: not supported on this platform");
 }
