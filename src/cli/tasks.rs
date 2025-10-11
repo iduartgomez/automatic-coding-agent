@@ -68,6 +68,7 @@ impl TaskLoader {
         use_intelligent: bool,
         context_hints: Vec<String>,
         provider_override: Option<crate::llm::types::ProviderType>,
+        model_override: Option<String>,
     ) -> Result<ExecutionPlan, FileError> {
         match input {
             TaskInput::ExecutionPlan(path) => Self::load_execution_plan(path),
@@ -77,6 +78,7 @@ impl TaskLoader {
                         input,
                         context_hints,
                         provider_override,
+                        model_override,
                     )
                     .await
                 } else {
@@ -118,6 +120,7 @@ impl TaskLoader {
         input: &TaskInput,
         context_hints: Vec<String>,
         provider_override: Option<crate::llm::types::ProviderType>,
+        model_override: Option<String>,
     ) -> Result<ExecutionPlan, FileError> {
         use crate::cli::IntelligentTaskParser;
         use crate::llm::provider::LLMProviderFactory;
@@ -128,6 +131,11 @@ impl TaskLoader {
         let mut provider_config = ProviderConfig::default();
         if let Some(provider_type) = provider_override {
             provider_config.provider_type = provider_type;
+        }
+        if let Some(model) = model_override
+            && !model.trim().is_empty()
+        {
+            provider_config.model = Some(model);
         }
 
         let workspace = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));

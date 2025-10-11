@@ -100,6 +100,7 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
                     true,
                     config.context_hints.clone(),
                     config.provider_override.clone(),
+                    config.model_override.clone(),
                 )
                 .await?
             } else {

@@ -14,7 +14,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum ProviderCliOption {
     Claude,
-    #[clap(alias = "openai")]
+    #[clap(alias = "openai", alias = "open-ai")]
     OpenAI,
     Anthropic,
     #[clap(alias = "local")]
@@ -54,6 +54,7 @@ pub struct BatchConfig {
     pub context_hints: Vec<String>,
     pub dump_plan: Option<PathBuf>,
     pub provider_override: Option<ProviderType>,
+    pub model_override: Option<String>,
 }
 
 #[derive(Debug)]
@@ -83,6 +84,9 @@ pub struct Args {
     /// Override default provider (e.g., Claude) with another configured provider
     #[arg(long = "provider", value_enum, global = true)]
     pub provider: Option<ProviderCliOption>,
+    /// Override model to use when invoking the selected provider
+    #[arg(long = "model", global = true)]
+    pub model: Option<String>,
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
@@ -199,6 +203,7 @@ impl Args {
                     context_hints: context_hints.clone(),
                     dump_plan: dump_plan.clone(),
                     provider_override,
+                    model_override: self.model.clone(),
                 }))
             }
             Some(Commands::Interactive { workspace, verbose }) => {
@@ -290,6 +295,7 @@ mod tests {
     fn test_run_command_with_markdown() {
         let args = Args {
             provider: None,
+            model: None,
             command: Some(Commands::Run {
                 file: PathBuf::from("tasks.md"),
                 config: None,
@@ -318,6 +324,7 @@ mod tests {
     fn test_run_command_with_json() {
         let args = Args {
             provider: None,
+            model: None,
             command: Some(Commands::Run {
                 file: PathBuf::from("plan.json"),
                 config: None,
@@ -344,6 +351,7 @@ mod tests {
     fn test_run_command_with_toml() {
         let args = Args {
             provider: None,
+            model: None,
             command: Some(Commands::Run {
                 file: PathBuf::from("config.toml"),
                 config: None,
@@ -454,6 +462,7 @@ mod tests {
     fn test_interactive_command() {
         let args = Args {
             provider: None,
+            model: None,
             command: Some(Commands::Interactive {
                 workspace: Some(PathBuf::from("/workspace")),
                 verbose: true,
@@ -473,6 +482,7 @@ mod tests {
     fn test_no_command_error() {
         let args = Args {
             provider: None,
+            model: None,
             command: None,
         };
         let result = args.mode();
@@ -483,6 +493,7 @@ mod tests {
     fn test_checkpoint_list() {
         let args = Args {
             provider: None,
+            model: None,
             command: Some(Commands::Checkpoint {
                 command: CheckpointCommands::List { all_sessions: true },
             }),
@@ -500,6 +511,7 @@ mod tests {
     fn test_checkpoint_create() {
         let args = Args {
             provider: None,
+            model: None,
             command: Some(Commands::Checkpoint {
                 command: CheckpointCommands::Create {
                     description: "Test checkpoint".to_string(),
@@ -519,6 +531,7 @@ mod tests {
     fn test_checkpoint_resume_specific() {
         let args = Args {
             provider: None,
+            model: None,
             command: Some(Commands::Checkpoint {
                 command: CheckpointCommands::Resume {
                     checkpoint_id: "checkpoint-123".to_string(),
@@ -544,6 +557,7 @@ mod tests {
     fn test_checkpoint_resume_latest() {
         let args = Args {
             provider: None,
+            model: None,
             command: Some(Commands::Checkpoint {
                 command: CheckpointCommands::Resume {
                     checkpoint_id: "ignored".to_string(),

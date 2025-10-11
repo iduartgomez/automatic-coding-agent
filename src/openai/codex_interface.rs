@@ -64,48 +64,62 @@ impl OpenAICodexInterface {
         let composed_prompt = self.compose_prompt(&request);
         let start = Instant::now();
 
-        let output = match self.run_codex_exec(&request, &composed_prompt).await {
-            Ok(output) => output,
-            Err(err) => {
-                self.rate_limiter.record_failure().await;
-                return Err(err);
-            }
-        };
-
-        let execution_time = start.elapsed();
-
-        let parsed = match self.parse_codex_output(&output.stdout) {
-            Ok(parsed) => parsed,
-            Err(err) => {
-                self.rate_limiter.record_failure().await;
-                return Err(err);
-            }
-        };
-
-        if let Some(ref paths) = log_paths {
-            if let Err(e) = fs::write(&paths.stdout_file, &output.stdout).await {
-                warn!("Failed to persist Codex stdout: {}", e);
-            }
-            if !output.stderr.is_empty()
-                && let Err(e) = fs::write(&paths.stderr_file, &output.stderr).await
+        let mut skip_model_flag = false;
+        let response = loop {
+            let output = match self
+                .run_codex_exec(&request, &composed_prompt, skip_model_flag)
+                .await
             {
-                warn!("Failed to persist Codex stderr: {}", e);
-            }
-        }
+                Ok(output) => output,
+                Err(err) => {
+                    self.rate_limiter.record_failure().await;
+                    return Err(err);
+                }
+            };
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let message = stderr.trim().to_string();
-            if message.contains("login") {
+            let execution_time = start.elapsed();
+
+            let parsed = match self.parse_codex_output(&output.stdout) {
+                Ok(parsed) => parsed,
+                Err(err) => {
+                    self.rate_limiter.record_failure().await;
+                    return Err(err);
+                }
+            };
+
+            if let Some(ref paths) = log_paths {
+                if let Err(e) = fs::write(&paths.stdout_file, &output.stdout).await {
+                    warn!("Failed to persist Codex stdout: {}", e);
+                }
+                if !output.stderr.is_empty()
+                    && let Err(e) = fs::write(&paths.stderr_file, &output.stderr).await
+                {
+                    warn!("Failed to persist Codex stderr: {}", e);
+                }
+            }
+
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let message = stderr.trim().to_string();
+                if !skip_model_flag && message.contains("Unsupported model") {
+                    info!(
+                        "Codex CLI reported unsupported model; retrying without explicit --model flag"
+                    );
+                    skip_model_flag = true;
+                    continue;
+                }
+                if message.contains("login") {
+                    self.rate_limiter.record_failure().await;
+                    return Err(OpenAIError::Authentication(message));
+                }
                 self.rate_limiter.record_failure().await;
-                return Err(OpenAIError::Authentication(message));
+                return Err(OpenAIError::CliFailed(message));
             }
-            self.rate_limiter.record_failure().await;
-            return Err(OpenAIError::CliFailed(message));
-        }
 
-        let response = self.build_response(request, permit, parsed, execution_time)?;
-        self.rate_limiter.record_success().await;
+            let response = self.build_response(&request, permit.clone(), parsed, execution_time)?;
+            self.rate_limiter.record_success().await;
+            break response;
+        };
 
         if let Some(ref paths) = log_paths {
             let status = self.rate_limiter.get_status().await;
@@ -161,12 +175,17 @@ impl OpenAICodexInterface {
         &self,
         request: &OpenAITaskRequest,
         prompt: &str,
+        skip_model_flag: bool,
     ) -> Result<std::process::Output, OpenAIError> {
         let mut cmd = Command::new(&self.config.cli_path);
         cmd.arg("exec")
             .arg("--json")
-            .arg("--model")
-            .arg(&request.model);
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        if !skip_model_flag {
+            cmd.arg("--model").arg(&request.model);
+        }
 
         if self.config.allow_outside_git {
             cmd.arg("--skip-git-repo-check");
@@ -182,8 +201,6 @@ impl OpenAICodexInterface {
 
         cmd.arg("-")
             .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
             .current_dir(&self.config.working_dir);
 
         let mut child = cmd
@@ -295,7 +312,7 @@ impl OpenAICodexInterface {
 
     fn build_response(
         &self,
-        request: OpenAITaskRequest,
+        request: &OpenAITaskRequest,
         permit: RatePermit,
         parsed: CodexParsedOutput,
         elapsed: Duration,
@@ -311,7 +328,7 @@ impl OpenAICodexInterface {
             response_text: parsed.response_text,
             token_usage: usage,
             execution_time: elapsed,
-            model_used: request.model,
+            model_used: request.model.clone(),
             finish_reason: parsed.finish_reason,
         };
 
