@@ -55,12 +55,9 @@ impl LLMProviderFactory {
             crate::llm::types::ProviderType::Claude => Ok(Arc::new(
                 crate::llm::claude_provider::ClaudeProvider::new(config, workspace_root).await?,
             )),
-            crate::llm::types::ProviderType::OpenAI => {
-                // TODO: Implement OpenAI provider
-                Err(LLMError::ProviderUnavailable(
-                    "OpenAI provider not yet implemented".to_string(),
-                ))
-            }
+            crate::llm::types::ProviderType::OpenAI => Ok(Arc::new(
+                crate::llm::openai_provider::OpenAIProvider::new(config, workspace_root).await?,
+            )),
             crate::llm::types::ProviderType::Anthropic => {
                 // TODO: Implement direct Anthropic API provider
                 Err(LLMError::ProviderUnavailable(

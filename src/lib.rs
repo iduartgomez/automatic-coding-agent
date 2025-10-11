@@ -82,6 +82,11 @@ pub mod task;
 /// error recovery, context management, and usage tracking.
 pub mod claude;
 
+/// OpenAI Codex integration layer.
+///
+/// Executes the Codex CLI headlessly with session logging and rate limiting.
+pub mod openai;
+
 /// Provider-agnostic LLM interface.
 ///
 /// Abstraction layer supporting multiple LLM providers (Claude, OpenAI, local models)
@@ -108,6 +113,9 @@ pub use task::{Task, TaskManager, TaskManagerConfig, TaskPriority, TaskSpec, Tas
 
 // Re-export main Claude types
 pub use claude::{ClaudeCodeInterface, ClaudeConfig};
+
+// Re-export OpenAI types
+pub use openai::{OpenAICodexInterface, OpenAIConfig};
 
 // Re-export LLM abstraction types
 pub use llm::{LLMProvider, LLMRequest, LLMResponse, ProviderConfig, ProviderType};

@@ -29,6 +29,9 @@ pub mod session {
     /// Claude interactions subdirectory name
     pub const CLAUDE_INTERACTIONS_DIR_NAME: &str = "claude_interactions";
 
+    /// OpenAI interactions subdirectory name
+    pub const OPENAI_INTERACTIONS_DIR_NAME: &str = "openai_interactions";
+
     /// Errors subdirectory name
     pub const ERRORS_DIR_NAME: &str = "errors";
 
@@ -81,6 +84,11 @@ pub fn session_logs_dir_path(workspace_root: &std::path::Path, session_id: &str)
 /// Build the Claude interactions logs directory path
 pub fn claude_interactions_dir_path(workspace_root: &std::path::Path, session_id: &str) -> PathBuf {
     session_logs_dir_path(workspace_root, session_id).join(session::CLAUDE_INTERACTIONS_DIR_NAME)
+}
+
+/// Build the OpenAI interactions logs directory path
+pub fn openai_interactions_dir_path(workspace_root: &std::path::Path, session_id: &str) -> PathBuf {
+    session_logs_dir_path(workspace_root, session_id).join(session::OPENAI_INTERACTIONS_DIR_NAME)
 }
 
 /// Build the session state file path
@@ -137,6 +145,11 @@ mod tests {
         assert_eq!(
             session_state_file_path(workspace, session_id),
             Path::new("/test/workspace/.aca/sessions/test-session-123/meta/session.json")
+        );
+
+        assert_eq!(
+            openai_interactions_dir_path(workspace, session_id),
+            Path::new("/test/workspace/.aca/sessions/test-session-123/logs/openai_interactions")
         );
 
         assert_eq!(

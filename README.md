@@ -38,6 +38,11 @@ A Rust-based agentic tool that automates coding tasks using multiple LLM provide
 - **Rate Limiting**: Provider-specific rate limiting and cost optimization
 - **Capability Detection**: Automatic detection of provider features (streaming, function calling, etc.)
 
+#### Codex CLI Provider
+- Relies on the `codex` command-line tool (install from [OpenAI Codex](https://github.com/openai/codex)).
+- Authenticates through the same login flow as the CLI (e.g., ChatGPT Plus/Pro sign-in) and reuses `~/.codex/config.toml`; no API key required.
+- Supports configurable CLI path, profile selection, and smart rate limiting/logging via `ProviderConfig.additional_config`.
+
 ### 🧠 **Intelligent Task Parsing**
 - **LLM-Based Analysis**: Semantic understanding of task structures using Claude
 - **Hierarchical Detection**: Automatic parent-child relationship identification

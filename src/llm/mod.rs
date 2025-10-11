@@ -166,6 +166,11 @@
 /// functionality including context management, rate limiting, and error recovery.
 pub mod claude_provider;
 
+/// OpenAI Codex LLM provider implementation.
+///
+/// Provides access to OpenAI's Codex-style completions with smart rate limiting.
+pub mod openai_provider;
+
 /// Core LLM provider trait and factory.
 ///
 /// Defines the universal [`LLMProvider`] trait that all provider implementations
@@ -179,6 +184,7 @@ pub mod provider;
 pub mod types;
 
 pub use claude_provider::ClaudeProvider;
+pub use openai_provider::OpenAIProvider;
 pub use provider::LLMProvider;
 pub use types::*;
 

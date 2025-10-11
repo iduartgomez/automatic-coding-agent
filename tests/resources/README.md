@@ -9,6 +9,7 @@ This directory contains minimal test setup files for integration testing. Each t
 - **test3-file-editing/**: File modification test
 - **test4-multi-task/**: Multiple task execution test
 - **test5-task-references/**: Task reference functionality test
+- **test6-nested-complex-tasks/**: Complex nested task decomposition with linked specifications
 
 ## Usage
 
