@@ -12,10 +12,10 @@ use tempfile::TempDir;
 use test_tag::tag;
 
 fn should_run_claude_tests() -> bool {
-    if let Ok(value) = std::env::var("RUN_CLAUDE_TESTS") {
-        if value == "1" || value.eq_ignore_ascii_case("true") {
-            return true;
-        }
+    if let Ok(value) = std::env::var("RUN_CLAUDE_TESTS")
+        && (value == "1" || value.eq_ignore_ascii_case("true"))
+    {
+        return true;
     }
 
     std::env::var("ANTHROPIC_API_KEY").is_ok()

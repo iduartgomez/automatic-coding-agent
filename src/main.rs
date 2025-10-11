@@ -14,11 +14,6 @@ use std::io::{self, Write};
 use std::path::Path;
 use tracing::{error, info};
 
-/// Prints "Hello, World!" to stdout
-fn hello_world() {
-    println!("Hello, World!");
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging

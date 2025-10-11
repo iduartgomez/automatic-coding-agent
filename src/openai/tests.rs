@@ -25,10 +25,12 @@ async fn rate_limiter_grants_permits() {
 
 #[tokio::test]
 async fn rate_limiter_blocks_excess_requests() {
-    let mut config = OpenAIRateLimitConfig::default();
-    config.max_requests_per_minute = 1;
-    config.max_tokens_per_minute = 200;
-    config.burst_allowance = 0;
+    let config = OpenAIRateLimitConfig {
+        max_requests_per_minute: 1,
+        max_tokens_per_minute: 200,
+        burst_allowance: 0,
+        ..OpenAIRateLimitConfig::default()
+    };
 
     let limiter = OpenAIRateLimiter::new(config);
     let first = limiter.acquire_permit(&mock_request(100)).await;

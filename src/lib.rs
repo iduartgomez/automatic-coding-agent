@@ -135,6 +135,7 @@ pub mod cli;
 ///
 /// hello_world();
 /// ```
+#[allow(dead_code)]
 pub fn hello_world() {
     println!("Hello, World!");
 }

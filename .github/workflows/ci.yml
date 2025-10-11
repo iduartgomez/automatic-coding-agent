@@ -25,11 +25,11 @@ jobs:
     - name: Cache Rust dependencies and build artifacts
       uses: Swatinem/rust-cache@v2
 
-    - name: Run tests (unit + integration, excluding Claude tests)
-      run: cargo test --verbose --lib -- --skip "::claude::test" && cargo test --verbose --test cli_functionality --test config_generation_integration --test config_toml_integration
+    - name: Run tests (unit + integration, excluding Claude and Codex tests)
+      run: cargo test --verbose --lib -- --skip "::claude::test" --skip "::openai_codex::" && cargo test --verbose --test cli_functionality --test config_generation_integration --test config_toml_integration
 
-    - name: Run tests with all features (unit + integration, excluding Claude tests)
-      run: cargo test --verbose --all-features --lib -- --skip "::claude::test" && cargo test --verbose --all-features --test cli_functionality --test config_generation_integration --test config_toml_integration
+    - name: Run tests with all features (unit + integration, excluding Claude and Codex tests)
+      run: cargo test --verbose --all-features --lib -- --skip "::claude::test" --skip "::openai_codex::" && cargo test --verbose --all-features --test cli_functionality --test config_generation_integration --test config_toml_integration
 
   claude-integration-tests:
     name: Claude Integration Tests

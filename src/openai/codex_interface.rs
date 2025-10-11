@@ -86,10 +86,10 @@ impl OpenAICodexInterface {
             if let Err(e) = fs::write(&paths.stdout_file, &output.stdout).await {
                 warn!("Failed to persist Codex stdout: {}", e);
             }
-            if !output.stderr.is_empty() {
-                if let Err(e) = fs::write(&paths.stderr_file, &output.stderr).await {
-                    warn!("Failed to persist Codex stderr: {}", e);
-                }
+            if !output.stderr.is_empty()
+                && let Err(e) = fs::write(&paths.stderr_file, &output.stderr).await
+            {
+                warn!("Failed to persist Codex stderr: {}", e);
             }
         }
 
@@ -138,10 +138,10 @@ impl OpenAICodexInterface {
     fn compose_prompt(&self, request: &OpenAITaskRequest) -> String {
         let mut segments = Vec::new();
 
-        if let Some(system) = request.system_message.as_ref() {
-            if !system.trim().is_empty() {
-                segments.push(format!("System instructions:\n{}\n", system.trim()));
-            }
+        if let Some(system) = request.system_message.as_ref()
+            && !system.trim().is_empty()
+        {
+            segments.push(format!("System instructions:\n{}\n", system.trim()));
         }
 
         if !request.metadata.is_empty() {
@@ -221,17 +221,15 @@ impl OpenAICodexInterface {
             if let Some(event_type) = value.get("type").and_then(|t| t.as_str()) {
                 match event_type {
                     "item.completed" => {
-                        if let Some(item) = value.get("item") {
-                            if item
+                        if let Some(item) = value.get("item")
+                            && item
                                 .get("type")
                                 .and_then(|t| t.as_str())
                                 .map(|t| t == "agent_message")
                                 .unwrap_or(false)
-                            {
-                                if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                    last_agent_message = Some(text.to_string());
-                                }
-                            }
+                            && let Some(text) = item.get("text").and_then(|t| t.as_str())
+                        {
+                            last_agent_message = Some(text.to_string());
                         }
                     }
                     "turn.completed" => {
