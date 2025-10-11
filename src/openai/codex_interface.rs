@@ -211,6 +211,7 @@ impl OpenAICodexInterface {
         let mut last_agent_message: Option<String> = None;
         let mut finish_reason: Option<String> = None;
         let mut usage = TokenUsage::default();
+        let mut failure_reason: Option<String> = None;
 
         for line in text.lines().filter(|line| !line.trim().is_empty()) {
             let value: serde_json::Value = serde_json::from_str(line).map_err(|e| {
@@ -257,23 +258,41 @@ impl OpenAICodexInterface {
                             .map(|s| s.to_string())
                             .or_else(|| Some("completed".to_string()));
                     }
+                    "error" => {
+                        if let Some(message) = value.get("message").and_then(|v| v.as_str()) {
+                            failure_reason = Some(message.to_string());
+                        }
+                    }
                     "turn.failed" | "run.failed" => {
                         finish_reason = Some("failed".to_string());
+                        if let Some(error) = value
+                            .get("error")
+                            .and_then(|v| v.get("message"))
+                            .and_then(|v| v.as_str())
+                        {
+                            failure_reason = Some(error.to_string());
+                        }
                     }
                     _ => {}
                 }
             }
         }
 
-        let response_text = last_agent_message.ok_or_else(|| {
-            OpenAIError::CliFailed("Codex CLI did not return an agent message".to_string())
-        })?;
+        if let Some(response_text) = last_agent_message {
+            return Ok(CodexParsedOutput {
+                response_text,
+                finish_reason,
+                usage,
+            });
+        }
 
-        Ok(CodexParsedOutput {
-            response_text,
-            finish_reason,
-            usage,
-        })
+        if let Some(reason) = failure_reason {
+            return Err(OpenAIError::CliFailed(reason));
+        }
+
+        Err(OpenAIError::CliFailed(
+            "Codex CLI did not return an agent message".to_string(),
+        ))
     }
 
     fn build_response(

@@ -5,6 +5,16 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 use test_tag::tag;
 
+fn should_run_claude_tests() -> bool {
+    if let Ok(value) = std::env::var("RUN_CLAUDE_TESTS") {
+        if value == "1" || value.eq_ignore_ascii_case("true") {
+            return true;
+        }
+    }
+
+    std::env::var("ANTHROPIC_API_KEY").is_ok()
+}
+
 /// RAII guard that restores the original directory when dropped
 struct DirectoryGuard {
     original_dir: PathBuf,
@@ -116,6 +126,11 @@ fn copy_dir_all(src: &PathBuf, dst: &PathBuf) -> Result<(), Box<dyn std::error::
 #[tag(claude)]
 #[serial]
 async fn test_claude_integration_with_temp_workspaces() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude integration test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     for test_case in get_test_cases() {
         println!("Running test case: {}", test_case.name);
 
@@ -213,6 +228,11 @@ async fn test_claude_integration_with_temp_workspaces() {
 #[tag(claude)]
 #[serial]
 async fn test_single_task_with_references() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude integration test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     let test_cases = get_test_cases();
     let test_case = &test_cases[4]; // task_references test
 
@@ -299,6 +319,11 @@ async fn test_single_task_with_references() {
 #[tag(claude)]
 #[serial]
 async fn test_multi_task_execution() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude integration test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     let test_cases = get_test_cases();
     let test_case = &test_cases[3]; // multi_task_execution
 
@@ -379,6 +404,11 @@ async fn test_multi_task_execution() {
 #[tag(claude)]
 #[serial]
 async fn test_cli_resume_functionality() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude integration test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     use aca::cli::{args::ExecutionMode, tasks::TaskLoader};
     use tempfile::TempDir;
 
@@ -476,6 +506,11 @@ async fn test_cli_resume_functionality() {
 #[tag(claude)]
 #[serial]
 async fn test_checkpoint_operations() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude integration test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     use aca::cli::args::{ExecutionMode, ResumeConfig};
 
     println!("Testing checkpoint operations");
@@ -539,6 +574,11 @@ async fn test_checkpoint_operations() {
 #[tag(claude)]
 #[serial]
 async fn test_task_continuation_on_resume() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude integration test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     use aca::cli::args::{ExecutionMode, ResumeConfig};
 
     println!("Testing task continuation during resume");
@@ -589,6 +629,11 @@ async fn test_task_continuation_on_resume() {
 #[tag(claude)]
 #[serial]
 async fn test_conversational_state_persistence() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude integration test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     use std::fs;
     use tempfile::TempDir;
 

@@ -58,7 +58,7 @@ impl OpenAIProvider {
                     .get("default_model")
                     .and_then(|v| v.as_str().map(|s| s.to_string()))
             })
-            .unwrap_or_else(|| "o4-mini".to_string());
+            .unwrap_or_else(|| "gpt-5-codex".to_string());
 
         let profile = additional
             .get("profile")
@@ -225,9 +225,9 @@ impl LLMProvider for OpenAIProvider {
                 supports_vision: false,
                 max_context_tokens: 128_000,
                 available_models: vec![
-                    "o4-mini".to_string(),
-                    "o3-mini".to_string(),
+                    "gpt-5-codex".to_string(),
                     "gpt-4.1".to_string(),
+                    "gpt-4o".to_string(),
                 ],
             })
         })
@@ -272,9 +272,9 @@ impl LLMProvider for OpenAIProvider {
     fn list_models(&self) -> BoxFuture<'_, Result<Vec<String>, LLMError>> {
         Box::pin(async move {
             Ok(vec![
-                "o4-mini".to_string(),
-                "o3-mini".to_string(),
+                "gpt-5-codex".to_string(),
                 "gpt-4.1".to_string(),
+                "gpt-4o".to_string(),
             ])
         })
     }

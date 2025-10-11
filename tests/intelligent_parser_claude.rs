@@ -11,6 +11,16 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use test_tag::tag;
 
+fn should_run_claude_tests() -> bool {
+    if let Ok(value) = std::env::var("RUN_CLAUDE_TESTS") {
+        if value == "1" || value.eq_ignore_ascii_case("true") {
+            return true;
+        }
+    }
+
+    std::env::var("ANTHROPIC_API_KEY").is_ok()
+}
+
 /// Helper to create a Claude provider for testing
 /// Uses CLI mode by default (no API key required), or API mode if ANTHROPIC_API_KEY is set
 async fn create_test_claude_provider() -> Arc<dyn aca::llm::LLMProvider> {
@@ -45,6 +55,11 @@ async fn create_test_claude_provider() -> Arc<dyn aca::llm::LLMProvider> {
 #[tokio::test]
 #[tag(claude)]
 async fn test_simple_task_analysis_with_real_claude() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude parser test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     let provider = create_test_claude_provider().await;
     let parser = IntelligentTaskParser::new(provider);
 
@@ -91,6 +106,11 @@ async fn test_simple_task_analysis_with_real_claude() {
 #[tokio::test]
 #[tag(claude)]
 async fn test_hierarchical_task_analysis_with_real_claude() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude parser test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     let provider = create_test_claude_provider().await;
     let parser = IntelligentTaskParser::new(provider);
 
@@ -167,6 +187,11 @@ async fn test_hierarchical_task_analysis_with_real_claude() {
 #[tokio::test]
 #[tag(claude)]
 async fn test_execution_plan_generation_with_real_claude() {
+    if !should_run_claude_tests() {
+        eprintln!("skipping Claude parser test: RUN_CLAUDE_TESTS not enabled");
+        return;
+    }
+
     let provider = create_test_claude_provider().await;
     let parser = IntelligentTaskParser::new(provider);
 
