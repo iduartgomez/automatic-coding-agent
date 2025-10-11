@@ -119,7 +119,7 @@ async fn test_codex_exec_produces_response() {
 
     let cli_path = std::env::var("CODEX_CLI_PATH").unwrap_or_else(|_| "codex".to_string());
     let default_model =
-        std::env::var("CODEX_DEFAULT_MODEL").unwrap_or_else(|_| "gpt-5-codex".to_string());
+        std::env::var("CODEX_DEFAULT_MODEL").unwrap_or_else(|_| "gpt-5".to_string());
 
     let config = OpenAIConfig {
         cli_path,
