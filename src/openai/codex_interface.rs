@@ -102,9 +102,20 @@ impl OpenAICodexInterface {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let message = stderr.trim().to_string();
                 if !skip_model_flag && message.contains("Unsupported model") {
-                    info!(
+                    warn!(
                         "Codex CLI reported unsupported model; retrying without explicit --model flag"
                     );
+                    if let Some(ref paths) = log_paths {
+                        self.append_log(
+                            paths,
+                            &format!(
+                                "[{}] WARN: Codex reported unsupported model '{}'; retrying without explicit --model flag",
+                                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                                request.model
+                            ),
+                        )
+                        .await;
+                    }
                     skip_model_flag = true;
                     continue;
                 }
