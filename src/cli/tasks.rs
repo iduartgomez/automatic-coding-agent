@@ -67,12 +67,18 @@ impl TaskLoader {
         input: &TaskInput,
         use_intelligent: bool,
         context_hints: Vec<String>,
+        provider_override: Option<crate::llm::types::ProviderType>,
     ) -> Result<ExecutionPlan, FileError> {
         match input {
             TaskInput::ExecutionPlan(path) => Self::load_execution_plan(path),
             _ => {
                 if use_intelligent {
-                    Self::task_input_to_execution_plan_intelligent(input, context_hints).await
+                    Self::task_input_to_execution_plan_intelligent(
+                        input,
+                        context_hints,
+                        provider_override,
+                    )
+                    .await
                 } else {
                     Self::task_input_to_execution_plan(input)
                 }
@@ -111,6 +117,7 @@ impl TaskLoader {
     async fn task_input_to_execution_plan_intelligent(
         input: &TaskInput,
         context_hints: Vec<String>,
+        provider_override: Option<crate::llm::types::ProviderType>,
     ) -> Result<ExecutionPlan, FileError> {
         use crate::cli::IntelligentTaskParser;
         use crate::llm::provider::LLMProviderFactory;
@@ -118,7 +125,10 @@ impl TaskLoader {
 
         // Use default provider config (Claude CLI mode)
         // The provider will handle API key requirements based on its configured mode
-        let provider_config = ProviderConfig::default();
+        let mut provider_config = ProviderConfig::default();
+        if let Some(provider_type) = provider_override {
+            provider_config.provider_type = provider_type;
+        }
 
         let workspace = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
         let provider = LLMProviderFactory::create_provider(provider_config, workspace)

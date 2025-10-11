@@ -78,9 +78,7 @@ fn setup_test_workspace(resource_dir: &str) -> Result<(TempDir, PathBuf), Box<dy
 }
 
 #[cfg(target_family = "unix")]
-async fn create_codex_provider(
-    workspace: &Path,
-) -> Result<Arc<dyn LLMProvider>, LLMError> {
+async fn create_codex_provider(workspace: &Path) -> Result<Arc<dyn LLMProvider>, LLMError> {
     let mut additional_config = HashMap::new();
 
     if let Ok(cli_path) = std::env::var("CODEX_CLI_PATH") {
@@ -258,10 +256,8 @@ async fn test_codex_intelligent_parser_on_nested_tasks() {
         "Codex analysis should produce at least one task"
     );
 
-    let plan = parser.analysis_to_execution_plan(
-        analysis.clone(),
-        Some("Codex Nested Tasks".to_string()),
-    );
+    let plan =
+        parser.analysis_to_execution_plan(analysis.clone(), Some("Codex Nested Tasks".to_string()));
 
     assert!(plan.has_tasks(), "Execution plan should contain tasks");
     assert!(

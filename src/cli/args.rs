@@ -7,8 +7,30 @@
 //! - `show-config`: Show configuration discovery information
 
 use super::tasks::TaskInput;
-use clap::{Parser, Subcommand};
+use crate::llm::types::ProviderType;
+use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum ProviderCliOption {
+    Claude,
+    #[clap(alias = "openai")]
+    OpenAI,
+    Anthropic,
+    #[clap(alias = "local")]
+    LocalModel,
+}
+
+impl ProviderCliOption {
+    pub fn into_provider_type(self) -> ProviderType {
+        match self {
+            ProviderCliOption::Claude => ProviderType::Claude,
+            ProviderCliOption::OpenAI => ProviderType::OpenAI,
+            ProviderCliOption::Anthropic => ProviderType::Anthropic,
+            ProviderCliOption::LocalModel => ProviderType::LocalModel,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum ExecutionMode {
@@ -31,6 +53,7 @@ pub struct BatchConfig {
     pub force_naive_parser: bool,
     pub context_hints: Vec<String>,
     pub dump_plan: Option<PathBuf>,
+    pub provider_override: Option<ProviderType>,
 }
 
 #[derive(Debug)]
@@ -57,6 +80,9 @@ pub struct ResumeConfig {
 #[command(long_about = None)]
 #[command(arg_required_else_help = true)]
 pub struct Args {
+    /// Override default provider (e.g., Claude) with another configured provider
+    #[arg(long = "provider", value_enum, global = true)]
+    pub provider: Option<ProviderCliOption>,
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
@@ -160,6 +186,7 @@ impl Args {
             }) => {
                 // Auto-detect file type based on extension
                 let task_input = Self::detect_file_type(file)?;
+                let provider_override = self.provider.map(|p| p.into_provider_type());
 
                 Ok(ExecutionMode::Batch(BatchConfig {
                     task_input,
@@ -171,6 +198,7 @@ impl Args {
                     force_naive_parser: *force_naive_parser,
                     context_hints: context_hints.clone(),
                     dump_plan: dump_plan.clone(),
+                    provider_override,
                 }))
             }
             Some(Commands::Interactive { workspace, verbose }) => {
@@ -261,6 +289,7 @@ mod tests {
     #[test]
     fn test_run_command_with_markdown() {
         let args = Args {
+            provider: None,
             command: Some(Commands::Run {
                 file: PathBuf::from("tasks.md"),
                 config: None,
@@ -288,6 +317,7 @@ mod tests {
     #[test]
     fn test_run_command_with_json() {
         let args = Args {
+            provider: None,
             command: Some(Commands::Run {
                 file: PathBuf::from("plan.json"),
                 config: None,
@@ -313,6 +343,7 @@ mod tests {
     #[test]
     fn test_run_command_with_toml() {
         let args = Args {
+            provider: None,
             command: Some(Commands::Run {
                 file: PathBuf::from("config.toml"),
                 config: None,
@@ -422,6 +453,7 @@ mod tests {
     #[test]
     fn test_interactive_command() {
         let args = Args {
+            provider: None,
             command: Some(Commands::Interactive {
                 workspace: Some(PathBuf::from("/workspace")),
                 verbose: true,
@@ -439,7 +471,10 @@ mod tests {
 
     #[test]
     fn test_no_command_error() {
-        let args = Args { command: None };
+        let args = Args {
+            provider: None,
+            command: None,
+        };
         let result = args.mode();
         assert!(result.is_err());
     }
@@ -447,6 +482,7 @@ mod tests {
     #[test]
     fn test_checkpoint_list() {
         let args = Args {
+            provider: None,
             command: Some(Commands::Checkpoint {
                 command: CheckpointCommands::List { all_sessions: true },
             }),
@@ -463,6 +499,7 @@ mod tests {
     #[test]
     fn test_checkpoint_create() {
         let args = Args {
+            provider: None,
             command: Some(Commands::Checkpoint {
                 command: CheckpointCommands::Create {
                     description: "Test checkpoint".to_string(),
@@ -481,6 +518,7 @@ mod tests {
     #[test]
     fn test_checkpoint_resume_specific() {
         let args = Args {
+            provider: None,
             command: Some(Commands::Checkpoint {
                 command: CheckpointCommands::Resume {
                     checkpoint_id: "checkpoint-123".to_string(),
@@ -505,6 +543,7 @@ mod tests {
     #[test]
     fn test_checkpoint_resume_latest() {
         let args = Args {
+            provider: None,
             command: Some(Commands::Checkpoint {
                 command: CheckpointCommands::Resume {
                     checkpoint_id: "ignored".to_string(),
