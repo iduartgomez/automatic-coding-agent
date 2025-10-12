@@ -1,6 +1,6 @@
 //! Claude-specific LLM provider implementation
 //!
-//! Implements the [`LLMProvider`] trait for Claude, supporting both CLI and API modes.
+//! Implements the [`LLMProvider`] trait for the Claude Code stack, supporting both CLI and API modes.
 //!
 //! ## Provider Modes
 //!
@@ -33,7 +33,7 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // CLI mode (default, no API key needed)
 //!     let config = ProviderConfig {
-//!         provider_type: ProviderType::Claude,
+//!         provider_type: ProviderType::ClaudeCode,
 //!         ..Default::default()
 //!     };
 //!     let provider = ClaudeProvider::new(config, PathBuf::from(".")).await?;
@@ -42,7 +42,7 @@
 //!     let mut additional_config = std::collections::HashMap::new();
 //!     additional_config.insert("mode".to_string(), serde_json::json!("API"));
 //!     let config_api = ProviderConfig {
-//!         provider_type: ProviderType::Claude,
+//!         provider_type: ProviderType::ClaudeCode,
 //!         api_key: Some("sk-ant-...".to_string()),
 //!         additional_config,
 //!         ..Default::default()

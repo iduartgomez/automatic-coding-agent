@@ -9,7 +9,7 @@
 //! The system consists of several key components organized into modules:
 //!
 //! - **[`cli`]**: Command-line interface with intelligent task parsing and simple task loading
-//! - **[`llm`]**: Provider-agnostic LLM interface supporting multiple providers (Claude CLI, API, etc.)
+//! - **[`llm`]**: Provider-agnostic LLM interface supporting multiple providers (Claude Code CLI/API, OpenAI Codex CLI, etc.)
 //! - **[`claude`]**: Claude Code integration with rate limiting and error recovery
 //! - **[`task`]**: Hierarchical task management with intelligent scheduling
 //! - **[`session`]**: Complete session lifecycle management with atomic persistence
@@ -24,7 +24,7 @@
 //! - **Dependency mapping**: Automatic TaskId generation and dependency graph construction
 //!
 //! ### 🔌 LLM Provider System
-//! - **Multi-Provider Support**: Claude CLI (default), Claude API, OpenAI, local models (Ollama)
+//! - **Multi-Provider Support**: Claude Code CLI (default), Claude API, OpenAI Codex CLI, local models (Ollama)
 //! - **CLI Mode (default)**: Uses `claude` command, no API key required
 //! - **API Mode**: Direct Anthropic API access with API key
 //! - **Provider-Agnostic Interface**: Unified API across all LLM providers

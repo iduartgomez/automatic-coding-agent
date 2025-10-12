@@ -6,7 +6,7 @@
 [![Documentation](https://docs.rs/automatic-coding-agent/badge.svg)](https://docs.rs/automatic-coding-agent)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A Rust-based agentic tool that automates coding tasks using multiple LLM providers. The system operates with dynamic task trees, comprehensive session persistence, and full resumability for long-running automated coding sessions. Features a provider-agnostic LLM interface supporting Claude, OpenAI, and local models with both CLI and library interfaces.
+A Rust-based agentic tool that automates coding tasks using multiple LLM providers. The system operates with dynamic task trees, comprehensive session persistence, and full resumability for long-running automated coding sessions. Features a provider-agnostic LLM interface supporting Claude Code, OpenAI Codex, and local models with both CLI and library interfaces.
 
 ## Features
 
@@ -32,7 +32,7 @@ A Rust-based agentic tool that automates coding tasks using multiple LLM provide
 - **Resource Management**: Memory, CPU, and storage constraint enforcement
 
 ### 🤖 **LLM Provider Abstraction**
-- **Multi-Provider Support**: Claude, OpenAI, Anthropic API, local models (Ollama)
+- **Multi-Provider Support**: Claude Code, OpenAI Codex, Anthropic API, local models (Ollama)
 - **Provider-Agnostic Interface**: Unified API across all LLM providers
 - **Automatic Fallback**: Seamless fallback between providers for reliability
 - **Rate Limiting**: Provider-specific rate limiting and cost optimization
@@ -178,7 +178,7 @@ The system consists of several key components:
 - **SessionMetadata**: Version tracking and performance metrics
 
 ### 3. LLM Provider Abstraction (`src/llm/`)
-- **LLMProvider**: Unified interface across Claude, OpenAI, and local models
+- **LLMProvider**: Unified interface across Claude Code, OpenAI Codex, and local models
 - **ProviderConfig**: Provider-specific configuration and capabilities
 - **Rate Limiting**: Built-in rate limiting and cost optimization
 - **Error Recovery**: Automatic retry and fallback mechanisms

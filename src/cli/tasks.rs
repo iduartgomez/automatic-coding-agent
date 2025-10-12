@@ -126,7 +126,7 @@ impl TaskLoader {
         use crate::llm::provider::LLMProviderFactory;
         use crate::llm::types::ProviderConfig;
 
-        // Use default provider config (Claude CLI mode)
+        // Use default provider config (Claude Code CLI mode)
         // The provider will handle API key requirements based on its configured mode
         let mut provider_config = ProviderConfig::default();
         if let Some(provider_type) = provider_override {

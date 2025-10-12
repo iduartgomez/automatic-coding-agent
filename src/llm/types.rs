@@ -51,8 +51,8 @@ pub struct ProviderConfig {
 /// Supported LLM providers
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProviderType {
-    Claude,
-    OpenAI,
+    ClaudeCode,
+    OpenAICodex,
     Anthropic,
     LocalModel,
     Custom(String),
@@ -145,7 +145,7 @@ impl Default for LLMRequest {
 impl Default for ProviderConfig {
     fn default() -> Self {
         Self {
-            provider_type: ProviderType::Claude,
+            provider_type: ProviderType::ClaudeCode,
             api_key: None,
             base_url: None,
             model: Some("claude-sonnet".to_string()), // Auto-resolves to latest Sonnet

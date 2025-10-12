@@ -53,7 +53,7 @@ src/
 - **Detail preservation**: Keeps technical specs, success criteria, implementation notes
 
 ### 🔌 LLM Provider System
-- **Claude CLI (default)**: Uses `claude` command, no API key needed
+- **Claude Code CLI (default)**: Uses `claude` command, no API key needed
 - **Claude API**: Set `CLAUDE_MODE=API` + `ANTHROPIC_API_KEY` for direct API access
 - **OpenAI**: Set `OPENAI_API_KEY` for GPT-4 and other models
 - **Ollama**: Local model execution for privacy

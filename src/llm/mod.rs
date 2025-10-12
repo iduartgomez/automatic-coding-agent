@@ -17,7 +17,7 @@
 //!   - **CLI Mode (default)**: Uses `claude` command, no API key required
 //!   - **API Mode**: Direct Anthropic API access, requires API key
 //!   - Configure via `CLAUDE_MODE` env var or `additional_config["mode"]`
-//! - **OpenAI**: GPT-3.5, GPT-4, and other OpenAI models (planned)
+//! - **OpenAI Codex CLI**: Local Codex command-line integration
 //! - **Anthropic API**: Direct Anthropic API integration (via API mode)
 //! - **Local Models**: Ollama, LocalAI, and other local inference (planned)
 //! - **Custom Providers**: Extensible architecture for custom implementations
@@ -56,10 +56,10 @@
 //!                                 │
 //!                    ┌────────────┼────────────┐
 //!                    │            │            │
-//!            ┌───────▼──────┐ ┌───▼───┐ ┌─────▼─────┐
-//!            │ClaudeProvider│ │OpenAI │ │LocalModel │
-//!            │              │ │Provider│ │ Provider  │
-//!            └──────────────┘ └───────┘ └───────────┘
+//!            ┌───────▼──────┐ ┌──────────┐ ┌─────▼─────┐
+//!            │ClaudeProvider│ │OpenAICodex│ │LocalModel │
+//!            │  (CLI/API)   │ │ Provider │ │ Provider  │
+//!            └──────────────┘ └──────────┘ └───────────┘
 //! ```
 //!
 //! ## Example Usage
@@ -78,7 +78,7 @@
 //!     // Configure Claude provider in CLI mode (default)
 //!     // No API key needed - uses `claude` CLI command
 //!     let config = ProviderConfig {
-//!         provider_type: ProviderType::Claude,
+//!         provider_type: ProviderType::ClaudeCode,
 //!         model: Some("claude-sonnet".to_string()),
 //!         ..Default::default()  // claude_mode defaults to CLI
 //!     };
@@ -120,7 +120,7 @@
 //!     additional_config.insert("mode".to_string(), serde_json::json!("API"));
 //!
 //!     let config = ProviderConfig {
-//!         provider_type: ProviderType::Claude,
+//!         provider_type: ProviderType::ClaudeCode,
 //!         api_key: Some("your-api-key".to_string()),  // Required in API mode
 //!         model: Some("claude-3-sonnet".to_string()),
 //!         additional_config,

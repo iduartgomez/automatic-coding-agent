@@ -92,7 +92,7 @@ async fn create_codex_provider(workspace: &Path) -> Result<Arc<dyn LLMProvider>,
     }
 
     let provider_config = ProviderConfig {
-        provider_type: ProviderType::OpenAI,
+        provider_type: ProviderType::OpenAICodex,
         api_key: None,
         base_url: None,
         model: None,

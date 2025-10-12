@@ -13,9 +13,10 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum ProviderCliOption {
-    Claude,
-    #[clap(alias = "openai", alias = "open-ai")]
-    OpenAI,
+    #[clap(name = "claude-code")]
+    ClaudeCode,
+    #[clap(name = "openai-codex")]
+    OpenAICodex,
     Anthropic,
     #[clap(alias = "local")]
     LocalModel,
@@ -24,8 +25,8 @@ pub enum ProviderCliOption {
 impl ProviderCliOption {
     pub fn into_provider_type(self) -> ProviderType {
         match self {
-            ProviderCliOption::Claude => ProviderType::Claude,
-            ProviderCliOption::OpenAI => ProviderType::OpenAI,
+            ProviderCliOption::ClaudeCode => ProviderType::ClaudeCode,
+            ProviderCliOption::OpenAICodex => ProviderType::OpenAICodex,
             ProviderCliOption::Anthropic => ProviderType::Anthropic,
             ProviderCliOption::LocalModel => ProviderType::LocalModel,
         }

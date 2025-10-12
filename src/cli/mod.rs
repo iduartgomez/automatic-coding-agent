@@ -66,7 +66,7 @@
 //!     let plan = TaskLoader::load_and_convert(input).await?;
 //!
 //!     // Intelligent parsing with LLM
-//!     let config = ProviderConfig::default(); // Uses Claude CLI by default
+//!     let config = ProviderConfig::default(); // Uses Claude Code CLI by default
 //!     let provider = ClaudeProvider::new(config, PathBuf::from(".")).await?;
 //!     let parser = IntelligentTaskParser::new(Box::new(provider));
 //!     let plan = parser.parse_file(PathBuf::from("complex-tasks.md")).await?;

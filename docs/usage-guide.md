@@ -1,6 +1,6 @@
 # ACA (Automatic Coding Agent) - Usage Guide
 
-A powerful Rust-based tool that automates coding tasks using multiple LLM providers (Claude CLI/API, OpenAI, Ollama). The system provides intelligent task execution with full session persistence, resumability, and unified execution plans.
+A powerful Rust-based tool that automates coding tasks using multiple LLM providers (Claude Code CLI/API, OpenAI Codex, Ollama). The system provides intelligent task execution with full session persistence, resumability, and unified execution plans.
 
 ## Installation
 
@@ -605,7 +605,7 @@ This will:
 - Ensure configured LLM provider is accessible:
   - Claude CLI mode: `claude` command is installed
   - Claude API mode: `ANTHROPIC_API_KEY` environment variable is set
-  - OpenAI: `OPENAI_API_KEY` environment variable is set
+  - OpenAI Codex: `CODEX_CLI_PATH` is discoverable in `PATH`
 - Check workspace permissions
 - Verify task file is UTF-8 encoded
 - Use `--verbose` flag to see detailed provider initialization logs
@@ -863,4 +863,3 @@ aca --execution-plan sprint-plan.json
 ```
 
 **See full documentation**: [Intelligent Task Parsing Guide](user-guide/intelligent-task-parsing.md)
-

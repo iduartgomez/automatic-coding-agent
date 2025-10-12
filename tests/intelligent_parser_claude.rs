@@ -34,7 +34,7 @@ async fn create_test_claude_provider() -> Arc<dyn aca::llm::LLMProvider> {
     // Otherwise defaults to CLI mode
 
     let config = ProviderConfig {
-        provider_type: ProviderType::Claude,
+        provider_type: ProviderType::ClaudeCode,
         api_key,
         base_url: None,
         model: Some("claude-sonnet".to_string()),

@@ -52,10 +52,10 @@ impl LLMProviderFactory {
         workspace_root: PathBuf,
     ) -> Result<Arc<dyn LLMProvider>, LLMError> {
         match config.provider_type {
-            crate::llm::types::ProviderType::Claude => Ok(Arc::new(
+            crate::llm::types::ProviderType::ClaudeCode => Ok(Arc::new(
                 crate::llm::claude_provider::ClaudeProvider::new(config, workspace_root).await?,
             )),
-            crate::llm::types::ProviderType::OpenAI => Ok(Arc::new(
+            crate::llm::types::ProviderType::OpenAICodex => Ok(Arc::new(
                 crate::llm::openai_provider::OpenAIProvider::new(config, workspace_root).await?,
             )),
             crate::llm::types::ProviderType::Anthropic => {
