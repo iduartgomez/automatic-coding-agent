@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-10-12
+
+### Fixed
+- Switched `reqwest` to the Rustls TLS backend so CI/release builds no longer rely on system OpenSSL.
+
 ## [0.3.0] - 2025-10-12
 
 ### Added
@@ -17,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Renamed the CLI-backed providers from `Claude` and `OpenAI` to `Claude Code` and `OpenAI Codex` across the codebase and documentation.
 - Updated defaults and documentation to reflect the new provider naming and Codex model selection (`gpt-5`).
+- Switched the HTTP client to Rustls-based TLS for portable cross-compilation in release builds.
 
 ### Fixed
 - Ensured Codex integration tests and documentation match the new provider names and model fallback behaviour.
@@ -121,7 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline code documentation with examples
 - Architecture compliance with modular design patterns
 
-[Unreleased]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/automatic-coding-agent/automatic-coding-agent/releases/tag/v0.1.0

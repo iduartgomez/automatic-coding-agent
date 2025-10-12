@@ -1,6 +1,6 @@
 [package]
 name = "aca"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 description = "A Rust-based agentic tool that automates coding tasks using Claude Code and OpenAI Codex CLI integrations"
 license = "MIT"
@@ -30,7 +30,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 futures = "0.3"
 rand = "0.9"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 url = "2.4"
 dashmap = "6.1"
 flate2 = "1.0"
