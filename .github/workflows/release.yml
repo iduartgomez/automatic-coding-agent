@@ -8,6 +8,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+
 jobs:
   create-release:
     name: Create Release
@@ -16,8 +19,6 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
     - uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
       with:
         token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
