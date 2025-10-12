@@ -1,7 +1,7 @@
 # Automatic Coding Agent
 
-[![CI](https://github.com/automatic-coding-agent/automatic-coding-agent/workflows/CI/badge.svg)](https://github.com/automatic-coding-agent/automatic-coding-agent/actions?query=workflow%3ACI)
-[![Security Audit](https://github.com/automatic-coding-agent/automatic-coding-agent/workflows/Security%20Audit/badge.svg)](https://github.com/automatic-coding-agent/automatic-coding-agent/actions?query=workflow%3A%22Security+Audit%22)
+[![CI](https://github.com/iduartgomez/automatic-coding-agent/workflows/CI/badge.svg)](https://github.com/iduartgomez/automatic-coding-agent/actions?query=workflow%3ACI)
+[![Security Audit](https://github.com/iduartgomez/automatic-coding-agent/workflows/Security%20Audit/badge.svg)](https://github.com/iduartgomez/automatic-coding-agent/actions?query=workflow%3A%22Security+Audit%22)
 [![Crates.io](https://img.shields.io/crates/v/automatic-coding-agent.svg)](https://crates.io/crates/automatic-coding-agent)
 [![Documentation](https://docs.rs/automatic-coding-agent/badge.svg)](https://docs.rs/automatic-coding-agent)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -61,7 +61,7 @@ A Rust-based agentic tool that automates coding tasks using multiple LLM provide
 
 ```bash
 # Clone the repository
-git clone https://github.com/automatic-coding-agent/automatic-coding-agent.git
+git clone https://github.com/iduartgomez/automatic-coding-agent.git
 cd automatic-coding-agent
 
 # Build the project
