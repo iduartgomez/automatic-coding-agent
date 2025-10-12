@@ -2,8 +2,8 @@
 
 [![CI](https://github.com/iduartgomez/automatic-coding-agent/workflows/CI/badge.svg)](https://github.com/iduartgomez/automatic-coding-agent/actions?query=workflow%3ACI)
 [![Security Audit](https://github.com/iduartgomez/automatic-coding-agent/workflows/Security%20Audit/badge.svg)](https://github.com/iduartgomez/automatic-coding-agent/actions?query=workflow%3A%22Security+Audit%22)
-[![Crates.io](https://img.shields.io/crates/v/automatic-coding-agent.svg)](https://crates.io/crates/automatic-coding-agent)
-[![Documentation](https://docs.rs/automatic-coding-agent/badge.svg)](https://docs.rs/automatic-coding-agent)
+[![Crates.io](https://img.shields.io/crates/v/aca.svg)](https://crates.io/crates/aca)
+[![Documentation](https://docs.rs/aca/badge.svg)](https://docs.rs/aca)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A Rust-based agentic tool that automates coding tasks using multiple LLM providers. The system operates with dynamic task trees, comprehensive session persistence, and full resumability for long-running automated coding sessions. Features a provider-agnostic LLM interface supporting Claude Code, OpenAI Codex, and local models with both CLI and library interfaces.
