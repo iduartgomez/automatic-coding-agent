@@ -53,6 +53,16 @@ cat plan.json                                              # Step 2: Review
 aca --execution-plan plan.json                             # Step 3: Execute
 ```
 
+### Selecting Providers
+
+```bash
+# Use Claude Code CLI (default)
+aca --provider claude-code --task-file tasks.md --use-intelligent-parser
+
+# Use OpenAI Codex CLI with explicit model override
+aca --provider openai-codex --model gpt-5 --task-file main-tasks.md --use-intelligent-parser
+```
+
 ### Multi-Task Execution
 
 Create a task list file with multiple tasks:

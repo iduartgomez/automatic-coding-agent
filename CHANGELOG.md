@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-10-12
+
+### Added
+- CLI `--provider` flag now exposes explicit `claude-code` and `openai-codex` options.
+- Codex provider gracefully retries without `--model` when the CLI reports an unsupported model and logs a warning for visibility.
+- Support for overriding the Codex model via CLI flag or configuration when invoking the intelligent parser.
+
+### Changed
+- Renamed the CLI-backed providers from `Claude` and `OpenAI` to `Claude Code` and `OpenAI Codex` across the codebase and documentation.
+- Updated defaults and documentation to reflect the new provider naming and Codex model selection (`gpt-5`).
+
+### Fixed
+- Ensured Codex integration tests and documentation match the new provider names and model fallback behaviour.
+
 ## [0.2.0] - 2025-10-04
 
 ### Added
@@ -107,6 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline code documentation with examples
 - Architecture compliance with modular design patterns
 
-[Unreleased]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/automatic-coding-agent/automatic-coding-agent/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/automatic-coding-agent/automatic-coding-agent/releases/tag/v0.1.0

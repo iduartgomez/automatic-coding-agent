@@ -82,6 +82,10 @@ cargo run
 # Show help (default when no command specified)
 aca
 
+# Run intelligent parser with a specific provider
+aca --provider claude-code run --use-intelligent-parser tasks.md
+aca --provider openai-codex --model gpt-5 run --use-intelligent-parser --dry-run main-tasks.md
+
 # Execute a file (auto-detects type based on extension)
 aca run tasks.md           # Markdown task list
 aca run config.toml        # TOML config with tasks
