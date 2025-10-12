@@ -93,18 +93,18 @@ jobs:
       shell: bash
       run: |
         if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-          BIN_NAME="automatic-coding-agent${{ matrix.extension }}"
-          mv "target/${{ matrix.target }}/release/automatic-coding-agent${{ matrix.extension }}" "$BIN_NAME"
+          BIN_NAME="aca${{ matrix.extension }}"
+          mv "target/${{ matrix.target }}/release/aca${{ matrix.extension }}" "$BIN_NAME"
         else
-          BIN_NAME="automatic-coding-agent"
-          mv "target/${{ matrix.target }}/release/automatic-coding-agent" "$BIN_NAME"
+          BIN_NAME="aca"
+          mv "target/${{ matrix.target }}/release/aca" "$BIN_NAME"
         fi
         echo "BIN_NAME=$BIN_NAME" >> $GITHUB_ENV
 
     - name: Create archive
       shell: bash
       run: |
-        ARCHIVE_NAME="automatic-coding-agent-${{ matrix.build }}"
+        ARCHIVE_NAME="aca-${{ matrix.build }}"
         if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
           7z a "${ARCHIVE_NAME}.zip" "${{ env.BIN_NAME }}"
           echo "ARCHIVE=${ARCHIVE_NAME}.zip" >> $GITHUB_ENV
