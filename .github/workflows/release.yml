@@ -16,6 +16,10 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
     - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+      with:
+        token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
     - name: Get version from tag
       id: get_version
