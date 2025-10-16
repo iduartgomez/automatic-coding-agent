@@ -71,16 +71,17 @@ src/
 - Checkpoint and resume from any point
 - Crash recovery with automatic state restoration
 
-### 📊 Comprehensive Audit Trail
+### 📊 Comprehensive Audit Trail (Standardized Across All Providers)
 - **Subprocess output**: Real-time streaming with `--verbose` flag
 - **Full command logging**: Reproducible bash scripts for each task
 - **Complete stdout/stderr**: No truncation, saved to separate files
-- **Tool use tracking**: Captures all Claude Code operations (Write, Edit, Bash, etc.)
+- **Tool use tracking**: Captures all operations (Write, Edit, Bash, etc.)
 - **Performance metrics**: Token usage, costs, execution time per task
+- **Unified logging**: Same format across Claude, OpenAI, and all providers
 
 ## File Structure
 
-When running tasks, `aca` creates the following structure in your workspace:
+When running tasks, `aca` creates standardized logs for all providers:
 
 ```
 workspace/
@@ -88,26 +89,34 @@ workspace/
 │   └── sessions/
 │       └── {session-id}/
 │           ├── meta/
-│           │   └── session.json                           # Session state
+│           │   └── session.json                                  # Session state
 │           ├── checkpoints/
-│           │   └── {checkpoint-id}.json                   # Checkpoint snapshots
-│           ├── temp/                                      # Temporary files
+│           │   └── {checkpoint-id}.json                          # Checkpoint snapshots
+│           ├── temp/                                             # Temporary files
 │           └── logs/
-│               └── claude_interactions/
-│                   ├── claude-subprocess-{task-id}.log     # Human-readable summary
-│                   ├── claude-subprocess-{task-id}.stdout.json  # Full JSON/JSONL output
-│                   ├── claude-subprocess-{task-id}.stderr.txt   # Error output
-│                   ├── claude-subprocess-{task-id}.command.sh   # Reproducible command
-│                   └── claude-subprocess-{task-id}.tools.json   # Tool uses (when enabled)
+│               ├── claude_interactions/
+│               │   ├── claude-{timestamp}-{uuid}.log             # Human-readable summary
+│               │   ├── claude-{timestamp}-{uuid}.stdout.json     # Full JSON/JSONL output
+│               │   ├── claude-{timestamp}-{uuid}.stderr.txt      # Error output
+│               │   ├── claude-{timestamp}-{uuid}.command.sh      # Reproducible command
+│               │   └── claude-{timestamp}-{uuid}.tools.json      # Tool uses
+│               └── openai_interactions/
+│                   ├── codex-{timestamp}-{uuid}.log              # Human-readable summary
+│                   ├── codex-{timestamp}-{uuid}.stdout.json      # Full JSON/JSONL output
+│                   ├── codex-{timestamp}-{uuid}.stderr.txt       # Error output
+│                   ├── codex-{timestamp}-{uuid}.command.sh       # Reproducible command
+│                   └── codex-{timestamp}-{uuid}.tools.json       # Tool uses
 ```
 
 **Important Notes:**
-- All files are written to `.aca/` directory (gitignored by default)
-- **Audit files per task**: 5 files provide complete execution history
+- All files written to `.aca/` directory (gitignored by default)
+- **5 files per request**: Consistent across all providers (log, stdout, stderr, command, tools)
+- **Timestamp-based naming**: `{provider}-{timestamp}-{uuid}.*` for easy chronological sorting
 - **Real-time output**: Use `--verbose` flag to see subprocess output as it happens
-- **Tool tracking**: Enabled by default, captures all Write/Edit/Bash/Read operations
+- **Tool tracking**: Standardized format across all providers
+- **Command reproducibility**: Every provider saves executable bash scripts
 - Console output (via `RUST_LOG`) goes to stdout/stderr, not files
-- Session files are only created when tasks are actually executed
+- Session files only created when tasks are actually executed
 
 ## Configuration
 

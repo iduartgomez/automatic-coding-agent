@@ -36,13 +36,13 @@
 
 use crate::claude::{ContextManager, ErrorRecoveryManager, RateLimiter, UsageTracker, types::*};
 use crate::env;
+use crate::llm::provider_logger::{LogContext, ProviderLogger, ToolUse};
 use crate::task::types::{Task, TaskStatus};
 use chrono::{DateTime, Utc};
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -101,7 +101,7 @@ impl ClaudeCodeInterface {
     pub async fn execute_task_request(
         &self,
         request: TaskRequest,
-        session_dir: Option<&std::path::Path>,
+        logger: &ProviderLogger,
     ) -> Result<TaskResponse, ClaudeError> {
         // Get or create a session
         let session = self.get_or_create_session().await?;
@@ -111,7 +111,7 @@ impl ClaudeCodeInterface {
 
         // Execute request directly for now (TODO: add error recovery)
         let result = self
-            .execute_request_internal(&session, &request, session_dir)
+            .execute_request_internal(&session, &request, logger)
             .await;
 
         // Update session state
@@ -129,7 +129,7 @@ impl ClaudeCodeInterface {
         &self,
         session: &ClaudeSession,
         request: &TaskRequest,
-        session_dir: Option<&std::path::Path>,
+        logger: &ProviderLogger,
     ) -> Result<TaskResponse, ClaudeError> {
         // Apply rate limiting
         let _permit = self.rate_limiter.acquire_permit(request).await?;
@@ -154,7 +154,7 @@ impl ClaudeCodeInterface {
 
         // Execute real Claude Code request with session context
         let response = self
-            .execute_claude_code_request(session.id, request, session_dir)
+            .execute_claude_code_request(session.id, request, logger)
             .await?;
 
         // Add assistant response to context
@@ -179,16 +179,14 @@ impl ClaudeCodeInterface {
         &self,
         session_id: SessionId,
         request: &TaskRequest,
-        session_dir_override: Option<&std::path::Path>,
+        logger: &ProviderLogger,
     ) -> Result<TaskResponse, ClaudeError> {
         let start_time = Instant::now();
 
-        // Create log file for this request
-        let log_path = self
-            .create_subprocess_log_file(session_id, &request.id, session_dir_override)
-            .await?;
+        let ctx = LogContext::new(request.id, "sonnet")
+            .with_metadata("task_type", &request.task_type)
+            .with_metadata("priority", format!("{:?}", request.priority));
 
-        // Build contextual prompt with conversation history
         let contextual_prompt = self
             .build_contextual_prompt(session_id, &request.description)
             .await;
@@ -196,38 +194,35 @@ impl ClaudeCodeInterface {
         const ALLOWED_TOOLS: &str =
             "Read,Write,Edit,Bash,Glob,Grep,MultiEdit,Task,TodoWrite,SlashCommand";
 
-        // Determine output format based on tool tracking config
-        let track_tool_uses = self.config.usage_tracking.track_tool_uses;
+        let track_tool_uses = logger.is_tool_tracking_enabled();
         let output_format = if track_tool_uses {
             "stream-json"
         } else {
             "json"
         };
 
-        // Prepare Claude Code CLI command
         let mut command = Command::new("claude");
         command
-            .arg("--print") // Non-interactive mode
+            .arg("--print")
             .arg("--output-format")
-            .arg(output_format); // stream-json for tool tracking, json otherwise
+            .arg(output_format);
 
-        // stream-json requires --verbose
         if track_tool_uses {
             command.arg("--verbose");
         }
 
         command
             .arg("--allowedTools")
-            .arg(ALLOWED_TOOLS) // Allow file operations
+            .arg(ALLOWED_TOOLS)
             .arg("--permission-mode")
-            .arg("acceptEdits"); // Allow file modifications
+            .arg("acceptEdits");
 
-        // Add system message if provided using --append-system-prompt
         let mut log_cmd = format!(
             "claude --print {}--output-format {} --allowedTools {ALLOWED_TOOLS} --permission-mode acceptEdits",
             if track_tool_uses { "--verbose " } else { "" },
             output_format,
         );
+
         if let Some(ref system_msg) = request.system_message {
             command.arg("--append-system-prompt").arg(system_msg);
             log_cmd.push_str(&format!(
@@ -238,93 +233,57 @@ impl ClaudeCodeInterface {
 
         command
             .arg("--model")
-            .arg("sonnet") // Use latest Sonnet model
-            .arg("--") // Separate options from prompt
-            .arg(&contextual_prompt); // The task description with conversation context
+            .arg("sonnet")
+            .arg("--")
+            .arg(&contextual_prompt);
 
-        // Configure stdio based on show_subprocess_output flag
-        if self.config.show_subprocess_output {
-            // Stream output to terminal in real-time
-            command
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .stdin(Stdio::null());
-        } else {
-            // Capture output silently
-            command
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .stdin(Stdio::null());
-        }
+        command
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .stdin(Stdio::null());
 
-        // Save exact command to .command.sh for reproducibility
-        let command_file = log_path.with_extension("command.sh");
-        let full_command = format!(
-            "#!/bin/bash\n# Claude Code Command - Task ID: {}\n# Generated: {}\n\n{} --model sonnet -- {}\n",
-            request.id,
-            Utc::now().format("%Y-%m-%d %H:%M:%S%.3f UTC"),
-            log_cmd,
-            shell_escape::escape(contextual_prompt.clone().into())
-        );
-        if let Err(e) = tokio::fs::write(&command_file, full_command).await {
-            tracing::warn!("Failed to write command file: {}", e);
-        }
+        logger
+            .log_command_start(&ctx, &format!("{} --model sonnet -- <prompt>", log_cmd))
+            .await
+            .map_err(|e| ClaudeError::Unknown(format!("Failed to log command start: {}", e)))?;
 
-        // Log command being executed
-        self.log_subprocess_activity(
-            &log_path,
-            &format!(
-                "[{}] Executing Claude Code command: {} --model sonnet -- {:?}",
-                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                log_cmd,
-                request.description
-            ),
-        )
-        .await;
+        logger
+            .log_event(
+                &ctx,
+                &format!(
+                    "Task ID: {} | Description length: {} chars",
+                    request.id,
+                    request.description.len()
+                ),
+            )
+            .await
+            .ok();
 
-        self.log_subprocess_activity(
-            &log_path,
-            &format!(
-                "[{}] Task ID: {} | Description length: {} chars",
-                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+        if logger.is_command_tracking_enabled() {
+            let full_command = format!(
+                "#!/bin/bash\n# Claude Code Command\n# Task ID: {}\n# Generated: {}\n# Provider: claude\n# Model: sonnet\n\n{} --model sonnet -- {}\n",
                 request.id,
-                request.description.len()
-            ),
-        )
-        .await;
+                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f UTC"),
+                log_cmd,
+                shell_escape::escape(contextual_prompt.clone().into())
+            );
+            logger.save_command_script(&ctx, &full_command).await.ok();
+        }
 
-        // Execute the command
         let output = if self.config.show_subprocess_output {
             tracing::info!("Streaming subprocess output to terminal...");
-            // Stream output to terminal in real-time
             self.execute_with_streaming(command).await?
         } else {
-            // Capture output silently
             command.output().await.map_err(|e| {
-                // Log the error
                 let error_msg = format!("Failed to execute claude command: {}", e);
-                tokio::spawn({
-                    let log_path = log_path.clone();
-                    let error_msg = error_msg.clone();
-                    async move {
-                        if let Ok(mut f) = tokio::fs::OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open(&log_path)
-                            .await
-                        {
-                            let _ = f
-                                .write_all(
-                                    format!(
-                                        "[{}] ERROR: {}\n",
-                                        Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                                        error_msg
-                                    )
-                                    .as_bytes(),
-                                )
-                                .await;
-                        }
-                    }
+                let logger_clone = logger.clone();
+                let ctx_clone = ctx.clone();
+                let error_msg_clone = error_msg.clone();
+                tokio::spawn(async move {
+                    logger_clone
+                        .log_error(&ctx_clone, &error_msg_clone)
+                        .await
+                        .ok();
                 });
                 ClaudeError::Unknown(error_msg)
             })?
@@ -332,90 +291,48 @@ impl ClaudeCodeInterface {
 
         let execution_time = start_time.elapsed();
 
-        // Log execution completion
-        self.log_subprocess_activity(&log_path, &format!(
-            "[{}] Command completed in {:.2}s | Exit code: {} | Stdout: {} bytes | Stderr: {} bytes",
-            Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-            execution_time.as_secs_f64(),
-            output.status.code().unwrap_or(-1),
-            output.stdout.len(),
-            output.stderr.len()
-        )).await;
+        logger
+        .log_event(
+            &ctx,
+            &format!(
+                "Command completed in {:.2}s | Exit code: {} | Stdout: {} bytes | Stderr: {} bytes",
+                execution_time.as_secs_f64(),
+                output.status.code().unwrap_or(-1),
+                output.stdout.len(),
+                output.stderr.len()
+            ),
+        )
+        .await
+        .ok();
 
-        // Save full stdout/stderr to separate files for audit trail
-        if !output.stdout.is_empty() {
-            let stdout_file = log_path.with_extension("stdout.json");
-            if let Err(e) = tokio::fs::write(&stdout_file, &output.stdout).await {
-                tracing::warn!("Failed to write stdout file: {}", e);
+        logger.save_stdout(&ctx, &output.stdout).await.ok();
+        logger.save_stderr(&ctx, &output.stderr).await.ok();
+
+        if track_tool_uses
+            && let Ok(raw_tool_uses) = self.extract_tool_uses_from_stream(&output.stdout)
+        {
+            let tool_uses: Vec<ToolUse> = raw_tool_uses
+                .into_iter()
+                .map(|tool_json| ToolUse {
+                    tool_name: tool_json
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("unknown")
+                        .to_string(),
+                    input: tool_json
+                        .get("input")
+                        .cloned()
+                        .unwrap_or(serde_json::json!({})),
+                    output: None, // Claude stream doesn't include output in tool_use
+                    timestamp: Utc::now(),
+                })
+                .collect();
+
+            if !tool_uses.is_empty() {
+                logger.save_tool_uses(&ctx, &tool_uses).await.ok();
             }
-
-            // Extract and save tool uses if tool tracking is enabled
-            if track_tool_uses
-                && let Ok(tool_uses) = self.extract_tool_uses_from_stream(&output.stdout)
-                && !tool_uses.is_empty()
-            {
-                let tools_file = log_path.with_extension("tools.json");
-                if let Ok(tools_json) = serde_json::to_string_pretty(&tool_uses) {
-                    if let Err(e) = tokio::fs::write(&tools_file, tools_json).await {
-                        tracing::warn!("Failed to write tools file: {}", e);
-                    } else {
-                        tracing::info!("Captured {} tool uses", tool_uses.len());
-                    }
-                }
-            }
-        }
-        if !output.stderr.is_empty() {
-            let stderr_file = log_path.with_extension("stderr.txt");
-            if let Err(e) = tokio::fs::write(&stderr_file, &output.stderr).await {
-                tracing::warn!("Failed to write stderr file: {}", e);
-            }
         }
 
-        // Log stdout summary (first 500 chars for readability)
-        if !output.stdout.is_empty() {
-            let stdout_preview = String::from_utf8_lossy(&output.stdout);
-            let preview = if stdout_preview.len() > 500 {
-                format!(
-                    "{}... (see full output in *.stdout.json)",
-                    &stdout_preview[..500]
-                )
-            } else {
-                stdout_preview.to_string()
-            };
-            self.log_subprocess_activity(
-                &log_path,
-                &format!(
-                    "[{}] STDOUT: {}",
-                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                    preview
-                ),
-            )
-            .await;
-        }
-
-        // Log stderr summary (first 500 chars for readability)
-        if !output.stderr.is_empty() {
-            let stderr_preview = String::from_utf8_lossy(&output.stderr);
-            let preview = if stderr_preview.len() > 500 {
-                format!(
-                    "{}... (see full output in *.stderr.txt)",
-                    &stderr_preview[..500]
-                )
-            } else {
-                stderr_preview.to_string()
-            };
-            self.log_subprocess_activity(
-                &log_path,
-                &format!(
-                    "[{}] STDERR: {}",
-                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                    preview
-                ),
-            )
-            .await;
-        }
-
-        // Check if command succeeded
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let error_msg = format!(
@@ -424,23 +341,12 @@ impl ClaudeCodeInterface {
                 stderr
             );
 
-            self.log_subprocess_activity(
-                &log_path,
-                &format!(
-                    "[{}] COMMAND FAILED: {}",
-                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                    error_msg
-                ),
-            )
-            .await;
-
+            logger.log_error(&ctx, &error_msg).await.ok();
             return Err(ClaudeError::Unknown(error_msg));
         }
 
-        // Parse the output based on format
         let stdout = String::from_utf8_lossy(&output.stdout);
         let response_text = if stdout.trim().is_empty() {
-            // If no JSON output, fall back to stderr which might contain the response
             let stderr = String::from_utf8_lossy(&output.stderr);
             if stderr.trim().is_empty() {
                 "Task completed successfully".to_string()
@@ -448,16 +354,11 @@ impl ClaudeCodeInterface {
                 stderr.to_string()
             }
         } else if track_tool_uses {
-            // Parse stream-json format (JSONL)
-            // Extract result from the final "result" type message
             self.parse_stream_json_result(&stdout)
                 .unwrap_or_else(|_| "Task completed".to_string())
         } else {
-            // Try to parse regular JSON response from Claude CLI (--output-format json)
             match serde_json::from_str::<serde_json::Value>(&stdout) {
                 Ok(json) => {
-                    // Extract response text from JSON structure
-                    // Claude CLI returns: {"result": "actual response as JSON string", ...}
                     if let Some(result_str) = json.get("result").and_then(|r| r.as_str()) {
                         result_str.to_string()
                     } else if let Some(response_str) = json.get("response").and_then(|r| r.as_str())
@@ -466,7 +367,6 @@ impl ClaudeCodeInterface {
                     } else if let Some(content_str) = json.get("content").and_then(|c| c.as_str()) {
                         content_str.to_string()
                     } else {
-                        // Fall back to raw stdout if we can't find the response in expected fields
                         stdout.to_string()
                     }
                 }
@@ -477,47 +377,27 @@ impl ClaudeCodeInterface {
         let input_tokens = self.estimate_tokens(&request.description);
         let output_tokens = self.estimate_tokens(&response_text);
         let total_tokens = input_tokens + output_tokens;
-
         let estimated_cost = self
             .usage_tracker
             .estimate_cost_for_tokens(input_tokens, output_tokens)
             .await;
 
-        // Log successful completion
-        self.log_subprocess_activity(&log_path, &format!(
-            "[{}] Task completed successfully | Input tokens: {} | Output tokens: {} | Total tokens: {} | Estimated cost: ${:.6}",
-            Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-            input_tokens,
-            output_tokens,
-            total_tokens,
-            estimated_cost
-        )).await;
-
-        self.log_subprocess_activity(
-            &log_path,
-            &format!(
-                "[{}] Response length: {} chars | Execution time: {:.2}s",
-                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                response_text.len(),
-                execution_time.as_secs_f64()
-            ),
-        )
-        .await;
-
-        self.log_subprocess_activity(
-            &log_path,
-            &format!(
-                "{}\nTask processing completed for ID: {}\n",
-                "=".repeat(80),
-                request.id
-            ),
-        )
-        .await;
+        logger
+            .log_completion(
+                &ctx,
+                input_tokens,
+                output_tokens,
+                total_tokens,
+                estimated_cost,
+                execution_time.as_secs_f64(),
+            )
+            .await
+            .ok();
 
         Ok(TaskResponse {
             task_id: request.id,
             response_text,
-            tool_uses: vec![], // TODO: Parse tool uses from JSON output
+            tool_uses: vec![],
             token_usage: TokenUsage {
                 input_tokens,
                 output_tokens,
@@ -525,7 +405,7 @@ impl ClaudeCodeInterface {
                 estimated_cost,
             },
             execution_time,
-            model_used: "sonnet".to_string(), // Latest Sonnet model
+            model_used: "sonnet".to_string(),
         })
     }
 
@@ -740,11 +620,7 @@ impl ClaudeCodeInterface {
         }
     }
 
-    pub async fn process_task(
-        &self,
-        task: &Task,
-        session_dir: Option<&std::path::Path>,
-    ) -> Result<Task, ClaudeError> {
+    pub async fn process_task(&self, task: &Task) -> Result<Task, ClaudeError> {
         let request = TaskRequest {
             id: task.id,
             task_type: "task_processing".to_string(),
@@ -755,7 +631,23 @@ impl ClaudeCodeInterface {
             system_message: None,
         };
 
-        let response = self.execute_task_request(request, session_dir).await?;
+        // Create logger for this task
+        let session = self.get_or_create_session().await?;
+        let logs_dir =
+            env::claude_interactions_dir_path(&self.workspace_root, &session.id.to_string());
+
+        let logger_config = crate::llm::provider_logger::ProviderLoggerConfig {
+            enabled: true,
+            track_tool_uses: self.config.usage_tracking.track_tool_uses,
+            track_commands: true,
+            max_preview_chars: 500,
+        };
+
+        let logger = ProviderLogger::new("claude", logger_config, logs_dir)
+            .await
+            .map_err(|e| ClaudeError::Unknown(format!("Failed to create logger: {}", e)))?;
+
+        let response = self.execute_task_request(request, &logger).await?;
 
         // Create updated task with response
         let mut updated_task = task.clone();
@@ -775,62 +667,6 @@ impl ClaudeCodeInterface {
         updated_task.updated_at = Utc::now();
 
         Ok(updated_task)
-    }
-
-    async fn create_subprocess_log_file(
-        &self,
-        session_id: SessionId,
-        task_id: &Uuid,
-        session_dir_override: Option<&std::path::Path>,
-    ) -> Result<PathBuf, ClaudeError> {
-        // Use provided session directory if available, otherwise fall back to workspace-based path
-        let logs_dir = if let Some(session_dir) = session_dir_override {
-            session_dir
-                .join("logs")
-                .join(env::session::CLAUDE_INTERACTIONS_DIR_NAME)
-        } else {
-            env::claude_interactions_dir_path(&self.workspace_root, &session_id.to_string())
-        };
-
-        tokio::fs::create_dir_all(&logs_dir)
-            .await
-            .map_err(|e| ClaudeError::Unknown(format!("Failed to create logs directory: {}", e)))?;
-
-        let log_file = logs_dir.join(format!("claude-subprocess-{}.log", task_id));
-
-        // Create the log file with initial header
-        let mut file = tokio::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&log_file)
-            .await
-            .map_err(|e| ClaudeError::Unknown(format!("Failed to create log file: {}", e)))?;
-
-        file.write_all(
-            format!(
-                "Claude Code Subprocess Log - Task ID: {}\nStarted: {}\n{}\n",
-                task_id,
-                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f UTC"),
-                "=".repeat(80)
-            )
-            .as_bytes(),
-        )
-        .await
-        .map_err(|e| ClaudeError::Unknown(format!("Failed to write log header: {}", e)))?;
-
-        Ok(log_file)
-    }
-
-    async fn log_subprocess_activity(&self, log_path: &PathBuf, message: &str) {
-        if let Ok(mut file) = tokio::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(log_path)
-            .await
-        {
-            let _ = file.write_all(format!("{}\n", message).as_bytes()).await;
-        }
     }
 
     pub async fn get_interface_status(&self) -> ClaudeInterfaceStatus {

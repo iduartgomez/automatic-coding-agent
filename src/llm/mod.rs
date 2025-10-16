@@ -183,6 +183,11 @@ pub mod provider;
 /// and configuration options used across all LLM providers.
 pub mod types;
 
+/// Standardized logging abstraction for provider interactions.
+///
+/// Provides unified logging interface for consistent audit trails across all providers.
+pub mod provider_logger;
+
 pub use claude_provider::ClaudeProvider;
 pub use openai_provider::OpenAIProvider;
 pub use provider::LLMProvider;

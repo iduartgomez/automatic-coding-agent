@@ -191,8 +191,31 @@ impl IntelligentTaskParser {
             system_message: Some(self.get_system_message()),
         };
 
+        // Create a temporary logger for task analysis
+        let tmp_logs_dir = std::env::temp_dir().join("aca-task-analysis-logs");
+        let logger_config = crate::llm::provider_logger::ProviderLoggerConfig {
+            enabled: true,
+            track_tool_uses: false, // Task analysis doesn't need tool tracking
+            track_commands: false,  // Don't need command scripts for analysis
+            max_preview_chars: 200,
+        };
+        let logger = crate::llm::provider_logger::ProviderLogger::new(
+            "task-analysis",
+            logger_config,
+            tmp_logs_dir,
+        )
+        .await
+        .map_err(|e| {
+            IntelligentParserError::LLMError(crate::llm::types::LLMError::ProviderSpecific(
+                format!("Failed to create logger: {}", e),
+            ))
+        })?;
+
         // Execute LLM request
-        let response = self.llm_provider.execute_request(llm_request, None).await?;
+        let response = self
+            .llm_provider
+            .execute_request(llm_request, &logger)
+            .await?;
 
         info!(
             "LLM analysis complete (tokens: input={}, output={})",
@@ -624,11 +647,11 @@ mod tests {
     }
 
     impl LLMProvider for MockLLMProvider {
-        fn execute_request(
-            &self,
+        fn execute_request<'a>(
+            &'a self,
             _request: LLMRequest,
-            _session_dir: Option<std::path::PathBuf>,
-        ) -> BoxFuture<'_, Result<crate::llm::LLMResponse, LLMError>> {
+            _logger: &'a crate::llm::provider_logger::ProviderLogger,
+        ) -> BoxFuture<'a, Result<crate::llm::LLMResponse, LLMError>> {
             let response = self.response.clone();
             Box::pin(async move {
                 Ok(LLMResponse {

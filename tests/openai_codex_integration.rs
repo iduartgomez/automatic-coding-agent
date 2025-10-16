@@ -156,10 +156,22 @@ async fn test_codex_exec_produces_response() {
         system_message: Some("Be concise and informal.".to_string()),
     };
 
-    let response = match interface
-        .execute_task_request(request, Some(working_dir.as_path()))
-        .await
-    {
+    // Create logger for test
+    let logger_config = aca::llm::provider_logger::ProviderLoggerConfig {
+        enabled: true,
+        track_tool_uses: false,
+        track_commands: true,
+        max_preview_chars: 200,
+    };
+    let logger = aca::llm::provider_logger::ProviderLogger::new(
+        "test-codex",
+        logger_config,
+        working_dir.join(".aca/logs/codex"),
+    )
+    .await
+    .expect("Failed to create test logger");
+
+    let response = match interface.execute_task_request(request, &logger).await {
         Ok(response) => response,
         Err(OpenAIError::Authentication(msg)) => {
             eprintln!("skipping Codex test: authentication required ({msg})");

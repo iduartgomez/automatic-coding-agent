@@ -1,5 +1,6 @@
 use super::*;
 use crate::env;
+use crate::llm::provider_logger::{ProviderLogger, ProviderLoggerConfig};
 use std::path::PathBuf;
 use std::time::Duration;
 use test_tag::tag;
@@ -7,6 +8,20 @@ use test_tag::tag;
 // NOTE: Tests tagged with #[tag(claude)] require actual Claude Code CLI and API access.
 // These tests are automatically excluded from CI via the pattern `--skip "::claude::test"`
 // To run Claude integration tests locally: cargo test -- --include claude::test
+
+/// Helper function to create a test logger
+async fn create_test_logger() -> ProviderLogger {
+    let tmp_dir = std::env::temp_dir().join("aca-test-logs");
+    let config = ProviderLoggerConfig {
+        enabled: true,
+        track_tool_uses: false,
+        track_commands: false,
+        max_preview_chars: 100,
+    };
+    ProviderLogger::new("test-claude", config, tmp_dir)
+        .await
+        .expect("Failed to create test logger")
+}
 
 #[tokio::test]
 async fn test_claude_interface_creation() {
@@ -34,7 +49,8 @@ async fn test_task_request_execution() {
         system_message: None,
     };
 
-    let response = interface.execute_task_request(request, None).await;
+    let logger = create_test_logger().await;
+    let response = interface.execute_task_request(request, &logger).await;
     assert!(response.is_ok());
 
     let response = response.unwrap();
@@ -64,7 +80,8 @@ async fn test_rate_limiting() {
         system_message: None,
     };
 
-    let response1 = interface.execute_task_request(request1, None).await;
+    let logger = create_test_logger().await;
+    let response1 = interface.execute_task_request(request1, &logger).await;
     assert!(response1.is_ok());
 
     // Second request should succeed
@@ -78,7 +95,7 @@ async fn test_rate_limiting() {
         system_message: None,
     };
 
-    let response2 = interface.execute_task_request(request2, None).await;
+    let response2 = interface.execute_task_request(request2, &logger).await;
     assert!(response2.is_ok());
 
     // Third request should be rate limited
@@ -92,7 +109,7 @@ async fn test_rate_limiting() {
         system_message: None,
     };
 
-    let response3 = interface.execute_task_request(request3, None).await;
+    let response3 = interface.execute_task_request(request3, &logger).await;
     assert!(response3.is_err());
     assert!(matches!(
         response3.unwrap_err(),

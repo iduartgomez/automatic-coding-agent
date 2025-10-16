@@ -33,11 +33,11 @@ impl MockLLMProvider {
 }
 
 impl LLMProvider for MockLLMProvider {
-    fn execute_request(
-        &self,
+    fn execute_request<'a>(
+        &'a self,
         _request: LLMRequest,
-        _session_dir: Option<PathBuf>,
-    ) -> BoxFuture<'_, Result<LLMResponse, LLMError>> {
+        _logger: &'a aca::llm::provider_logger::ProviderLogger,
+    ) -> BoxFuture<'a, Result<LLMResponse, LLMError>> {
         let mut count = self.call_count.lock().unwrap();
         let index = *count % self.responses.len();
         *count += 1;

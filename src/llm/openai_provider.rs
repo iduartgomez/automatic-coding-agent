@@ -142,11 +142,7 @@ impl OpenAIProvider {
         }
     }
 
-    fn build_task_request(
-        &self,
-        request: LLMRequest,
-        session_dir: Option<PathBuf>,
-    ) -> (OpenAITaskRequest, Option<PathBuf>) {
+    fn build_task_request(&self, request: LLMRequest) -> OpenAITaskRequest {
         let estimated_tokens = request
             .max_tokens
             .unwrap_or_else(|| self.estimate_tokens(&request.prompt));
@@ -167,31 +163,29 @@ impl OpenAIProvider {
             .or_else(|| self.provider_config.model.clone())
             .unwrap_or_else(|| self.default_model.clone());
 
-        let task_request = OpenAITaskRequest {
+        OpenAITaskRequest {
             id: request.id,
             prompt: request.prompt,
             metadata: metadata_filtered,
             model,
             estimated_tokens,
             system_message: request.system_message,
-        };
-
-        (task_request, session_dir)
+        }
     }
 }
 
 impl LLMProvider for OpenAIProvider {
-    fn execute_request(
-        &self,
+    fn execute_request<'a>(
+        &'a self,
         request: LLMRequest,
-        session_dir: Option<PathBuf>,
-    ) -> BoxFuture<'_, Result<LLMResponse, LLMError>> {
+        logger: &'a crate::llm::provider_logger::ProviderLogger,
+    ) -> BoxFuture<'a, Result<LLMResponse, LLMError>> {
         let interface = Arc::clone(&self.interface);
-        let (task_request, session_dir) = self.build_task_request(request, session_dir);
+        let task_request = self.build_task_request(request);
 
         Box::pin(async move {
             let response = interface
-                .execute_task_request(task_request, session_dir.as_deref())
+                .execute_task_request(task_request, logger)
                 .await
                 .map_err(OpenAIProvider::map_error)?;
 

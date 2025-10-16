@@ -1,18 +1,15 @@
-use crate::env;
+use crate::llm::provider_logger::{LogContext, ProviderLogger};
 use crate::openai::rate_limiter::{OpenAIRateLimiter, RateLimiterStatus};
 use crate::openai::types::{
     OpenAIConfig, OpenAIError, OpenAITaskRequest, OpenAITaskResponse, RatePermit, TokenUsage,
 };
 use chrono::Utc;
-use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::fs::{self, OpenOptions};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
-use tracing::{info, warn};
-use uuid::Uuid;
+use tracing::info;
 use which::which;
 
 /// Interface that executes the Codex CLI in headless mode.
@@ -39,29 +36,40 @@ impl OpenAICodexInterface {
     pub async fn execute_task_request(
         &self,
         request: OpenAITaskRequest,
-        session_dir: Option<&Path>,
+        logger: &ProviderLogger,
     ) -> Result<OpenAITaskResponse, OpenAIError> {
         let permit = self.rate_limiter.acquire_permit(&request).await?;
-        let log_paths = if self.config.logging.enable_interaction_logs {
-            self.prepare_log_paths(session_dir, request.id).await
-        } else {
-            None
-        };
 
-        if let Some(ref paths) = log_paths {
-            self.append_log(
-                paths,
+        let ctx = LogContext::new(request.id, &request.model)
+            .with_metadata("estimated_tokens", request.estimated_tokens.to_string());
+
+        logger
+            .log_command_start(
+                &ctx,
                 &format!(
-                    "[{}] Starting Codex exec | model={} | tokens≈{}",
-                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                    request.model,
-                    request.estimated_tokens
+                    "{} exec --json --model {}",
+                    self.config.cli_path, request.model
                 ),
             )
-            .await;
-        }
+            .await
+            .map_err(|e| OpenAIError::Unknown(format!("Failed to log command start: {}", e)))?;
 
         let composed_prompt = self.compose_prompt(&request);
+
+        // Save reproducible command script
+        if logger.is_command_tracking_enabled() {
+            let command_script = format!(
+                "#!/bin/bash\n# OpenAI Codex Command\n# Task ID: {}\n# Generated: {}\n# Provider: codex\n# Model: {}\n\necho {} | {} exec --json --model {} -\n",
+                request.id,
+                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f UTC"),
+                request.model,
+                shell_escape::escape(composed_prompt.clone().into()),
+                self.config.cli_path,
+                request.model
+            );
+            logger.save_command_script(&ctx, &command_script).await.ok();
+        }
+
         let start = Instant::now();
 
         let mut skip_model_flag = false;
@@ -87,42 +95,37 @@ impl OpenAICodexInterface {
                 }
             };
 
-            if let Some(ref paths) = log_paths {
-                if let Err(e) = fs::write(&paths.stdout_file, &output.stdout).await {
-                    warn!("Failed to persist Codex stdout: {}", e);
-                }
-                if !output.stderr.is_empty()
-                    && let Err(e) = fs::write(&paths.stderr_file, &output.stderr).await
-                {
-                    warn!("Failed to persist Codex stderr: {}", e);
-                }
+            logger.save_stdout(&ctx, &output.stdout).await.ok();
+            if !output.stderr.is_empty() {
+                logger.save_stderr(&ctx, &output.stderr).await.ok();
             }
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let message = stderr.trim().to_string();
                 if !skip_model_flag && message.contains("Unsupported model") {
-                    warn!(
-                        "Codex CLI reported unsupported model; retrying without explicit --model flag"
-                    );
-                    if let Some(ref paths) = log_paths {
-                        self.append_log(
-                            paths,
+                    logger
+                        .log_event(
+                            &ctx,
                             &format!(
-                                "[{}] WARN: Codex reported unsupported model '{}'; retrying without explicit --model flag",
-                                Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
+                                "WARN: Codex reported unsupported model '{}'; retrying without explicit --model flag",
                                 request.model
                             ),
                         )
-                        .await;
-                    }
+                        .await
+                        .ok();
                     skip_model_flag = true;
                     continue;
                 }
                 if message.contains("login") {
+                    logger
+                        .log_error(&ctx, &format!("Authentication error: {}", message))
+                        .await
+                        .ok();
                     self.rate_limiter.record_failure().await;
                     return Err(OpenAIError::Authentication(message));
                 }
+                logger.log_error(&ctx, &message).await.ok();
                 self.rate_limiter.record_failure().await;
                 return Err(OpenAIError::CliFailed(message));
             }
@@ -132,21 +135,30 @@ impl OpenAICodexInterface {
             break response;
         };
 
-        if let Some(ref paths) = log_paths {
-            let status = self.rate_limiter.get_status().await;
-            self.append_log(
-                paths,
+        let status = self.rate_limiter.get_status().await;
+
+        logger
+            .log_event(
+                &ctx,
                 &format!(
-                    "[{}] Completed in {:.2}s | preview=\"{}\" | remaining req={} tok={}",
-                    Utc::now().format("%Y-%m-%d %H:%M:%S%.3f"),
-                    response.execution_time.as_secs_f64(),
-                    self.preview(&response.response_text),
-                    status.available_requests,
-                    status.available_tokens
+                    "Remaining requests: {}, tokens: {}",
+                    status.available_requests, status.available_tokens
                 ),
             )
-            .await;
-        }
+            .await
+            .ok();
+
+        logger
+            .log_completion(
+                &ctx,
+                response.token_usage.prompt_tokens,
+                response.token_usage.completion_tokens,
+                response.token_usage.total_tokens,
+                response.token_usage.estimated_cost,
+                response.execution_time.as_secs_f64(),
+            )
+            .await
+            .ok();
 
         info!(
             "Codex CLI request {} completed in {:.2?}",
@@ -345,73 +357,6 @@ impl OpenAICodexInterface {
 
         Ok(response)
     }
-
-    async fn prepare_log_paths(
-        &self,
-        session_dir: Option<&Path>,
-        request_id: Uuid,
-    ) -> Option<LogPaths> {
-        let base_dir = if let Some(dir) = session_dir {
-            dir.join(env::session::OPENAI_INTERACTIONS_DIR_NAME)
-        } else {
-            env::openai_interactions_dir_path(&self.config.working_dir, "global")
-        };
-
-        if let Err(e) = fs::create_dir_all(&base_dir).await {
-            warn!(
-                "Failed to create Codex interaction directory {}: {}",
-                base_dir.display(),
-                e
-            );
-            return None;
-        }
-
-        let timestamp = Utc::now().format("%Y%m%dT%H%M%S%.3f");
-        let base = base_dir.join(format!("{}-{}", timestamp, request_id));
-
-        Some(LogPaths {
-            log_file: base.with_extension("log"),
-            stdout_file: base.with_extension("stdout.jsonl"),
-            stderr_file: base.with_extension("stderr.txt"),
-        })
-    }
-
-    async fn append_log(&self, paths: &LogPaths, message: &str) {
-        if let Err(e) = self.write_line(&paths.log_file, message).await {
-            warn!(
-                "Failed to append Codex interaction log {}: {}",
-                paths.log_file.display(),
-                e
-            );
-        }
-    }
-
-    async fn write_line(&self, file_path: &Path, content: &str) -> std::io::Result<()> {
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(file_path)
-            .await?;
-        file.write_all(content.as_bytes()).await?;
-        file.write_all(b"\n").await?;
-        Ok(())
-    }
-
-    fn preview(&self, text: &str) -> String {
-        let max_len = self.config.logging.max_preview_chars;
-        if text.len() <= max_len {
-            text.replace('\n', " ")
-        } else {
-            format!("{}...", text[..max_len].replace('\n', " "))
-        }
-    }
-}
-
-#[derive(Debug)]
-struct LogPaths {
-    log_file: PathBuf,
-    stdout_file: PathBuf,
-    stderr_file: PathBuf,
 }
 
 #[derive(Debug)]

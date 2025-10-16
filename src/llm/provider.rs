@@ -1,3 +1,4 @@
+use crate::llm::provider_logger::ProviderLogger;
 use crate::llm::types::{LLMError, LLMRequest, LLMResponse, ProviderCapabilities, ProviderStatus};
 use futures::future::BoxFuture;
 use std::path::PathBuf;
@@ -9,15 +10,15 @@ pub trait LLMProvider: Send + Sync {
     ///
     /// # Arguments
     /// * `request` - The LLM request to execute
-    /// * `session_dir` - Optional session directory for audit logs and coordination with session persistence
+    /// * `logger` - Logger for standardized audit trail (dependency injection, required)
     ///
-    /// When `session_dir` is provided, providers should write audit logs (stdout, stderr, commands)
-    /// to that directory for proper session correlation and audit trail.
-    fn execute_request(
-        &self,
+    /// The logger ensures consistent audit trails across all providers with standardized
+    /// 5-file output format (log, stdout, stderr, command script, tools).
+    fn execute_request<'a>(
+        &'a self,
         request: LLMRequest,
-        session_dir: Option<PathBuf>,
-    ) -> BoxFuture<'_, Result<LLMResponse, LLMError>>;
+        logger: &'a ProviderLogger,
+    ) -> BoxFuture<'a, Result<LLMResponse, LLMError>>;
 
     /// Get provider capabilities
     fn get_capabilities(&self) -> BoxFuture<'_, Result<ProviderCapabilities, LLMError>>;
