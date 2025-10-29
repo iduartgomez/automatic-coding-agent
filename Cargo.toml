@@ -39,6 +39,7 @@ regex = "1.11.3"
 shell-escape = "0.1.5"
 which = "6.0"
 bollard = "0.19.2"
+tar = "0.4"
 
 [dev-dependencies]
 tempfile = "3.23.0"

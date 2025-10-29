@@ -51,6 +51,8 @@
 mod client;
 mod config;
 mod executor;
+mod image;
+mod interactive;
 mod monitor;
 mod network;
 mod orchestrator;
@@ -59,6 +61,8 @@ mod volume;
 pub use client::{ContainerClient, ContainerClientConfig};
 pub use config::{ContainerConfig, ContainerConfigBuilder};
 pub use executor::{ExecConfig, ExecOutput};
+pub use image::{ImageBuilder, ImageInfo, ACA_BASE_IMAGE};
+pub use interactive::{InteractiveSession, attach_to_container};
 pub use monitor::{ContainerStats, ResourceMonitor};
 pub use network::{NetworkConfig, NetworkManager};
 pub use orchestrator::{ContainerOrchestrator, ContainerOrchestratorConfig};

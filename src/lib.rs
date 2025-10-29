@@ -132,7 +132,8 @@ pub use integration::{AgentConfig, AgentSystem, SystemStatus};
 
 // Re-export container types
 pub use container::{
-    ContainerClient, ContainerConfig, ContainerError, ContainerOrchestrator, ExecConfig, ExecOutput,
+    ContainerClient, ContainerConfig, ContainerError, ContainerOrchestrator, ExecConfig,
+    ExecOutput, ImageBuilder, ACA_BASE_IMAGE,
 };
 
 // CLI module for command-line interface
