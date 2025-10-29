@@ -105,6 +105,13 @@ pub mod integration;
 /// the application for easier maintenance and consistency.
 pub mod env;
 
+/// Container orchestration and isolation layer.
+///
+/// Provides containerized execution environments for task isolation
+/// using Docker/Podman via the bollard API. Handles container lifecycle
+/// management, resource limits, networking, volume mounting, and monitoring.
+pub mod container;
+
 // Re-export main session types
 pub use session::{SessionInitOptions, SessionManager, SessionManagerConfig, SessionMetadata};
 
@@ -122,6 +129,11 @@ pub use llm::{LLMProvider, LLMRequest, LLMResponse, ProviderConfig, ProviderType
 
 // Re-export integration types
 pub use integration::{AgentConfig, AgentSystem, SystemStatus};
+
+// Re-export container types
+pub use container::{
+    ContainerClient, ContainerConfig, ContainerError, ContainerOrchestrator, ExecConfig, ExecOutput,
+};
 
 // CLI module for command-line interface
 pub mod cli;
