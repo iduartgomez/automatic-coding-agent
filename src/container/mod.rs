@@ -58,7 +58,7 @@ mod network;
 mod orchestrator;
 mod volume;
 
-pub use client::{ContainerClient, ContainerClientConfig};
+pub use client::{ContainerClient, ContainerClientConfig, RuntimeType};
 pub use config::{ContainerConfig, ContainerConfigBuilder};
 pub use executor::{ExecConfig, ExecOutput};
 pub use image::{ImageBuilder, ImageInfo, ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE};
