@@ -10,8 +10,11 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, info, warn};
 
-/// Default ACA base image name
+/// Default ACA base image name (Ubuntu 22.04 full, ~3-4 GB)
 pub const ACA_BASE_IMAGE: &str = "aca-dev:latest";
+
+/// ACA Alpine base image name (Alpine 3.19 lightweight, ~800 MB-1 GB)
+pub const ACA_BASE_IMAGE_ALPINE: &str = "aca-dev:alpine";
 
 /// Image builder for creating custom container images.
 pub struct ImageBuilder {
@@ -174,9 +177,13 @@ impl ImageBuilder {
 
     /// Ensure the ACA base image exists, building it if necessary.
     ///
+    /// This function will automatically build the image if it doesn't exist,
+    /// using the provided Dockerfile path or the default `container/` directory.
+    ///
     /// # Arguments
     ///
-    /// * `dockerfile_path` - Path to directory containing Dockerfile (only used if image needs to be built)
+    /// * `dockerfile_path` - Optional path to directory containing Dockerfile.
+    ///                       If None, defaults to "container/" in current directory.
     ///
     /// # Errors
     ///
@@ -187,15 +194,28 @@ impl ImageBuilder {
             return Ok(ACA_BASE_IMAGE.to_string());
         }
 
-        if let Some(path) = dockerfile_path {
-            info!("ACA base image not found, building...");
-            self.build_aca_base_image(path, None).await
-        } else {
-            Err(ContainerError::ConfigError(format!(
-                "ACA base image '{}' not found. Please build it first: docker build -t {} -f container/Dockerfile container/",
-                ACA_BASE_IMAGE, ACA_BASE_IMAGE
-            )))
+        // Determine dockerfile path
+        let path = dockerfile_path.unwrap_or_else(|| Path::new("container"));
+
+        if !path.exists() {
+            return Err(ContainerError::ConfigError(format!(
+                "Dockerfile directory not found at '{}'. \n\
+                 To build the ACA base image, ensure the container/ directory exists with:\n\
+                 - container/Dockerfile\n\
+                 - container/entrypoint.sh\n\
+                 Or manually build: docker build -t {} -f container/Dockerfile container/",
+                path.display(),
+                ACA_BASE_IMAGE
+            )));
         }
+
+        info!(
+            "ACA base image '{}' not found. Building automatically from {}...",
+            ACA_BASE_IMAGE,
+            path.display()
+        );
+
+        self.build_aca_base_image(path, None).await
     }
 }
 

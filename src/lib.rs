@@ -110,6 +110,9 @@ pub mod env;
 /// Provides containerized execution environments for task isolation
 /// using Docker/Podman via the bollard API. Handles container lifecycle
 /// management, resource limits, networking, volume mounting, and monitoring.
+///
+/// This module is only available with the `containers` feature enabled.
+#[cfg(feature = "containers")]
 pub mod container;
 
 // Re-export main session types
@@ -130,10 +133,11 @@ pub use llm::{LLMProvider, LLMRequest, LLMResponse, ProviderConfig, ProviderType
 // Re-export integration types
 pub use integration::{AgentConfig, AgentSystem, SystemStatus};
 
-// Re-export container types
+// Re-export container types (only with containers feature)
+#[cfg(feature = "containers")]
 pub use container::{
     ContainerClient, ContainerConfig, ContainerError, ContainerOrchestrator, ExecConfig,
-    ExecOutput, ImageBuilder, ACA_BASE_IMAGE,
+    ExecOutput, ImageBuilder, ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE,
 };
 
 // CLI module for command-line interface

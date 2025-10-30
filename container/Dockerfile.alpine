@@ -1,0 +1,106 @@
+# ACA Alpine Development Environment
+#
+# Lightweight alternative to Ubuntu-based image
+# Size: ~800 MB vs ~3-4 GB (Ubuntu version)
+#
+# Trade-offs:
+# - Smaller size, faster pulls
+# - Uses musl libc instead of glibc (some compatibility issues)
+# - Less pre-installed packages
+# - Alpine package manager (apk) instead of apt
+
+FROM alpine:3.19
+
+# Install base dependencies
+RUN apk add --no-cache \
+    # Base tools
+    bash \
+    curl \
+    wget \
+    git \
+    ca-certificates \
+    build-base \
+    openssl-dev \
+    # Shell and utilities
+    zsh \
+    vim \
+    nano \
+    jq \
+    # Network tools
+    netcat-openbsd \
+    bind-tools
+
+# Install Node.js 20.x LTS
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    && npm install -g npm@latest \
+    && npm install -g yarn pnpm
+
+# Install Python 3.11+
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    python3-dev \
+    && python3 -m pip install --break-system-packages --upgrade pip setuptools wheel
+
+# Install Rust toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
+    && . "$HOME/.cargo/env" \
+    && rustup component add clippy rustfmt
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install Docker CLI (static binary for Alpine)
+RUN wget -O /tmp/docker.tgz https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz \
+    && tar -xzf /tmp/docker.tgz -C /tmp \
+    && mv /tmp/docker/docker /usr/local/bin/ \
+    && rm -rf /tmp/docker.tgz /tmp/docker
+
+# Install Go
+RUN wget -O /tmp/go.tar.gz https://go.dev/dl/go1.22.0.linux-amd64.tar.gz \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz \
+    && rm /tmp/go.tar.gz
+
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+# Note: Claude CLI installation may require glibc (not available on Alpine by default)
+# Users should install manually if needed or use the Ubuntu-based image
+
+# Create workspace
+RUN mkdir -p /workspace
+WORKDIR /workspace
+
+# Set up non-root user
+RUN adduser -D -u 1000 -s /bin/bash aca-user \
+    && echo "aca-user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Install common npm packages
+USER aca-user
+RUN npm install -g \
+    typescript \
+    ts-node \
+    eslint \
+    prettier \
+    jest
+
+# Install common Python packages
+RUN python3 -m pip install --break-system-packages --user \
+    black \
+    pylint \
+    pytest \
+    requests
+
+# Install Rust dev tools
+RUN rustup component add rust-analyzer
+
+# Set up entrypoint
+USER root
+COPY entrypoint-alpine.sh /usr/local/bin/entrypoint.sh 2>/dev/null || echo '#!/bin/sh\nexec "$@"' > /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+USER aca-user
+WORKDIR /workspace
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["/bin/bash"]

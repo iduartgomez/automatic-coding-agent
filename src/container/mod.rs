@@ -61,7 +61,7 @@ mod volume;
 pub use client::{ContainerClient, ContainerClientConfig};
 pub use config::{ContainerConfig, ContainerConfigBuilder};
 pub use executor::{ExecConfig, ExecOutput};
-pub use image::{ImageBuilder, ImageInfo, ACA_BASE_IMAGE};
+pub use image::{ImageBuilder, ImageInfo, ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE};
 pub use interactive::{InteractiveSession, attach_to_container};
 pub use monitor::{ContainerStats, ResourceMonitor};
 pub use network::{NetworkConfig, NetworkManager};

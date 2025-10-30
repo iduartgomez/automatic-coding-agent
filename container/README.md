@@ -1,10 +1,22 @@
-# ACA Container Image
+# ACA Container Images
 
-This directory contains the Dockerfile and scripts for building the ACA development environment base image.
+This directory contains Dockerfiles and scripts for building ACA development environment base images.
+
+## Available Images
+
+### 1. Ubuntu Full (`aca-dev:latest`) - Default
+📦 Size: ~3-4 GB | ⏱️ Build: 10-15 min
+
+### 2. Alpine Lightweight (`aca-dev:alpine`)
+📦 Size: ~800 MB-1 GB | ⏱️ Build: 5-7 min
+
+👉 See [IMAGE_OPTIONS.md](IMAGE_OPTIONS.md) for detailed comparison
 
 ## What's Included
 
-The `aca-dev:latest` image includes:
+### Ubuntu Full (`aca-dev:latest`)
+
+The default image includes:
 
 - **Ubuntu 22.04 LTS** base
 - **Claude Code CLI** - AI-powered coding assistant
@@ -16,18 +28,34 @@ The `aca-dev:latest` image includes:
 - **Git** - Version control
 - **Development tools** - vim, nano, jq, curl, wget, etc.
 
-## Building the Image
+### Alpine Lightweight (`aca-dev:alpine`)
 
-### From Rust Code
+Minimal image includes:
+- Alpine Linux 3.19 (musl libc, ~8 MB base)
+- Node.js 20.x with npm, yarn, pnpm
+- Python 3.11+ with pip
+- Rust stable
+- Go 1.22
+- Docker CLI (static binary)
+- Git and basic tools
+
+⚠️ **Note**: Uses musl libc - some binaries may need recompilation. Claude CLI may require manual setup.
+
+## Building the Images
+
+### From Rust Code (Auto-build)
 
 ```rust
-use aca::container::ImageBuilder;
+use aca::container::{ImageBuilder, ACA_BASE_IMAGE};
 use bollard::Docker;
 
 let docker = Docker::connect_with_local_defaults()?;
 let builder = ImageBuilder::new(docker);
 
-// Build from this directory
+// Automatically builds if image doesn't exist
+let image = builder.ensure_aca_base_image(None).await?;  // Uses "container/" dir
+
+// Or explicitly build
 let image_tag = builder.build_aca_base_image(
     Path::new("container"),
     None  // Uses default tag "aca-dev:latest"
@@ -37,22 +65,34 @@ let image_tag = builder.build_aca_base_image(
 ### From Command Line
 
 ```bash
-# From project root
+# Ubuntu full image (default)
 docker build -t aca-dev:latest -f container/Dockerfile container/
 
-# Or using the orchestrator (recommended)
-cargo run -- build-image
+# Alpine lightweight image
+docker build -t aca-dev:alpine -f container/Dockerfile.alpine container/
+
+# Build both
+docker build -t aca-dev:latest -f container/Dockerfile container/ && \
+docker build -t aca-dev:alpine -f container/Dockerfile.alpine container/
 ```
 
-## Using the Image
+## Using the Images
 
 ```rust
-use aca::container::{ContainerOrchestrator, ContainerConfig, ACA_BASE_IMAGE};
+use aca::container::{ContainerOrchestrator, ContainerConfig, ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE};
 
 let orchestrator = ContainerOrchestrator::new().await?;
 
+// Use Ubuntu full (default)
 let config = ContainerConfig::builder()
-    .image(ACA_BASE_IMAGE)  // Uses "aca-dev:latest"
+    .image(ACA_BASE_IMAGE)  // "aca-dev:latest"
+    .working_dir("/workspace")
+    .bind("/path/to/project:/workspace:rw")
+    .build()?;
+
+// Or use Alpine lightweight
+let config = ContainerConfig::builder()
+    .image(ACA_BASE_IMAGE_ALPINE)  // "aca-dev:alpine"
     .working_dir("/workspace")
     .bind("/path/to/project:/workspace:rw")
     .build()?;
