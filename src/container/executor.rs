@@ -38,8 +38,8 @@ impl ExecConfigBuilder {
             working_dir: None,
             user: None,
             attach_stdin: false,
-            attach_stdout: false,
-            attach_stderr: false,
+            attach_stdout: true, // Default to true to capture output
+            attach_stderr: true, // Default to true to capture errors
             tty: false,
             privileged: false,
         }

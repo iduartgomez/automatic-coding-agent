@@ -188,7 +188,7 @@ async fn test_build_aca_alpine_image() {
 
 #[tokio::test]
 #[serial]
-#[tag(integration, container)]
+#[tag(integration, container, slow)]
 async fn test_ensure_aca_base_image() {
     if !should_run_container_tests() {
         eprintln!("Skipping container tests");
@@ -235,6 +235,7 @@ async fn test_create_and_start_container() {
     // Create minimal config with alpine
     let config = ContainerConfig::builder()
         .image("alpine:latest")
+        .cmd(vec!["sleep", "300"]) // Keep container alive for 5 minutes
         .build()
         .expect("Failed to build config");
 
@@ -279,10 +280,10 @@ async fn test_exec_command_in_container() {
 
     cleanup_container(&orchestrator, container_name).await;
 
-    // Create and start container
+    // Create and start container with a long-running command
     let config = ContainerConfig::builder()
         .image("alpine:latest")
-        
+        .cmd(vec!["sleep", "300"]) // Keep container alive for 5 minutes
         .build()
         .expect("Failed to build config");
 
@@ -358,7 +359,7 @@ async fn test_container_with_bind_mounts() {
     // Create container with bind mount
     let config = ContainerConfig::builder()
         .image("alpine:latest")
-        
+        .cmd(vec!["sleep", "300"]) // Keep container alive for 5 minutes
         .bind(&bind_spec)
         .build()
         .expect("Failed to build config");
@@ -413,7 +414,7 @@ async fn test_container_with_environment_variables() {
 
     let config = ContainerConfig::builder()
         .image("alpine:latest")
-        
+        .cmd(vec!["sleep", "300"]) // Keep container alive for 5 minutes
         .env("TEST_VAR", "test_value")
         .env("ANOTHER_VAR", "another_value")
         .build()
@@ -459,7 +460,7 @@ async fn test_container_with_resource_limits() {
     // Create container with resource limits
     let config = ContainerConfig::builder()
         .image("alpine:latest")
-        
+        .cmd(vec!["sleep", "300"]) // Keep container alive for 5 minutes
         .memory_limit(536_870_912) // 512 MB
         .cpu_quota(50_000) // 50% of one CPU
         .build()
@@ -505,7 +506,7 @@ async fn test_exec_config_working_directory() {
 
     let config = ContainerConfig::builder()
         .image("alpine:latest")
-        
+        .cmd(vec!["sleep", "300"]) // Keep container alive for 5 minutes
         .build()
         .expect("Failed to build config");
 
@@ -535,6 +536,10 @@ async fn test_exec_config_working_directory() {
         .exec_with_config(&container_id, &exec_config)
         .await
         .expect("Failed to exec with config");
+
+    println!("DEBUG: exit_code = {:?}", output.exit_code);
+    println!("DEBUG: stdout = '{}'", output.stdout);
+    println!("DEBUG: stderr = '{}'", output.stderr);
 
     assert_eq!(output.exit_code, Some(0));
     assert_eq!(output.stdout.trim(), "/test/subdir");
@@ -566,7 +571,7 @@ async fn test_full_workflow() {
     // 2. Configure container
     let config = ContainerConfig::builder()
         .image("alpine:latest")
-        
+        .cmd(vec!["sleep", "300"]) // Keep container alive for 5 minutes
         .bind(&format!("{}:/workspace:rw", workspace))
         .env("PROJECT_NAME", "test-project")
         .memory_limit(1_073_741_824) // 1 GB

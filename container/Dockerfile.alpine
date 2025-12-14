@@ -96,8 +96,8 @@ RUN rustup component add rust-analyzer
 
 # Set up entrypoint
 USER root
-COPY entrypoint-alpine.sh /usr/local/bin/entrypoint.sh 2>/dev/null || echo '#!/bin/sh\nexec "$@"' > /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN echo '#!/bin/sh\nexec "$@"' > /usr/local/bin/entrypoint.sh && \
+    chmod +x /usr/local/bin/entrypoint.sh
 
 USER aca-user
 WORKDIR /workspace

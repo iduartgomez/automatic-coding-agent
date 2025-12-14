@@ -98,8 +98,11 @@ RUN useradd -m -s /bin/bash -u 1000 aca-user \
 
 # Copy aca binary (will be provided during build)
 # This is optional - the binary can also be mounted as a volume
-COPY --chown=aca-user:aca-user aca /usr/local/bin/aca 2>/dev/null || true
-RUN chmod +x /usr/local/bin/aca 2>/dev/null || true
+# NOTE: COPY is commented out because it's optional and can be mounted at runtime
+# To include the binary in the image, provide an 'aca' file in the build context:
+#   docker build --build-arg ACA_BINARY=./target/release/aca -t aca-base .
+# COPY --chown=aca-user:aca-user aca /usr/local/bin/aca
+# RUN chmod +x /usr/local/bin/aca
 
 # Set up environment
 ENV HOME=/home/aca-user
@@ -137,8 +140,8 @@ RUN rustup component add rust-analyzer
 USER root
 
 # Set up entrypoint
-COPY --chown=root:root entrypoint.sh /usr/local/bin/entrypoint.sh 2>/dev/null || echo '#!/bin/bash\nexec "$@"' > /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN echo '#!/bin/bash\nexec "$@"' > /usr/local/bin/entrypoint.sh && \
+    chmod +x /usr/local/bin/entrypoint.sh
 
 # Default to aca-user
 USER aca-user
