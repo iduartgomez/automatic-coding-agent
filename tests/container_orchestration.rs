@@ -6,8 +6,8 @@
 #![cfg(feature = "containers")]
 
 use aca::container::{
-    ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE, ContainerClient, ContainerConfig,
-    ContainerOrchestrator, ExecConfig, ImageBuilder,
+    ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE, ContainerClient, ContainerConfig, ContainerOrchestrator,
+    ExecConfig, ImageBuilder,
 };
 use serial_test::serial;
 use std::path::Path;
@@ -16,7 +16,10 @@ use test_tag::tag;
 /// Check if container tests should run.
 fn should_run_container_tests() -> bool {
     // Skip if explicitly disabled
-    if matches!(std::env::var("SKIP_CONTAINER_TESTS").as_deref(), Ok("1" | "true" | "True" | "TRUE")) {
+    if matches!(
+        std::env::var("SKIP_CONTAINER_TESTS").as_deref(),
+        Ok("1" | "true" | "True" | "TRUE")
+    ) {
         return false;
     }
 

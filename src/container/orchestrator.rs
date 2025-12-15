@@ -136,7 +136,9 @@ impl ContainerOrchestrator {
         name: Option<&str>,
     ) -> Result<String> {
         // Ensure image is available
-        if self.config.auto_pull && let Some(image) = config.image() {
+        if self.config.auto_pull
+            && let Some(image) = config.image()
+        {
             self.ensure_image(image).await?;
         }
 

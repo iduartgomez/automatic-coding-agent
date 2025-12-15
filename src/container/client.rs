@@ -182,12 +182,17 @@ impl ContainerClient {
     pub async fn runtime_type(&self) -> Result<RuntimeType> {
         let version = self.version().await?;
 
-        if version.components.and_then(|comps| {
-            comps
-                .iter()
-                .find(|c| c.name == "Engine")
-                .map(|c| c.version.clone())
-        }).filter(|name| name.to_lowercase().contains("podman")).is_some() {
+        if version
+            .components
+            .and_then(|comps| {
+                comps
+                    .iter()
+                    .find(|c| c.name == "Engine")
+                    .map(|c| c.version.clone())
+            })
+            .filter(|name| name.to_lowercase().contains("podman"))
+            .is_some()
+        {
             return Ok(RuntimeType::Podman);
         }
 
