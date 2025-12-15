@@ -1,3 +1,7 @@
+// Allow deprecated bollard API usage - we're using the legacy 0.19.x API
+// TODO: Migrate to OpenAPI-generated types when stable
+#![allow(deprecated)]
+
 //! Container orchestration and isolation layer.
 //!
 //! This module provides containerized execution environments for task isolation
@@ -8,13 +12,13 @@
 //!
 //! The container module is organized into several components:
 //!
-//! - [`client`]: Docker/Podman API client wrapper with connection management
-//! - [`orchestrator`]: High-level container lifecycle orchestration
-//! - [`config`]: Container configuration builders for programmatic setup
-//! - [`executor`]: Command execution within running containers
-//! - [`monitor`]: Resource monitoring and health tracking
-//! - [`network`]: Network isolation and management
-//! - [`volume`]: Volume mounting and lifecycle management
+//! - `client`: Docker/Podman API client wrapper with connection management
+//! - `orchestrator`: High-level container lifecycle orchestration
+//! - `config`: Container configuration builders for programmatic setup
+//! - `executor`: Command execution within running containers
+//! - `monitor`: Resource monitoring and health tracking
+//! - `network`: Network isolation and management
+//! - `volume`: Volume mounting and lifecycle management
 //!
 //! ## Usage
 //!
@@ -61,7 +65,7 @@ mod volume;
 pub use client::{ContainerClient, ContainerClientConfig, RuntimeType};
 pub use config::{ContainerConfig, ContainerConfigBuilder};
 pub use executor::{ExecConfig, ExecOutput};
-pub use image::{ImageBuilder, ImageInfo, ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE};
+pub use image::{ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE, ImageBuilder, ImageInfo};
 pub use interactive::{InteractiveSession, attach_to_container};
 pub use monitor::{ContainerStats, ResourceMonitor};
 pub use network::{NetworkConfig, NetworkManager};

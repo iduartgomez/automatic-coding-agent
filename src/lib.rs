@@ -136,8 +136,8 @@ pub use integration::{AgentConfig, AgentSystem, SystemStatus};
 // Re-export container types (only with containers feature)
 #[cfg(feature = "containers")]
 pub use container::{
-    ContainerClient, ContainerConfig, ContainerError, ContainerOrchestrator, ExecConfig,
-    ExecOutput, ImageBuilder, ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE,
+    ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE, ContainerClient, ContainerConfig, ContainerError,
+    ContainerOrchestrator, ExecConfig, ExecOutput, ImageBuilder,
 };
 
 // CLI module for command-line interface

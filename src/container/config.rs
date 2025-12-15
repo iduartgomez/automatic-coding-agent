@@ -144,7 +144,7 @@ impl ContainerConfigBuilder {
         self
     }
 
-    /// Add a volume bind mount (host_path:container_path[:mode]).
+    /// Add a volume bind mount (host_path:container_path\[:mode\]).
     pub fn bind<S: Into<String>>(mut self, bind: S) -> Self {
         self.binds.push(bind.into());
         self

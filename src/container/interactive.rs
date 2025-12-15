@@ -4,8 +4,8 @@
 //! communication between host and container.
 
 use crate::container::{ContainerError, Result};
-use bollard::container::AttachContainerOptions;
 use bollard::Docker;
+use bollard::container::AttachContainerOptions;
 use futures::stream::StreamExt;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -19,6 +19,7 @@ use tracing::{debug, warn};
 pub struct InteractiveSession {
     container_id: String,
     docker: Arc<Docker>,
+    #[allow(dead_code)] // Reserved for future stdin streaming support
     stdin_tx: Option<Arc<Mutex<tokio::io::DuplexStream>>>,
 }
 
@@ -34,7 +35,10 @@ impl InteractiveSession {
     ///
     /// Returns error if attachment fails.
     pub async fn attach(docker: Docker, container_id: String) -> Result<Self> {
-        debug!("Attaching to container for interactive session: {}", container_id);
+        debug!(
+            "Attaching to container for interactive session: {}",
+            container_id
+        );
 
         Ok(Self {
             container_id,
@@ -54,7 +58,10 @@ impl InteractiveSession {
     pub async fn start_shell(&mut self) -> Result<()> {
         use bollard::exec::CreateExecOptions;
 
-        debug!("Starting interactive shell in container: {}", self.container_id);
+        debug!(
+            "Starting interactive shell in container: {}",
+            self.container_id
+        );
 
         // Create exec instance with TTY
         let exec = self
@@ -122,11 +129,9 @@ impl InteractiveSession {
 
                 Ok(())
             }
-            bollard::exec::StartExecResults::Detached => {
-                Err(ContainerError::ExecutionError(
-                    "Unexpected detached execution".to_string(),
-                ))
-            }
+            bollard::exec::StartExecResults::Detached => Err(ContainerError::ExecutionError(
+                "Unexpected detached execution".to_string(),
+            )),
         }
     }
 
@@ -143,11 +148,7 @@ impl InteractiveSession {
     /// # Errors
     ///
     /// Returns error if execution fails.
-    pub async fn exec_streaming<F>(
-        &self,
-        cmd: Vec<&str>,
-        mut callback: F,
-    ) -> Result<i64>
+    pub async fn exec_streaming<F>(&self, cmd: Vec<&str>, mut callback: F) -> Result<i64>
     where
         F: FnMut(String) + Send + 'static,
     {
@@ -214,8 +215,10 @@ pub async fn attach_to_container(docker: &Docker, container_id: &str) -> Result<
         ..Default::default()
     };
 
-    let bollard::container::AttachContainerResults { mut output, mut input } =
-        docker.attach_container(container_id, Some(options)).await?;
+    let bollard::container::AttachContainerResults {
+        mut output,
+        mut input,
+    } = docker.attach_container(container_id, Some(options)).await?;
 
     // Handle stdin
     let stdin = tokio::io::stdin();

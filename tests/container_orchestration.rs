@@ -6,8 +6,8 @@
 #![cfg(feature = "containers")]
 
 use aca::container::{
-    ContainerClient, ContainerConfig, ContainerOrchestrator, ExecConfig, ImageBuilder,
-    RuntimeType, ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE,
+    ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE, ContainerClient, ContainerConfig,
+    ContainerOrchestrator, ExecConfig, ImageBuilder,
 };
 use serial_test::serial;
 use std::path::Path;
@@ -16,10 +16,8 @@ use test_tag::tag;
 /// Check if container tests should run.
 fn should_run_container_tests() -> bool {
     // Skip if explicitly disabled
-    if let Ok(value) = std::env::var("SKIP_CONTAINER_TESTS") {
-        if value == "1" || value.eq_ignore_ascii_case("true") {
-            return false;
-        }
+    if matches!(std::env::var("SKIP_CONTAINER_TESTS").as_deref(), Ok("1" | "true" | "True" | "TRUE")) {
+        return false;
     }
 
     // Check if Docker or Podman is available
@@ -45,7 +43,9 @@ async fn cleanup_container(orchestrator: &ContainerOrchestrator, name: &str) {
 #[tag(integration, container)]
 async fn test_container_client_connection() {
     if !should_run_container_tests() {
-        eprintln!("Skipping container tests (Docker/Podman not available or SKIP_CONTAINER_TESTS=1)");
+        eprintln!(
+            "Skipping container tests (Docker/Podman not available or SKIP_CONTAINER_TESTS=1)"
+        );
         return;
     }
 
@@ -57,9 +57,15 @@ async fn test_container_client_connection() {
     );
 
     let client = client.unwrap();
-    let runtime = client.runtime_type().await.expect("Failed to get runtime type");
+    let runtime = client
+        .runtime_type()
+        .await
+        .expect("Failed to get runtime type");
     assert!(
-        matches!(runtime, aca::container::RuntimeType::Docker | aca::container::RuntimeType::Podman),
+        matches!(
+            runtime,
+            aca::container::RuntimeType::Docker | aca::container::RuntimeType::Podman
+        ),
         "Expected docker or podman, got: {}",
         runtime
     );
@@ -226,7 +232,9 @@ async fn test_create_and_start_container() {
         return;
     }
 
-    let orchestrator = ContainerOrchestrator::new().await.expect("Failed to connect");
+    let orchestrator = ContainerOrchestrator::new()
+        .await
+        .expect("Failed to connect");
     let container_name = "aca-test-basic";
 
     // Cleanup any existing test container
@@ -275,7 +283,9 @@ async fn test_exec_command_in_container() {
         return;
     }
 
-    let orchestrator = ContainerOrchestrator::new().await.expect("Failed to connect");
+    let orchestrator = ContainerOrchestrator::new()
+        .await
+        .expect("Failed to connect");
     let container_name = "aca-test-exec";
 
     cleanup_container(&orchestrator, container_name).await;
@@ -311,7 +321,12 @@ async fn test_exec_command_in_container() {
     );
 
     let output = exec_result.unwrap();
-    assert_eq!(output.exit_code, Some(0), "Command failed with exit code {:?}", output.exit_code);
+    assert_eq!(
+        output.exit_code,
+        Some(0),
+        "Command failed with exit code {:?}",
+        output.exit_code
+    );
     assert!(
         output.stdout.contains("Hello from container"),
         "Expected output not found. Got: {}",
@@ -343,7 +358,9 @@ async fn test_container_with_bind_mounts() {
         return;
     }
 
-    let orchestrator = ContainerOrchestrator::new().await.expect("Failed to connect");
+    let orchestrator = ContainerOrchestrator::new()
+        .await
+        .expect("Failed to connect");
     let container_name = "aca-test-binds";
 
     cleanup_container(&orchestrator, container_name).await;
@@ -386,7 +403,10 @@ async fn test_container_with_bind_mounts() {
 
     // Test writing from container
     orchestrator
-        .exec(&container_id, vec!["sh", "-c", "echo 'from container' > /workspace/new.txt"])
+        .exec(
+            &container_id,
+            vec!["sh", "-c", "echo 'from container' > /workspace/new.txt"],
+        )
         .await
         .expect("Failed to write from container");
 
@@ -407,7 +427,9 @@ async fn test_container_with_environment_variables() {
         return;
     }
 
-    let orchestrator = ContainerOrchestrator::new().await.expect("Failed to connect");
+    let orchestrator = ContainerOrchestrator::new()
+        .await
+        .expect("Failed to connect");
     let container_name = "aca-test-env";
 
     cleanup_container(&orchestrator, container_name).await;
@@ -452,7 +474,9 @@ async fn test_container_with_resource_limits() {
         return;
     }
 
-    let orchestrator = ContainerOrchestrator::new().await.expect("Failed to connect");
+    let orchestrator = ContainerOrchestrator::new()
+        .await
+        .expect("Failed to connect");
     let container_name = "aca-test-resources";
 
     cleanup_container(&orchestrator, container_name).await;
@@ -499,7 +523,9 @@ async fn test_exec_config_working_directory() {
         return;
     }
 
-    let orchestrator = ContainerOrchestrator::new().await.expect("Failed to connect");
+    let orchestrator = ContainerOrchestrator::new()
+        .await
+        .expect("Failed to connect");
     let container_name = "aca-test-workdir";
 
     cleanup_container(&orchestrator, container_name).await;
@@ -557,7 +583,9 @@ async fn test_full_workflow() {
         return;
     }
 
-    let orchestrator = ContainerOrchestrator::new().await.expect("Failed to connect");
+    let orchestrator = ContainerOrchestrator::new()
+        .await
+        .expect("Failed to connect");
     let container_name = "aca-test-workflow";
 
     cleanup_container(&orchestrator, container_name).await;
@@ -572,7 +600,7 @@ async fn test_full_workflow() {
     let config = ContainerConfig::builder()
         .image("alpine:latest")
         .cmd(vec!["sleep", "300"]) // Keep container alive for 5 minutes
-        .bind(&format!("{}:/workspace:rw", workspace))
+        .bind(format!("{}:/workspace:rw", workspace))
         .env("PROJECT_NAME", "test-project")
         .memory_limit(1_073_741_824) // 1 GB
         .build()

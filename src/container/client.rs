@@ -6,7 +6,7 @@
 use crate::container::{ContainerError, Result};
 use bollard::Docker;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Container client configuration.
 #[derive(Debug, Clone)]
@@ -33,6 +33,7 @@ impl Default for ContainerClientConfig {
 #[derive(Clone)]
 pub struct ContainerClient {
     docker: Arc<Docker>,
+    #[allow(dead_code)] // Reserved for future configuration options
     config: ContainerClientConfig,
 }
 
@@ -181,15 +182,13 @@ impl ContainerClient {
     pub async fn runtime_type(&self) -> Result<RuntimeType> {
         let version = self.version().await?;
 
-        if let Some(name) = version.components.and_then(|comps| {
+        if version.components.and_then(|comps| {
             comps
                 .iter()
                 .find(|c| c.name == "Engine")
                 .map(|c| c.version.clone())
-        }) {
-            if name.to_lowercase().contains("podman") {
-                return Ok(RuntimeType::Podman);
-            }
+        }).filter(|name| name.to_lowercase().contains("podman")).is_some() {
+            return Ok(RuntimeType::Podman);
         }
 
         Ok(RuntimeType::Docker)

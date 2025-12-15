@@ -6,9 +6,8 @@
 use crate::container::{ContainerError, Result};
 use bollard::Docker;
 use futures::stream::StreamExt;
-use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Default ACA base image name (Ubuntu 22.04 full, ~3-4 GB)
 pub const ACA_BASE_IMAGE: &str = "aca-dev:latest";
@@ -83,8 +82,7 @@ impl ImageBuilder {
         match self.docker.inspect_image(image).await {
             Ok(_) => Ok(true),
             Err(bollard::errors::Error::DockerResponseServerError {
-                status_code: 404,
-                ..
+                status_code: 404, ..
             }) => Ok(false),
             Err(e) => Err(ContainerError::ApiError(e)),
         }
@@ -183,7 +181,7 @@ impl ImageBuilder {
     /// # Arguments
     ///
     /// * `dockerfile_path` - Optional path to directory containing Dockerfile.
-    ///                       If None, defaults to "container/" in current directory.
+    ///   If None, defaults to "container/" in current directory.
     ///
     /// # Errors
     ///
