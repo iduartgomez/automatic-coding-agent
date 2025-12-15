@@ -105,14 +105,8 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     println!("   Working directory: {}\n", output.stdout.trim());
 
-    // Test 5: Monitor resources
-    println!("7. Checking resource usage...");
-    let stats = orchestrator.get_stats(&container_id).await?;
-    println!("   Memory: {} bytes", stats.memory_usage);
-    println!("   CPU: {:.2}%\n", stats.cpu_percentage);
-
     // Cleanup
-    println!("8. Cleaning up...");
+    println!("7. Cleaning up...");
     orchestrator.stop_and_remove(&container_id).await?;
     println!("   ✓ Container removed\n");
 
