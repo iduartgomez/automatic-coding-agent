@@ -66,7 +66,11 @@ async fn main() -> anyhow::Result<()> {
     orchestrator
         .exec(
             &container_id,
-            vec!["sh", "-c", "echo 'Written by container' > /workspace/output.txt"],
+            vec![
+                "sh",
+                "-c",
+                "echo 'Written by container' > /workspace/output.txt",
+            ],
         )
         .await?;
 
@@ -75,9 +79,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Test 3: Check environment variables
     println!("5. Testing environment variables...");
-    let output = orchestrator
-        .exec(&container_id, vec!["env"])
-        .await?;
+    let output = orchestrator.exec(&container_id, vec!["env"]).await?;
 
     for line in output.stdout.lines() {
         if line.starts_with("APP_NAME=") || line.starts_with("LOG_LEVEL=") {
