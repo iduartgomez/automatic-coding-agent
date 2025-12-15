@@ -51,6 +51,27 @@ A Rust-based agentic tool that automates coding tasks using multiple LLM provide
 - **Execution Strategies**: Optimal Sequential/Parallel/Intelligent execution planning
 - **Plan Persistence**: Dump, review, modify, and execute execution plans
 
+### 🐳 **Container Orchestration** (Beta)
+- **Docker/Podman Support**: Automatic runtime detection with seamless fallback
+- **Resource Isolation**: CPU and memory limits for safe task execution
+- **Volume Management**: Bind mounts for host-container file sharing
+- **Image Building**: Pre-built base images (Ubuntu full ~3-4GB, Alpine ~800MB)
+- **Interactive Sessions**: Real-time I/O streaming for interactive commands
+- **Network Management**: Custom networks and container connectivity
+- **Monitoring**: Real-time CPU, memory, network, and disk I/O tracking
+
+**Quick Start**:
+```bash
+# Enable containers feature
+cargo build --features containers
+
+# Run container tests (requires Docker/Podman)
+cargo test --test container_orchestration --features containers -- --skip slow
+
+# See full testing guide
+cat docs/CONTAINER_TESTING_GUIDE.md
+```
+
 ## Quick Start
 
 ### Prerequisites
