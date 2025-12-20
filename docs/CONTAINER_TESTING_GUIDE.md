@@ -301,7 +301,7 @@ To enable in CI, ensure:
 
 ## Next Steps
 
-After verifying the tests passe
+After verifying the tests pass:
 
 1. **Read the API docs**: `cargo doc --open --features containers`
 2. **Try the examples**: See `examples/container_usage.rs` (if exists)
