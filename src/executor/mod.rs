@@ -173,7 +173,7 @@ pub mod resources;
 #[cfg(feature = "containers")]
 pub mod container;
 
-pub use config::{ContainerExecutionConfig, ExecutionMode};
+pub use config::{ContainerExecutionConfig, RuntimeMode};
 pub use host::HostExecutor;
 pub use resources::{ResourceAllocation, SystemResources};
 

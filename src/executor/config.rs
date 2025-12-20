@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 /// Default container image for isolated execution
 pub const DEFAULT_CONTAINER_IMAGE: &str = "alpine:latest";
 
-/// Execution mode - where commands run
+/// Runtime mode - where commands run
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum ExecutionMode {
+pub enum RuntimeMode {
     /// Execute commands directly on host (default)
     #[default]
     Host,
@@ -20,15 +20,15 @@ pub enum ExecutionMode {
     Container(ContainerExecutionConfig),
 }
 
-impl ExecutionMode {
+impl RuntimeMode {
     /// Check if this is container mode
     pub fn is_container(&self) -> bool {
-        matches!(self, ExecutionMode::Container(_))
+        matches!(self, RuntimeMode::Container(_))
     }
 
     /// Check if this is host mode
     pub fn is_host(&self) -> bool {
-        matches!(self, ExecutionMode::Host)
+        matches!(self, RuntimeMode::Host)
     }
 }
 
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn test_execution_mode_default() {
-        let mode = ExecutionMode::default();
+        let mode = RuntimeMode::default();
         assert!(mode.is_host());
         assert!(!mode.is_container());
     }

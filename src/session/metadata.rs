@@ -24,7 +24,7 @@ pub struct SessionMetadata {
     pub custom_properties: HashMap<String, serde_json::Value>,
     /// Execution mode used for this session (host or container)
     #[serde(default)]
-    pub execution_mode: Option<crate::executor::ExecutionMode>,
+    pub execution_mode: Option<crate::executor::RuntimeMode>,
 }
 
 /// Session version information for compatibility tracking

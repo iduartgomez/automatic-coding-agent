@@ -112,7 +112,7 @@ pub struct AgentConfig {
     pub setup_commands: Vec<SetupCommand>,
     /// Execution mode (host or container)
     #[serde(default)]
-    pub execution_mode: crate::executor::ExecutionMode,
+    pub execution_mode: crate::executor::RuntimeMode,
 }
 
 impl AgentConfig {
@@ -150,11 +150,11 @@ impl AgentSystem {
 
         // Initialize executor based on execution mode
         let executor = match &config.execution_mode {
-            crate::executor::ExecutionMode::Host => {
+            crate::executor::RuntimeMode::Host => {
                 info!("Using host executor");
                 crate::executor::CommandExecutor::Host(crate::executor::HostExecutor::new())
             }
-            crate::executor::ExecutionMode::Container(container_config) => {
+            crate::executor::RuntimeMode::Container(container_config) => {
                 #[cfg(feature = "containers")]
                 {
                     use crate::executor::container::ContainerExecutorConfig;
@@ -1127,7 +1127,7 @@ impl Default for AgentConfig {
             task_config: TaskManagerConfig::default(),
             claude_config: ClaudeConfig::default(),
             setup_commands: Vec::new(), // No setup commands by default
-            execution_mode: crate::executor::ExecutionMode::Host,
+            execution_mode: crate::executor::RuntimeMode::Host,
         }
     }
 }
