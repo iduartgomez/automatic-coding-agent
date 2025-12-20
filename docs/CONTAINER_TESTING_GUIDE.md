@@ -210,38 +210,6 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-## Test Results Interpretation
-
-### Expected Output
-
-When running fast tests, you should see:
-
-```
-running 10 tests
-test test_container_client_connection ... ok
-test test_container_with_bind_mounts ... ok
-test test_container_with_environment_variables ... ok
-test test_container_with_resource_limits ... ok
-test test_create_and_start_container ... ok
-test test_exec_command_in_container ... ok
-test test_exec_config_working_directory ... ok
-test test_full_workflow ... ok
-test test_image_builder_check_exists ... ok
-test test_image_builder_list_images ... ok
-
-test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out
-```
-
-### Slow Tests (Image Building)
-
-The slow tests build Docker images which takes time:
-
-```
-test test_build_aca_base_image ... ok (10-15 min)
-test test_build_aca_alpine_image ... ok (5-7 min)
-test test_ensure_aca_base_image ... ok (instant if already built)
-```
-
 ## Troubleshooting
 
 ### Tests Skip Automatically
@@ -333,7 +301,7 @@ To enable in CI, ensure:
 
 ## Next Steps
 
-After verifying the tests pass:
+After verifying the tests passe
 
 1. **Read the API docs**: `cargo doc --open --features containers`
 2. **Try the examples**: See `examples/container_usage.rs` (if exists)

@@ -100,6 +100,7 @@ pub struct AgentSystem {
     task_manager: Arc<TaskManager>,
     session_manager: Arc<SessionManager>,
     claude_interface: Arc<ClaudeCodeInterface>,
+    executor: Arc<dyn crate::executor::CommandExecutor>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +110,9 @@ pub struct AgentConfig {
     pub task_config: TaskManagerConfig,
     pub claude_config: ClaudeConfig,
     pub setup_commands: Vec<SetupCommand>,
+    /// Execution mode (host or container)
+    #[serde(default)]
+    pub execution_mode: crate::executor::ExecutionMode,
 }
 
 impl AgentConfig {
@@ -128,21 +132,81 @@ impl AgentSystem {
             Self::execute_setup_commands(&config.setup_commands).await?;
         }
 
-        // Extract workspace path before moving config
+        // Extract workspace path and execution mode before moving config
         let workspace_path = config.workspace_path.clone();
+        let execution_mode = Some(config.execution_mode.clone());
 
-        // Initialize session manager
+        // Initialize session manager with execution mode
+        let mut init_options = SessionInitOptions::default();
+        init_options.execution_mode = execution_mode;
         let session_manager = Arc::new(
             SessionManager::new(
                 config.workspace_path,
                 config.session_config,
-                SessionInitOptions::default(),
+                init_options,
             )
             .await?,
         );
 
         // Initialize task manager
-        let task_manager = Arc::new(TaskManager::new(config.task_config));
+        let task_manager = Arc::new(TaskManager::new(config.task_config.clone()));
+
+        // Initialize executor based on execution mode
+        let executor: Arc<dyn crate::executor::CommandExecutor> =
+            match &config.execution_mode {
+                crate::executor::ExecutionMode::Host => {
+                    info!("Using host executor");
+                    Arc::new(crate::executor::HostExecutor::new())
+                }
+                crate::executor::ExecutionMode::Container(container_config) => {
+                    #[cfg(feature = "containers")]
+                    {
+                        use crate::executor::{ContainerExecutor, SystemResources};
+                        use crate::executor::container::ContainerExecutorConfig;
+
+                        info!(
+                            "Initializing container executor with image: {}",
+                            container_config.image
+                        );
+
+                        // Detect system resources
+                        let resources = SystemResources::detect()
+                            .map_err(|e| anyhow::anyhow!("Failed to detect system resources: {}", e))?;
+
+                        // Calculate allocation (use configured or default to percentage)
+                        let allocation = resources.allocate_percentage(container_config.resource_percentage);
+
+                        let exec_config = ContainerExecutorConfig {
+                            image: container_config.image.clone(),
+                            workspace_mount: workspace_path.clone(),
+                            aca_mount: crate::env::aca_dir_path(&workspace_path),
+                            memory_bytes: container_config
+                                .memory_limit_bytes
+                                .or(Some(allocation.memory_bytes)),
+                            cpu_quota: container_config.cpu_quota.or(Some(allocation.cpu_quota)),
+                            auto_remove: true,
+                        };
+
+                        let container_executor = ContainerExecutor::new(exec_config)
+                            .await
+                            .map_err(|e| {
+                                anyhow::anyhow!(
+                                    "Container runtime unavailable. --use-containers requires Docker or Podman: {}",
+                                    e
+                                )
+                            })?;
+
+                        Arc::new(container_executor)
+                    }
+
+                    #[cfg(not(feature = "containers"))]
+                    {
+                        return Err(anyhow::anyhow!(
+                            "Container support not compiled. Enable 'containers' feature."
+                        ));
+                    }
+                }
+            };
 
         // Initialize Claude interface
         let claude_interface = Arc::new(
@@ -155,6 +219,7 @@ impl AgentSystem {
             task_manager,
             session_manager,
             claude_interface,
+            executor,
         })
     }
 
@@ -447,6 +512,12 @@ impl AgentSystem {
 
         // Graceful shutdown of session manager (this also creates a session_shutdown checkpoint)
         self.session_manager.shutdown().await?;
+
+        // Shutdown executor (cleanup containers if any)
+        self.executor
+            .shutdown()
+            .await
+            .map_err(|e| anyhow::anyhow!("Executor shutdown failed: {}", e))?;
 
         tracing::info!("Agent system shutdown complete");
         Ok(())
@@ -1044,6 +1115,7 @@ impl Default for AgentConfig {
             task_config: TaskManagerConfig::default(),
             claude_config: ClaudeConfig::default(),
             setup_commands: Vec::new(), // No setup commands by default
+            execution_mode: crate::executor::ExecutionMode::Host,
         }
     }
 }

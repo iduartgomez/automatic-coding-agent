@@ -278,6 +278,7 @@ async fn test_session_manager_creation() {
         recovery_config: RecoveryConfig::default(),
         enable_auto_save: false, // Disable for test
         restore_from_checkpoint: None,
+        execution_mode: None,
     };
 
     let session_manager = SessionManager::new(session_dir, config, init_options).await;

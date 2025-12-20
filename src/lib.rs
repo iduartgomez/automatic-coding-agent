@@ -115,6 +115,14 @@ pub mod env;
 #[cfg(feature = "containers")]
 pub mod container;
 
+/// Command execution abstraction layer.
+///
+/// Provides a unified interface for executing commands either on the host
+/// system or within containers, enabling transparent sandboxed execution.
+/// Includes `HostExecutor` for native execution and `ContainerExecutor`
+/// for containerized execution (requires `containers` feature).
+pub mod executor;
+
 // Re-export main session types
 pub use session::{SessionInitOptions, SessionManager, SessionManagerConfig, SessionMetadata};
 
@@ -139,6 +147,15 @@ pub use container::{
     ACA_BASE_IMAGE, ACA_BASE_IMAGE_ALPINE, ContainerClient, ContainerConfig, ContainerError,
     ContainerOrchestrator, ExecConfig, ExecOutput, ImageBuilder,
 };
+
+// Re-export executor types
+pub use executor::{
+    CommandExecutor, ContainerExecutionConfig, ExecutionCommand, ExecutionMode, ExecutionResult,
+    ExecutorError, HostExecutor, ResourceAllocation, SystemResources,
+};
+
+#[cfg(feature = "containers")]
+pub use executor::ContainerExecutor;
 
 // CLI module for command-line interface
 pub mod cli;

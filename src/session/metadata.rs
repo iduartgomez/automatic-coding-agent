@@ -22,6 +22,9 @@ pub struct SessionMetadata {
     pub session_tags: Vec<String>,
     pub workspace_root: PathBuf,
     pub custom_properties: HashMap<String, serde_json::Value>,
+    /// Execution mode used for this session (host or container)
+    #[serde(default)]
+    pub execution_mode: Option<crate::executor::ExecutionMode>,
 }
 
 /// Session version information for compatibility tracking
@@ -103,6 +106,7 @@ impl SessionMetadata {
             session_tags: Vec::new(),
             workspace_root,
             custom_properties: HashMap::new(),
+            execution_mode: None,
         }
     }
 

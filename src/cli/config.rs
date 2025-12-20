@@ -48,6 +48,7 @@ impl DefaultAgentConfig {
             session_config: self.session_config.clone(),
             task_config: self.task_config.clone(),
             claude_config: self.claude_config.clone(),
+            execution_mode: crate::executor::ExecutionMode::Host,
         }
     }
 

@@ -56,6 +56,8 @@ pub struct BatchConfig {
     pub dump_plan: Option<PathBuf>,
     pub provider_override: Option<ProviderType>,
     pub model_override: Option<String>,
+    pub use_containers: bool,
+    pub container_image: String,
 }
 
 #[derive(Debug)]
@@ -122,6 +124,12 @@ pub enum Commands {
         /// Dump execution plan to file (JSON or TOML format based on extension)
         #[arg(long = "dump-plan", value_name = "FILE")]
         dump_plan: Option<PathBuf>,
+        /// Execute tasks inside a container (Docker/Podman)
+        #[arg(long = "use-containers")]
+        use_containers: bool,
+        /// Container image to use (default: alpine:latest)
+        #[arg(long = "container-image", default_value = "alpine:latest")]
+        container_image: String,
     },
     /// Run in interactive mode
     Interactive {
@@ -188,6 +196,8 @@ impl Args {
                 force_naive_parser,
                 context_hints,
                 dump_plan,
+                use_containers,
+                container_image,
             }) => {
                 // Auto-detect file type based on extension
                 let task_input = Self::detect_file_type(file)?;
@@ -205,6 +215,8 @@ impl Args {
                     dump_plan: dump_plan.clone(),
                     provider_override,
                     model_override: self.model.clone(),
+                    use_containers: *use_containers,
+                    container_image: container_image.clone(),
                 }))
             }
             Some(Commands::Interactive { workspace, verbose }) => {
@@ -307,6 +319,8 @@ mod tests {
                 force_naive_parser: false,
                 context_hints: vec!["hint1".to_string()],
                 dump_plan: None,
+                use_containers: false,
+                container_image: "alpine:latest".to_string(),
             }),
         };
         let mode = args.mode().unwrap();
@@ -336,6 +350,8 @@ mod tests {
                 force_naive_parser: false,
                 context_hints: vec![],
                 dump_plan: None,
+                use_containers: false,
+                container_image: "alpine:latest".to_string(),
             }),
         };
         let mode = args.mode().unwrap();
@@ -363,6 +379,8 @@ mod tests {
                 force_naive_parser: false,
                 context_hints: vec![],
                 dump_plan: None,
+                use_containers: false,
+                container_image: "alpine:latest".to_string(),
             }),
         };
         let mode = args.mode().unwrap();

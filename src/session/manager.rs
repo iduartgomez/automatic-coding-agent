@@ -48,6 +48,7 @@ pub struct SessionInitOptions {
     pub recovery_config: RecoveryConfig,
     pub enable_auto_save: bool,
     pub restore_from_checkpoint: Option<String>,
+    pub execution_mode: Option<crate::executor::ExecutionMode>,
 }
 
 /// Session status information
@@ -100,10 +101,12 @@ impl SessionManager {
         let task_manager = Arc::new(TaskManager::new(init_options.task_manager_config));
 
         // Initialize session metadata
-        let metadata = Arc::new(RwLock::new(SessionMetadata::new(
+        let mut session_metadata = SessionMetadata::new(
             init_options.name,
             init_options.workspace_root,
-        )));
+        );
+        session_metadata.execution_mode = init_options.execution_mode;
+        let metadata = Arc::new(RwLock::new(session_metadata));
 
         let session_manager = Self {
             session_id,
@@ -652,6 +655,7 @@ impl SessionManager {
             recovery_config: RecoveryConfig::default(),
             enable_auto_save: false,
             restore_from_checkpoint: None,
+            execution_mode: None,
         };
 
         // This approach still has the isolation issue. Let me implement a direct approach
@@ -797,6 +801,7 @@ impl Default for SessionInitOptions {
             recovery_config: RecoveryConfig::default(),
             enable_auto_save: true,
             restore_from_checkpoint: None,
+            execution_mode: None,
         }
     }
 }

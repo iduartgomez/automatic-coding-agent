@@ -152,7 +152,17 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
 
     // Initialize agent system
     info!("Initializing agent system for batch execution...");
-    let agent_config = agent_config.with_subprocess_output(config.verbose);
+    let mut agent_config = agent_config.with_subprocess_output(config.verbose);
+
+    // Apply container configuration if requested
+    if config.use_containers {
+        use aca::executor::{ContainerExecutionConfig, ExecutionMode};
+        info!("Container execution requested with image: {}", config.container_image);
+        agent_config.execution_mode = ExecutionMode::Container(ContainerExecutionConfig::new(
+            config.container_image.clone(),
+        ));
+    }
+
     let agent = AgentSystem::new(agent_config).await?;
 
     info!("Agent system initialized successfully!");
@@ -424,6 +434,7 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
         recovery_config: RecoveryConfig::default(),
         enable_auto_save: true,
         restore_from_checkpoint: Some(checkpoint_id.clone()),
+        execution_mode: None,
     };
 
     let agent = AgentSystem::new(agent_config).await?;
@@ -552,6 +563,7 @@ async fn list_available_checkpoints(_all_sessions: bool) -> Result<(), Box<dyn s
         recovery_config: RecoveryConfig::default(),
         enable_auto_save: false,
         restore_from_checkpoint: None,
+        execution_mode: None,
     };
 
     let temp_session =
@@ -615,6 +627,7 @@ async fn create_manual_checkpoint(description: String) -> Result<(), Box<dyn std
         recovery_config: RecoveryConfig::default(),
         enable_auto_save: false,
         restore_from_checkpoint: None,
+        execution_mode: None,
     };
 
     let temp_session =
@@ -660,6 +673,7 @@ async fn find_latest_checkpoint(
         recovery_config: RecoveryConfig::default(),
         enable_auto_save: false,
         restore_from_checkpoint: None,
+        execution_mode: None,
     };
     let temp_session =
         SessionManager::new(session_dir.to_path_buf(), session_config, init_options).await?;
