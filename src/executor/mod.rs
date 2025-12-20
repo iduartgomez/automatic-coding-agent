@@ -36,6 +36,7 @@
 //! }
 //! ```
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -55,7 +56,7 @@ pub use resources::{ResourceAllocation, SystemResources};
 pub use container::ContainerExecutor;
 
 /// Result of command execution
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionResult {
     /// Standard output from the command
     pub stdout: String,
@@ -75,7 +76,7 @@ impl ExecutionResult {
 }
 
 /// Command to execute
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionCommand {
     /// Program name or path to execute
     pub program: String,

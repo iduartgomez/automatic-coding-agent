@@ -46,9 +46,53 @@ impl HostExecutor {
 
         // Execute command with optional timeout
         let output = if let Some(timeout) = cmd.timeout {
-            match tokio::time::timeout(timeout, command.output()).await {
-                Ok(result) => result?,
+            // Configure pipes for stdout/stderr when using timeout
+            command.stdout(std::process::Stdio::piped());
+            command.stderr(std::process::Stdio::piped());
+
+            let mut child = command.spawn()?;
+            let wait_result = tokio::time::timeout(timeout, child.wait()).await;
+
+            match wait_result {
+                Ok(Ok(status)) => {
+                    // Process completed within timeout - collect output
+                    let stdout = child.stdout.take();
+                    let stderr = child.stderr.take();
+
+                    let (stdout_data, stderr_data) = tokio::join!(
+                        async {
+                            if let Some(mut out) = stdout {
+                                use tokio::io::AsyncReadExt;
+                                let mut buf = Vec::new();
+                                let _ = out.read_to_end(&mut buf).await;
+                                buf
+                            } else {
+                                Vec::new()
+                            }
+                        },
+                        async {
+                            if let Some(mut err) = stderr {
+                                use tokio::io::AsyncReadExt;
+                                let mut buf = Vec::new();
+                                let _ = err.read_to_end(&mut buf).await;
+                                buf
+                            } else {
+                                Vec::new()
+                            }
+                        }
+                    );
+
+                    std::process::Output {
+                        status,
+                        stdout: stdout_data,
+                        stderr: stderr_data,
+                    }
+                }
+                Ok(Err(e)) => return Err(ExecutorError::IoError(e)),
                 Err(_) => {
+                    // Timeout occurred - kill the process
+                    let _ = child.kill().await;
+                    let _ = child.wait().await; // Reap the zombie process
                     return Err(ExecutorError::Timeout(timeout));
                 }
             }

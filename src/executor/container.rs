@@ -119,7 +119,10 @@ impl ContainerExecutor {
 
         self.orchestrator.start_container(&container_id).await?;
 
-        info!("Container started: {}", &container_id[..12]);
+        info!(
+            "Container started: {}",
+            container_id.get(..12).unwrap_or(&container_id)
+        );
 
         *id_guard = Some(container_id.clone());
         Ok(container_id)
@@ -137,7 +140,7 @@ impl ContainerExecutor {
 
         debug!(
             "Executing command in container {}: {} {:?}",
-            &container_id[..12],
+            container_id.get(..12).unwrap_or(&container_id),
             cmd.program,
             cmd.args
         );
@@ -209,10 +212,14 @@ impl ContainerExecutor {
     }
 
     pub async fn shutdown(&self) -> Result<(), ExecutorError> {
-        let id_guard = self.container_id.read().await;
+        let mut id_guard = self.container_id.write().await;
         if let Some(ref id) = *id_guard {
-            info!("Stopping and removing container: {}", &id[..12]);
+            info!(
+                "Stopping and removing container: {}",
+                id.get(..12).unwrap_or(id)
+            );
             self.orchestrator.stop_and_remove(id).await?;
+            *id_guard = None; // Clear the container ID after successful removal
         }
         Ok(())
     }
