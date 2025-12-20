@@ -128,7 +128,7 @@ pub enum Commands {
         #[arg(long = "use-containers")]
         use_containers: bool,
         /// Container image to use (default: alpine:latest)
-        #[arg(long = "container-image", default_value = "alpine:latest")]
+        #[arg(long = "container-image", default_value = crate::executor::config::DEFAULT_CONTAINER_IMAGE)]
         container_image: String,
     },
     /// Run in interactive mode
