@@ -36,7 +36,6 @@
 //! }
 //! ```
 
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -159,31 +158,67 @@ pub enum ExecutorError {
     Other(String),
 }
 
-/// Command executor trait - abstracts where commands run
-#[async_trait]
-pub trait CommandExecutor: Send + Sync {
+/// Command executor enum - abstracts where commands run
+///
+/// This enum provides a unified interface for executing commands either on the host
+/// or within containers. Using an enum instead of a trait allows for better
+/// performance (no vtable overhead) and is more idiomatic Rust.
+#[derive(Clone)]
+pub enum CommandExecutor {
+    /// Execute commands on the host system
+    Host(host::HostExecutor),
+    /// Execute commands in a container
+    #[cfg(feature = "containers")]
+    Container(container::ContainerExecutor),
+}
+
+impl CommandExecutor {
     /// Execute a command and return the result
     ///
     /// # Errors
     ///
     /// Returns an error if the command fails to execute, times out,
     /// or if the executor is unavailable.
-    async fn execute(&self, command: ExecutionCommand) -> Result<ExecutionResult, ExecutorError>;
+    pub async fn execute(&self, command: ExecutionCommand) -> Result<ExecutionResult, ExecutorError> {
+        match self {
+            Self::Host(executor) => executor.execute(command).await,
+            #[cfg(feature = "containers")]
+            Self::Container(executor) => executor.execute(command).await,
+        }
+    }
 
     /// Check if the executor is available and healthy
     ///
     /// # Errors
     ///
     /// Returns an error if the executor is not available or unhealthy.
-    async fn health_check(&self) -> Result<(), ExecutorError>;
+    pub async fn health_check(&self) -> Result<(), ExecutorError> {
+        match self {
+            Self::Host(executor) => executor.health_check().await,
+            #[cfg(feature = "containers")]
+            Self::Container(executor) => executor.health_check().await,
+        }
+    }
 
     /// Get executor type name for logging
-    fn executor_type(&self) -> &'static str;
+    pub fn executor_type(&self) -> &'static str {
+        match self {
+            Self::Host(executor) => executor.executor_type(),
+            #[cfg(feature = "containers")]
+            Self::Container(executor) => executor.executor_type(),
+        }
+    }
 
     /// Cleanup resources (called on shutdown)
     ///
     /// # Errors
     ///
     /// Returns an error if cleanup fails.
-    async fn shutdown(&self) -> Result<(), ExecutorError>;
+    pub async fn shutdown(&self) -> Result<(), ExecutorError> {
+        match self {
+            Self::Host(executor) => executor.shutdown().await,
+            #[cfg(feature = "containers")]
+            Self::Container(executor) => executor.shutdown().await,
+        }
+    }
 }

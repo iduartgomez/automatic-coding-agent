@@ -38,7 +38,6 @@ clap = { version = "4.5.48", features = ["derive"] }
 regex = "1.11.3"
 shell-escape = "0.1.5"
 which = "6.0"
-async-trait = "0.1"
 
 # Container orchestration (optional)
 bollard = { version = "0.19.2", optional = true }

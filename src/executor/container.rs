@@ -2,9 +2,8 @@
 //!
 //! Executes commands inside Docker/Podman containers for isolated execution.
 
-use super::{CommandExecutor, ExecutionCommand, ExecutionResult, ExecutorError};
+use super::{ExecutionCommand, ExecutionResult, ExecutorError};
 use crate::container::{ContainerConfig, ContainerOrchestrator, ExecConfig};
-use async_trait::async_trait;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -42,10 +41,11 @@ impl Default for ContainerExecutorConfig {
 }
 
 /// Executes commands inside a container
+#[derive(Clone)]
 pub struct ContainerExecutor {
     orchestrator: Arc<ContainerOrchestrator>,
     config: ContainerExecutorConfig,
-    container_id: RwLock<Option<String>>,
+    container_id: Arc<RwLock<Option<String>>>,
 }
 
 impl ContainerExecutor {
@@ -62,7 +62,7 @@ impl ContainerExecutor {
         Ok(Self {
             orchestrator: Arc::new(orchestrator),
             config,
-            container_id: RwLock::new(None),
+            container_id: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -131,9 +131,8 @@ impl ContainerExecutor {
     }
 }
 
-#[async_trait]
-impl CommandExecutor for ContainerExecutor {
-    async fn execute(&self, cmd: ExecutionCommand) -> Result<ExecutionResult, ExecutorError> {
+impl ContainerExecutor {
+    pub async fn execute(&self, cmd: ExecutionCommand) -> Result<ExecutionResult, ExecutorError> {
         let container_id = self.ensure_container().await?;
 
         debug!(
@@ -196,7 +195,7 @@ impl CommandExecutor for ContainerExecutor {
         })
     }
 
-    async fn health_check(&self) -> Result<(), ExecutorError> {
+    pub async fn health_check(&self) -> Result<(), ExecutorError> {
         // Check if we can connect to the container runtime
         self.orchestrator
             .client()
@@ -205,11 +204,11 @@ impl CommandExecutor for ContainerExecutor {
             .map_err(|e| ExecutorError::ContainerUnavailable(e.to_string()))
     }
 
-    fn executor_type(&self) -> &'static str {
+    pub fn executor_type(&self) -> &'static str {
         "container"
     }
 
-    async fn shutdown(&self) -> Result<(), ExecutorError> {
+    pub async fn shutdown(&self) -> Result<(), ExecutorError> {
         let id_guard = self.container_id.read().await;
         if let Some(ref id) = *id_guard {
             info!("Stopping and removing container: {}", &id[..12]);

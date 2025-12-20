@@ -2,8 +2,7 @@
 //!
 //! Executes commands directly on the host system using `tokio::process::Command`.
 
-use super::{CommandExecutor, ExecutionCommand, ExecutionResult, ExecutorError};
-use async_trait::async_trait;
+use super::{ExecutionCommand, ExecutionResult, ExecutorError};
 use std::time::Instant;
 use tokio::process::Command;
 use tracing::debug;
@@ -25,9 +24,8 @@ impl Default for HostExecutor {
     }
 }
 
-#[async_trait]
-impl CommandExecutor for HostExecutor {
-    async fn execute(&self, cmd: ExecutionCommand) -> Result<ExecutionResult, ExecutorError> {
+impl HostExecutor {
+    pub async fn execute(&self, cmd: ExecutionCommand) -> Result<ExecutionResult, ExecutorError> {
         debug!(
             "Executing command on host: {} {:?}",
             cmd.program, cmd.args
@@ -68,16 +66,16 @@ impl CommandExecutor for HostExecutor {
         })
     }
 
-    async fn health_check(&self) -> Result<(), ExecutorError> {
+    pub async fn health_check(&self) -> Result<(), ExecutorError> {
         // Host is always available
         Ok(())
     }
 
-    fn executor_type(&self) -> &'static str {
+    pub fn executor_type(&self) -> &'static str {
         "host"
     }
 
-    async fn shutdown(&self) -> Result<(), ExecutorError> {
+    pub async fn shutdown(&self) -> Result<(), ExecutorError> {
         // No resources to clean up
         Ok(())
     }

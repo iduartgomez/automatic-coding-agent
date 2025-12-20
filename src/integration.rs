@@ -100,7 +100,7 @@ pub struct AgentSystem {
     task_manager: Arc<TaskManager>,
     session_manager: Arc<SessionManager>,
     claude_interface: Arc<ClaudeCodeInterface>,
-    executor: Arc<dyn crate::executor::CommandExecutor>,
+    executor: crate::executor::CommandExecutor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,61 +152,60 @@ impl AgentSystem {
         let task_manager = Arc::new(TaskManager::new(config.task_config.clone()));
 
         // Initialize executor based on execution mode
-        let executor: Arc<dyn crate::executor::CommandExecutor> =
-            match &config.execution_mode {
-                crate::executor::ExecutionMode::Host => {
-                    info!("Using host executor");
-                    Arc::new(crate::executor::HostExecutor::new())
+        let executor = match &config.execution_mode {
+            crate::executor::ExecutionMode::Host => {
+                info!("Using host executor");
+                crate::executor::CommandExecutor::Host(crate::executor::HostExecutor::new())
+            }
+            crate::executor::ExecutionMode::Container(container_config) => {
+                #[cfg(feature = "containers")]
+                {
+                    use crate::executor::{ContainerExecutor, SystemResources};
+                    use crate::executor::container::ContainerExecutorConfig;
+
+                    info!(
+                        "Initializing container executor with image: {}",
+                        container_config.image
+                    );
+
+                    // Detect system resources
+                    let resources = SystemResources::detect()
+                        .map_err(|e| anyhow::anyhow!("Failed to detect system resources: {}", e))?;
+
+                    // Calculate allocation (use configured or default to percentage)
+                    let allocation = resources.allocate_percentage(container_config.resource_percentage);
+
+                    let exec_config = ContainerExecutorConfig {
+                        image: container_config.image.clone(),
+                        workspace_mount: workspace_path.clone(),
+                        aca_mount: crate::env::aca_dir_path(&workspace_path),
+                        memory_bytes: container_config
+                            .memory_limit_bytes
+                            .or(Some(allocation.memory_bytes)),
+                        cpu_quota: container_config.cpu_quota.or(Some(allocation.cpu_quota)),
+                        auto_remove: true,
+                    };
+
+                    let container_executor = ContainerExecutor::new(exec_config)
+                        .await
+                        .map_err(|e| {
+                            anyhow::anyhow!(
+                                "Container runtime unavailable. --use-containers requires Docker or Podman: {}",
+                                e
+                            )
+                        })?;
+
+                    crate::executor::CommandExecutor::Container(container_executor)
                 }
-                crate::executor::ExecutionMode::Container(container_config) => {
-                    #[cfg(feature = "containers")]
-                    {
-                        use crate::executor::{ContainerExecutor, SystemResources};
-                        use crate::executor::container::ContainerExecutorConfig;
 
-                        info!(
-                            "Initializing container executor with image: {}",
-                            container_config.image
-                        );
-
-                        // Detect system resources
-                        let resources = SystemResources::detect()
-                            .map_err(|e| anyhow::anyhow!("Failed to detect system resources: {}", e))?;
-
-                        // Calculate allocation (use configured or default to percentage)
-                        let allocation = resources.allocate_percentage(container_config.resource_percentage);
-
-                        let exec_config = ContainerExecutorConfig {
-                            image: container_config.image.clone(),
-                            workspace_mount: workspace_path.clone(),
-                            aca_mount: crate::env::aca_dir_path(&workspace_path),
-                            memory_bytes: container_config
-                                .memory_limit_bytes
-                                .or(Some(allocation.memory_bytes)),
-                            cpu_quota: container_config.cpu_quota.or(Some(allocation.cpu_quota)),
-                            auto_remove: true,
-                        };
-
-                        let container_executor = ContainerExecutor::new(exec_config)
-                            .await
-                            .map_err(|e| {
-                                anyhow::anyhow!(
-                                    "Container runtime unavailable. --use-containers requires Docker or Podman: {}",
-                                    e
-                                )
-                            })?;
-
-                        Arc::new(container_executor)
-                    }
-
-                    #[cfg(not(feature = "containers"))]
-                    {
-                        return Err(anyhow::anyhow!(
-                            "Container support not compiled. Enable 'containers' feature."
-                        ));
-                    }
+                #[cfg(not(feature = "containers"))]
+                {
+                    return Err(anyhow::anyhow!(
+                        "Container support not compiled. Enable 'containers' feature."
+                    ));
                 }
-            };
+            }
+        };
 
         // Initialize Claude interface
         let claude_interface = Arc::new(
