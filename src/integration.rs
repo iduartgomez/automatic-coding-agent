@@ -165,22 +165,37 @@ impl AgentSystem {
                         container_config.image
                     );
 
-                    // Detect system resources
-                    let resources = SystemResources::detect()
-                        .map_err(|e| anyhow::anyhow!("Failed to detect system resources: {}", e))?;
-
-                    // Calculate allocation (use configured or default to percentage)
-                    let allocation =
-                        resources.allocate_percentage(container_config.resource_percentage);
+                    // Only detect system resources if needed
+                    let (memory_bytes, cpu_quota) = match (
+                        container_config.memory_limit_bytes,
+                        container_config.cpu_quota,
+                    ) {
+                        (Some(mem), Some(cpu)) => {
+                            // Both limits explicitly provided, skip resource detection
+                            (Some(mem), Some(cpu))
+                        }
+                        _ => {
+                            // At least one limit missing, detect resources and calculate
+                            let resources = SystemResources::detect().map_err(|e| {
+                                anyhow::anyhow!("Failed to detect system resources: {}", e)
+                            })?;
+                            let allocation =
+                                resources.allocate_percentage(container_config.resource_percentage);
+                            (
+                                container_config
+                                    .memory_limit_bytes
+                                    .or(Some(allocation.memory_bytes)),
+                                container_config.cpu_quota.or(Some(allocation.cpu_quota)),
+                            )
+                        }
+                    };
 
                     let exec_config = ContainerExecutorConfig {
                         image: container_config.image.clone(),
                         workspace_mount: workspace_path.clone(),
                         aca_mount: crate::env::aca_dir_path(&workspace_path),
-                        memory_bytes: container_config
-                            .memory_limit_bytes
-                            .or(Some(allocation.memory_bytes)),
-                        cpu_quota: container_config.cpu_quota.or(Some(allocation.cpu_quota)),
+                        memory_bytes,
+                        cpu_quota,
                         auto_remove: true,
                     };
 
