@@ -4,6 +4,7 @@
 
 use super::{ExecutionCommand, ExecutionResult, ExecutorError};
 use crate::container::{ContainerConfig, ContainerOrchestrator, ExecConfig};
+use crate::executor::config::DEFAULT_CONTAINER_IMAGE;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -30,7 +31,7 @@ pub struct ContainerExecutorConfig {
 impl Default for ContainerExecutorConfig {
     fn default() -> Self {
         Self {
-            image: "alpine:latest".to_string(),
+            image: DEFAULT_CONTAINER_IMAGE.to_string(),
             workspace_mount: PathBuf::new(),
             aca_mount: PathBuf::new(),
             memory_bytes: None,

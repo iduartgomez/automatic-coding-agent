@@ -5,6 +5,9 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Default container image for isolated execution
+pub const DEFAULT_CONTAINER_IMAGE: &str = "alpine:latest";
+
 /// Execution mode - where commands run
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -50,7 +53,7 @@ pub struct ContainerExecutionConfig {
 }
 
 fn default_image() -> String {
-    "alpine:latest".to_string()
+    DEFAULT_CONTAINER_IMAGE.to_string()
 }
 
 fn default_resource_percentage() -> f64 {
