@@ -142,12 +142,7 @@ impl AgentSystem {
             ..Default::default()
         };
         let session_manager = Arc::new(
-            SessionManager::new(
-                config.workspace_path,
-                config.session_config,
-                init_options,
-            )
-            .await?,
+            SessionManager::new(config.workspace_path, config.session_config, init_options).await?,
         );
 
         // Initialize task manager
@@ -162,8 +157,8 @@ impl AgentSystem {
             crate::executor::ExecutionMode::Container(container_config) => {
                 #[cfg(feature = "containers")]
                 {
-                    use crate::executor::{ContainerExecutor, SystemResources};
                     use crate::executor::container::ContainerExecutorConfig;
+                    use crate::executor::{ContainerExecutor, SystemResources};
 
                     info!(
                         "Initializing container executor with image: {}",
@@ -175,7 +170,8 @@ impl AgentSystem {
                         .map_err(|e| anyhow::anyhow!("Failed to detect system resources: {}", e))?;
 
                     // Calculate allocation (use configured or default to percentage)
-                    let allocation = resources.allocate_percentage(container_config.resource_percentage);
+                    let allocation =
+                        resources.allocate_percentage(container_config.resource_percentage);
 
                     let exec_config = ContainerExecutorConfig {
                         image: container_config.image.clone(),

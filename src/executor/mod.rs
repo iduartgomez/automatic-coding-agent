@@ -305,7 +305,10 @@ impl CommandExecutor {
     ///
     /// Returns an error if the command fails to execute, times out,
     /// or if the executor is unavailable.
-    pub async fn execute(&self, command: ExecutionCommand) -> Result<ExecutionResult, ExecutorError> {
+    pub async fn execute(
+        &self,
+        command: ExecutionCommand,
+    ) -> Result<ExecutionResult, ExecutorError> {
         match self {
             Self::Host(executor) => executor.execute(command).await,
             #[cfg(feature = "containers")]

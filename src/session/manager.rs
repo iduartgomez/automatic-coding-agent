@@ -101,10 +101,8 @@ impl SessionManager {
         let task_manager = Arc::new(TaskManager::new(init_options.task_manager_config));
 
         // Initialize session metadata
-        let mut session_metadata = SessionMetadata::new(
-            init_options.name,
-            init_options.workspace_root,
-        );
+        let mut session_metadata =
+            SessionMetadata::new(init_options.name, init_options.workspace_root);
         session_metadata.execution_mode = init_options.execution_mode;
         let metadata = Arc::new(RwLock::new(session_metadata));
 

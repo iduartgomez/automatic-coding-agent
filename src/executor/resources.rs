@@ -88,10 +88,7 @@ impl SystemResources {
         let output = Command::new("sysctl").args(["-n", "hw.memsize"]).output()?;
 
         let memory_str = String::from_utf8_lossy(&output.stdout);
-        memory_str
-            .trim()
-            .parse::<u64>()
-            .map_err(io::Error::other)
+        memory_str.trim().parse::<u64>().map_err(io::Error::other)
     }
 
     #[cfg(target_os = "windows")]

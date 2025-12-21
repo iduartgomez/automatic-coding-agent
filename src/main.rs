@@ -157,7 +157,10 @@ async fn run_batch_mode(config: BatchConfig) -> Result<(), Box<dyn std::error::E
     // Apply container configuration if requested
     if config.use_containers {
         use aca::executor::{ContainerExecutionConfig, ExecutionMode};
-        info!("Container execution requested with image: {}", config.container_image);
+        info!(
+            "Container execution requested with image: {}",
+            config.container_image
+        );
         agent_config.execution_mode = ExecutionMode::Container(ContainerExecutionConfig::new(
             config.container_image.clone(),
         ));
