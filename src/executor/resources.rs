@@ -69,17 +69,14 @@ impl SystemResources {
         for line in meminfo.lines() {
             if line.starts_with("MemTotal:") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
-                if parts.len() >= 2 {
-                    if let Ok(kb) = parts[1].parse::<u64>() {
-                        return Ok(kb * 1024);
-                    }
+                if parts.len() >= 2
+                    && let Ok(kb) = parts[1].parse::<u64>()
+                {
+                    return Ok(kb * 1024);
                 }
             }
         }
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            "Failed to parse /proc/meminfo",
-        ))
+        Err(io::Error::other("Failed to parse /proc/meminfo"))
     }
 
     #[cfg(target_os = "macos")]
