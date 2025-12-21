@@ -91,7 +91,7 @@ impl SystemResources {
         memory_str
             .trim()
             .parse::<u64>()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+            .map_err(io::Error::other)
     }
 
     #[cfg(target_os = "windows")]

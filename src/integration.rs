@@ -137,8 +137,10 @@ impl AgentSystem {
         let execution_mode = Some(config.execution_mode.clone());
 
         // Initialize session manager with execution mode
-        let mut init_options = SessionInitOptions::default();
-        init_options.execution_mode = execution_mode;
+        let init_options = SessionInitOptions {
+            execution_mode,
+            ..Default::default()
+        };
         let session_manager = Arc::new(
             SessionManager::new(
                 config.workspace_path,

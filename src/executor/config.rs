@@ -6,20 +6,15 @@
 use serde::{Deserialize, Serialize};
 
 /// Execution mode - where commands run
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ExecutionMode {
     /// Execute commands directly on host (default)
+    #[default]
     Host,
 
     /// Execute commands inside a container
     Container(ContainerExecutionConfig),
-}
-
-impl Default for ExecutionMode {
-    fn default() -> Self {
-        Self::Host
-    }
 }
 
 impl ExecutionMode {
