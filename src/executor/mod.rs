@@ -1,36 +1,143 @@
-//! Command execution abstraction layer.
+//! # Command Execution Abstraction Layer
 //!
-//! Provides a unified interface for executing commands either on the host
-//! system or within containers, enabling transparent sandboxed execution.
+//! Provides unified command execution across host and containerized environments,
+//! enabling transparent sandboxed execution with resource management and timeout handling.
 //!
-//! ## Architecture
+//! ## Core Components
 //!
-//! The executor module follows a trait-based design pattern:
+//! - **[`CommandExecutor`]**: Unified enum executor supporting both host and container modes
+//! - **[`HostExecutor`]**: Direct host system command execution with process management
+//! - **[`ContainerExecutor`]**: Sandboxed execution within Docker/Podman containers
+//! - **[`ExecutionCommand`]**: Command specification with arguments, environment, and timeouts
+//! - **[`ExecutionResult`]**: Execution outcome with stdout, stderr, exit code, and duration
+//! - **[`SystemResources`]**: System resource detection and allocation for containers
 //!
-//! - [`CommandExecutor`]: Core trait defining command execution interface
-//! - [`HostExecutor`]: Executes commands directly on the host system
-//! - [`ContainerExecutor`]: Executes commands inside Docker/Podman containers
+//! ## Key Features
+//!
+//! ### 🖥️ Host Execution
+//! - Direct process spawning via `tokio::process::Command`
+//! - Full environment variable control
+//! - Working directory management
+//! - Configurable stdin piping
+//! - Timeout support with automatic process termination
+//!
+//! ### 🐳 Container Execution
+//! - Isolated execution within Docker/Podman containers
+//! - Automatic resource allocation (CPU, memory)
+//! - Volume mounting for workspace and session data
+//! - Network isolation and security
+//! - Container lifecycle management (auto-remove support)
+//!
+//! ### ⏱️ Timeout Handling
+//! - Per-command timeout configuration
+//! - Graceful process termination on timeout
+//! - Automatic cleanup of zombie processes
+//! - Clear timeout error reporting
+//!
+//! ### 📊 Resource Management
+//! - Automatic system resource detection
+//! - Percentage-based container resource allocation
+//! - Explicit memory and CPU quota override
+//! - Cross-platform resource detection (Linux, macOS, Windows)
+//!
+//! ### 🔒 Error Handling
+//! - Comprehensive error types for different failure modes
+//! - Container unavailability detection
+//! - Command execution failures with detailed messages
+//! - I/O error propagation
+//!
+//! ## Execution Flow
+//!
+//! ```text
+//! ExecutionCommand
+//!        ↓
+//!   CommandExecutor::execute()
+//!        ↓
+//!   ┌────┴────┐
+//!   │         │
+//! Host    Container
+//!   │         │
+//!   ↓         ↓
+//! Process   Docker/Podman
+//!   │         │
+//!   └────┬────┘
+//!        ↓
+//!  ExecutionResult
+//! ```
 //!
 //! ## Example Usage
+//!
+//! ### Basic Host Execution
 //!
 //! ```rust,no_run
 //! use aca::executor::{CommandExecutor, HostExecutor, ExecutionCommand};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let executor = HostExecutor::new();
+//!     let executor = CommandExecutor::Host(HostExecutor::new());
 //!
-//!     let command = ExecutionCommand {
-//!         program: "echo".to_string(),
-//!         args: vec!["Hello, World!".to_string()],
-//!         working_dir: None,
-//!         env: Default::default(),
-//!         stdin: None,
-//!         timeout: None,
-//!     };
+//!     let command = ExecutionCommand::new("echo", vec!["Hello, World!".to_string()]);
 //!
 //!     let result = executor.execute(command).await?;
 //!     println!("Output: {}", result.stdout);
+//!     println!("Exit code: {}", result.exit_code);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Container Execution with Resource Limits
+//!
+//! ```rust,no_run
+//! use aca::executor::{CommandExecutor, ExecutionCommand};
+//! use std::path::PathBuf;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     # #[cfg(feature = "containers")]
+//!     # {
+//!     use aca::executor::{ContainerExecutor, container::ContainerExecutorConfig};
+//!
+//!     let config = ContainerExecutorConfig {
+//!         image: "alpine:latest".to_string(),
+//!         workspace_mount: PathBuf::from("/workspace"),
+//!         aca_mount: PathBuf::from("/workspace/.aca"),
+//!         memory_bytes: Some(512_000_000), // 512 MB
+//!         cpu_quota: Some(50_000),         // 50% CPU
+//!         auto_remove: true,
+//!     };
+//!
+//!     let executor = CommandExecutor::Container(
+//!         ContainerExecutor::new(config).await?
+//!     );
+//!
+//!     let command = ExecutionCommand::new("ls", vec!["-la".to_string()])
+//!         .with_working_dir(PathBuf::from("/workspace"));
+//!
+//!     let result = executor.execute(command).await?;
+//!     println!("Files: {}", result.stdout);
+//!     # }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Command with Timeout
+//!
+//! ```rust,no_run
+//! use aca::executor::{CommandExecutor, HostExecutor, ExecutionCommand};
+//! use std::time::Duration;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let executor = CommandExecutor::Host(HostExecutor::new());
+//!
+//!     let command = ExecutionCommand::new("sleep", vec!["10".to_string()])
+//!         .with_timeout(Duration::from_secs(2)); // Timeout after 2 seconds
+//!
+//!     match executor.execute(command).await {
+//!         Ok(result) => println!("Completed: {}", result.stdout),
+//!         Err(e) => eprintln!("Timed out: {}", e),
+//!     }
 //!
 //!     Ok(())
 //! }
@@ -41,10 +148,28 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
+/// Execution mode configuration and runtime settings.
+///
+/// Defines the [`ExecutionMode`] enum and [`ContainerExecutionConfig`]
+/// for configuring how commands are executed (host vs container).
 pub mod config;
+
+/// Host-based command execution.
+///
+/// Implements [`HostExecutor`] for direct process execution on the
+/// host system using `tokio::process::Command`.
 pub mod host;
+
+/// System resource detection and allocation.
+///
+/// Provides [`SystemResources`] for detecting available CPU and memory,
+/// and [`ResourceAllocation`] for calculating container resource limits.
 pub mod resources;
 
+/// Container-based command execution (requires `containers` feature).
+///
+/// Implements [`ContainerExecutor`] for sandboxed execution within
+/// Docker or Podman containers with resource limits and volume mounts.
 #[cfg(feature = "containers")]
 pub mod container;
 
@@ -180,7 +305,10 @@ impl CommandExecutor {
     ///
     /// Returns an error if the command fails to execute, times out,
     /// or if the executor is unavailable.
-    pub async fn execute(&self, command: ExecutionCommand) -> Result<ExecutionResult, ExecutorError> {
+    pub async fn execute(
+        &self,
+        command: ExecutionCommand,
+    ) -> Result<ExecutionResult, ExecutorError> {
         match self {
             Self::Host(executor) => executor.execute(command).await,
             #[cfg(feature = "containers")]

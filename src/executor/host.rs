@@ -26,10 +26,7 @@ impl Default for HostExecutor {
 
 impl HostExecutor {
     pub async fn execute(&self, cmd: ExecutionCommand) -> Result<ExecutionResult, ExecutorError> {
-        debug!(
-            "Executing command on host: {} {:?}",
-            cmd.program, cmd.args
-        );
+        debug!("Executing command on host: {} {:?}", cmd.program, cmd.args);
 
         let start = Instant::now();
 
@@ -188,8 +185,8 @@ mod tests {
         let executor = HostExecutor::new();
 
         #[cfg(not(target_os = "windows"))]
-        let cmd =
-            ExecutionCommand::new("sleep", vec!["2".to_string()]).with_timeout(std::time::Duration::from_millis(100));
+        let cmd = ExecutionCommand::new("sleep", vec!["2".to_string()])
+            .with_timeout(std::time::Duration::from_millis(100));
 
         #[cfg(target_os = "windows")]
         let cmd = ExecutionCommand::new("timeout", vec!["/t".to_string(), "2".to_string()])

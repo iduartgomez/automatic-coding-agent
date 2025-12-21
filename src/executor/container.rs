@@ -74,7 +74,10 @@ impl ContainerExecutor {
             return Ok(id.clone());
         }
 
-        info!("Creating session container with image: {}", self.config.image);
+        info!(
+            "Creating session container with image: {}",
+            self.config.image
+        );
 
         // Build container configuration
         let mut container_config = ContainerConfig::builder()
@@ -92,10 +95,8 @@ impl ContainerExecutor {
 
         // Mount .aca directory
         if !self.config.aca_mount.as_os_str().is_empty() {
-            container_config = container_config.bind(format!(
-                "{}:/.aca:rw",
-                self.config.aca_mount.display()
-            ));
+            container_config =
+                container_config.bind(format!("{}:/.aca:rw", self.config.aca_mount.display()));
         }
 
         // Apply resource limits if configured

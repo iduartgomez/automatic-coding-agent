@@ -69,17 +69,14 @@ impl SystemResources {
         for line in meminfo.lines() {
             if line.starts_with("MemTotal:") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
-                if parts.len() >= 2 {
-                    if let Ok(kb) = parts[1].parse::<u64>() {
-                        return Ok(kb * 1024);
-                    }
+                if parts.len() >= 2
+                    && let Ok(kb) = parts[1].parse::<u64>()
+                {
+                    return Ok(kb * 1024);
                 }
             }
         }
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            "Failed to parse /proc/meminfo",
-        ))
+        Err(io::Error::other("Failed to parse /proc/meminfo"))
     }
 
     #[cfg(target_os = "macos")]
@@ -88,10 +85,7 @@ impl SystemResources {
         let output = Command::new("sysctl").args(["-n", "hw.memsize"]).output()?;
 
         let memory_str = String::from_utf8_lossy(&output.stdout);
-        memory_str
-            .trim()
-            .parse::<u64>()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        memory_str.trim().parse::<u64>().map_err(io::Error::other)
     }
 
     #[cfg(target_os = "windows")]
