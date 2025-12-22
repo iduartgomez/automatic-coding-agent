@@ -88,10 +88,7 @@ use crate::task::{
 };
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::process::Stdio;
 use std::sync::Arc;
-use std::time::Instant;
-use tokio::process::Command;
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -126,12 +123,6 @@ impl AgentConfig {
 
 impl AgentSystem {
     pub async fn new(config: AgentConfig) -> Result<Self> {
-        // Execute setup commands first, before any other initialization
-        if !config.setup_commands.is_empty() {
-            info!("Executing setup commands before system initialization...");
-            Self::execute_setup_commands(&config.setup_commands).await?;
-        }
-
         // Extract workspace path and execution mode before moving config
         let workspace_path = config.workspace_path.clone();
         let execution_mode = Some(config.execution_mode.clone());
@@ -227,12 +218,22 @@ impl AgentSystem {
                 .map_err(|e| anyhow::anyhow!("Failed to initialize Claude interface: {}", e))?,
         );
 
-        Ok(Self {
+        let system = Self {
             task_manager,
             session_manager,
             claude_interface,
             executor,
-        })
+        };
+
+        // Execute setup commands using the initialized executor
+        if !config.setup_commands.is_empty() {
+            info!("Executing setup commands with configured executor...");
+            system
+                .execute_setup_commands(&config.setup_commands)
+                .await?;
+        }
+
+        Ok(system)
     }
 
     /// Process a single task with Claude integration and full persistence
@@ -354,7 +355,7 @@ impl AgentSystem {
         // Phase 1: Execute setup commands
         if plan.has_setup_commands() {
             info!("Executing {} setup commands...", plan.setup_command_count());
-            Self::execute_setup_commands(&plan.setup_commands).await?;
+            self.execute_setup_commands(&plan.setup_commands).await?;
             info!("Setup commands completed successfully");
         }
 
@@ -540,7 +541,7 @@ impl AgentSystem {
     // ============================================================================
 
     /// Execute all setup commands with error handling
-    async fn execute_setup_commands(commands: &[SetupCommand]) -> Result<()> {
+    async fn execute_setup_commands(&self, commands: &[SetupCommand]) -> Result<()> {
         if commands.is_empty() {
             return Ok(());
         }
@@ -555,7 +556,7 @@ impl AgentSystem {
                 cmd.name
             );
 
-            let result = Self::execute_shell_command(cmd).await?;
+            let result = self.execute_shell_command(cmd).await?;
 
             if !result.success {
                 info!(
@@ -564,7 +565,7 @@ impl AgentSystem {
                 );
 
                 if let Some(handler) = &cmd.error_handler {
-                    if let Err(e) = Self::handle_command_error(cmd, &result, handler).await {
+                    if let Err(e) = self.handle_command_error(cmd, &result, handler).await {
                         if cmd.required {
                             return Err(anyhow::anyhow!(
                                 "Required setup command '{}' failed: {}",
@@ -597,55 +598,43 @@ impl AgentSystem {
     }
 
     /// Execute a single shell command
-    async fn execute_shell_command(cmd: &SetupCommand) -> Result<SetupResult> {
-        let start_time = Instant::now();
+    async fn execute_shell_command(&self, cmd: &SetupCommand) -> Result<SetupResult> {
+        use crate::executor::ExecutionCommand;
+        use std::collections::HashMap;
 
-        // Build the command
-        let mut command = Command::new(&cmd.command);
-        command.args(&cmd.args);
-
-        if let Some(working_dir) = &cmd.working_dir {
-            command.current_dir(working_dir);
-        }
-
-        command.stdout(Stdio::piped()).stderr(Stdio::piped());
-
-        // Execute with timeout
-        let result = if let Some(timeout) = cmd.timeout {
-            let timeout_std = timeout
-                .to_std()
-                .map_err(|_| anyhow::anyhow!("Invalid timeout duration: {:?}", timeout))?;
-            tokio::time::timeout(timeout_std, command.output())
-                .await
-                .map_err(|_| anyhow::anyhow!("Command timed out after {:?}", timeout))?
-        } else {
-            command.output().await
+        // Convert SetupCommand to ExecutionCommand
+        let exec_cmd = ExecutionCommand {
+            program: cmd.command.clone(),
+            args: cmd.args.clone(),
+            working_dir: cmd.working_dir.clone(),
+            env: HashMap::new(), // SetupCommand doesn't have env vars yet
+            stdin: None,
+            timeout: cmd
+                .timeout
+                .map(|d| d.to_std().unwrap_or(std::time::Duration::from_secs(300))),
         };
 
-        let duration = start_time.elapsed();
+        // Execute through the executor abstraction
+        let result = self
+            .executor
+            .execute(exec_cmd)
+            .await
+            .map_err(|e| anyhow::anyhow!("Command execution failed: {}", e))?;
 
-        match result {
-            Ok(output) => {
-                let success = output.status.success();
-                let exit_code = output.status.code().unwrap_or(-1);
-                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-                Ok(SetupResult {
-                    command_id: cmd.id,
-                    success,
-                    exit_code,
-                    stdout,
-                    stderr,
-                    duration: chrono::Duration::from_std(duration).unwrap_or_default(),
-                })
-            }
-            Err(e) => Err(anyhow::anyhow!("Failed to execute command: {}", e)),
-        }
+        // Convert ExecutionResult to SetupResult
+        Ok(SetupResult {
+            command_id: cmd.id,
+            success: result.exit_code == 0,
+            exit_code: result.exit_code,
+            stdout: result.stdout,
+            stderr: result.stderr,
+            duration: chrono::Duration::from_std(result.duration).unwrap_or_default(),
+        })
     }
 
     /// Handle command execution errors
     async fn handle_command_error(
+        &self,
         cmd: &SetupCommand,
         result: &SetupResult,
         handler: &ErrorHandler,
@@ -663,7 +652,7 @@ impl AgentSystem {
                     "Retrying command '{}' (max {} attempts)",
                     cmd.name, max_attempts
                 );
-                Self::retry_command(cmd, *max_attempts, *delay).await
+                self.retry_command(cmd, *max_attempts, *delay).await
             }
             ErrorStrategy::Backup {
                 condition,
@@ -672,7 +661,7 @@ impl AgentSystem {
             } => {
                 if Self::should_run_backup(result, condition) {
                     info!("Running backup command for: {}", cmd.name);
-                    Self::execute_backup_command(backup_command, backup_args, &cmd.working_dir)
+                    self.execute_backup_command(backup_command, backup_args, &cmd.working_dir)
                         .await
                 } else {
                     Err(anyhow::anyhow!(
@@ -686,6 +675,7 @@ impl AgentSystem {
 
     /// Retry a command with delay
     async fn retry_command(
+        &self,
         cmd: &SetupCommand,
         max_attempts: u32,
         delay: chrono::Duration,
@@ -700,7 +690,7 @@ impl AgentSystem {
                 tokio::time::sleep(delay_std).await;
             }
 
-            let result = Self::execute_shell_command(cmd).await?;
+            let result = self.execute_shell_command(cmd).await?;
             if result.success {
                 info!(
                     "Command '{}' succeeded on retry attempt {}",
@@ -723,27 +713,35 @@ impl AgentSystem {
 
     /// Execute a backup command
     async fn execute_backup_command(
+        &self,
         backup_command: &str,
         backup_args: &[String],
         working_dir: &Option<std::path::PathBuf>,
     ) -> Result<()> {
-        let mut command = Command::new(backup_command);
-        command.args(backup_args);
+        use crate::executor::ExecutionCommand;
+        use std::collections::HashMap;
 
-        if let Some(working_dir) = working_dir {
-            command.current_dir(working_dir);
-        }
+        // Use the executor to run the backup command
+        let exec_cmd = ExecutionCommand {
+            program: backup_command.to_string(),
+            args: backup_args.to_vec(),
+            working_dir: working_dir.clone(),
+            env: HashMap::new(),
+            stdin: None,
+            timeout: None,
+        };
 
-        command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        let result = self
+            .executor
+            .execute(exec_cmd)
+            .await
+            .map_err(|e| anyhow::anyhow!("Backup command execution failed: {}", e))?;
 
-        let output = command.output().await?;
-
-        if output.status.success() {
+        if result.exit_code == 0 {
             info!("Backup command executed successfully");
             Ok(())
         } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(anyhow::anyhow!("Backup command failed: {}", stderr))
+            Err(anyhow::anyhow!("Backup command failed: {}", result.stderr))
         }
     }
 
@@ -804,12 +802,30 @@ mod tests {
     use chrono::Duration;
     use std::path::PathBuf;
 
+    // Helper function to create a test AgentSystem with minimal configuration
+    async fn create_test_agent_system() -> AgentSystem {
+        let temp_dir = std::env::temp_dir().join(format!("aca-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let config = AgentConfig {
+            workspace_path: temp_dir.clone(),
+            session_config: crate::session::SessionManagerConfig::default(),
+            task_config: crate::task::TaskManagerConfig::default(),
+            claude_config: crate::claude::ClaudeConfig::default(),
+            setup_commands: vec![],
+            execution_mode: crate::executor::RuntimeMode::Host,
+        };
+
+        AgentSystem::new(config).await.unwrap()
+    }
+
     #[tokio::test]
     async fn test_setup_command_execution_success() {
+        let agent = create_test_agent_system().await;
         let setup_command = SetupCommand::new("test_echo", "echo")
             .with_args(vec!["hello".to_string(), "world".to_string()]);
 
-        let result = AgentSystem::execute_shell_command(&setup_command).await;
+        let result = agent.execute_shell_command(&setup_command).await;
         assert!(result.is_ok());
 
         let setup_result = result.unwrap();
@@ -820,9 +836,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_setup_command_execution_failure() {
+        let agent = create_test_agent_system().await;
         let setup_command = SetupCommand::new("test_fail", "false"); // 'false' always exits with code 1
 
-        let result = AgentSystem::execute_shell_command(&setup_command).await;
+        let result = agent.execute_shell_command(&setup_command).await;
         assert!(result.is_ok());
 
         let setup_result = result.unwrap();
@@ -832,10 +849,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_setup_command_with_working_directory() {
+        let agent = create_test_agent_system().await;
         let setup_command =
             SetupCommand::new("test_pwd", "pwd").with_working_dir(PathBuf::from("/tmp"));
 
-        let result = AgentSystem::execute_shell_command(&setup_command).await;
+        let result = agent.execute_shell_command(&setup_command).await;
         assert!(result.is_ok());
 
         let setup_result = result.unwrap();
@@ -845,13 +863,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_setup_command_timeout() {
+        let agent = create_test_agent_system().await;
         let setup_command = SetupCommand::new("test_timeout", "sleep")
             .with_args(vec!["2".to_string()])
             .with_timeout(Duration::milliseconds(100)); // Very short timeout
 
-        let result = AgentSystem::execute_shell_command(&setup_command).await;
+        let result = agent.execute_shell_command(&setup_command).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("timed out"));
+        let error_msg = result.unwrap_err().to_string();
+        assert!(
+            error_msg.contains("Timeout") || error_msg.contains("timeout"),
+            "Error message should contain 'Timeout' or 'timeout', got: {}",
+            error_msg
+        );
     }
 
     #[tokio::test]
@@ -898,6 +922,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_setup_commands_execution_with_optional_failure() {
+        let agent = create_test_agent_system().await;
         let setup_commands = vec![
             // This should succeed
             SetupCommand::new("success_command", "echo").with_args(vec!["success".to_string()]),
@@ -909,7 +934,7 @@ mod tests {
             SetupCommand::new("final_success", "echo").with_args(vec!["final".to_string()]),
         ];
 
-        let result = AgentSystem::execute_setup_commands(&setup_commands).await;
+        let result = agent.execute_setup_commands(&setup_commands).await;
         assert!(
             result.is_ok(),
             "Setup commands should succeed even with optional failures"
@@ -918,11 +943,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_setup_commands_required_failure() {
+        let agent = create_test_agent_system().await;
         let setup_commands = vec![
             SetupCommand::new("required_fail", "false"), // This is required and will fail
         ];
 
-        let result = AgentSystem::execute_setup_commands(&setup_commands).await;
+        let result = agent.execute_setup_commands(&setup_commands).await;
         assert!(
             result.is_err(),
             "Required command failure should cause setup to fail"
@@ -937,9 +963,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_backup_command_execution() {
-        let result =
-            AgentSystem::execute_backup_command("echo", &["backup executed".to_string()], &None)
-                .await;
+        let agent = create_test_agent_system().await;
+        let result = agent
+            .execute_backup_command("echo", &["backup executed".to_string()], &None)
+            .await;
 
         assert!(result.is_ok());
     }
@@ -949,10 +976,12 @@ mod tests {
         // This test would be complex to implement without mocking
         // as it requires a command that fails initially but then succeeds
         // For now, we'll test the basic retry structure exists
+        let agent = create_test_agent_system().await;
         let setup_command = SetupCommand::new("test_retry", "true"); // 'true' always succeeds
 
-        let result =
-            AgentSystem::retry_command(&setup_command, 2, Duration::milliseconds(10)).await;
+        let result = agent
+            .retry_command(&setup_command, 2, Duration::milliseconds(10))
+            .await;
         assert!(result.is_ok());
     }
 
