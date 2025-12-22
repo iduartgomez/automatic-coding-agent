@@ -813,7 +813,7 @@ mod tests {
             task_config: crate::task::TaskManagerConfig::default(),
             claude_config: crate::claude::ClaudeConfig::default(),
             setup_commands: vec![],
-            execution_mode: crate::executor::ExecutionMode::Host,
+            execution_mode: crate::executor::RuntimeMode::Host,
         };
 
         AgentSystem::new(config).await.unwrap()
