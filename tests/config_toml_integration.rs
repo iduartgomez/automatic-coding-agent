@@ -146,7 +146,7 @@ fn test_config_customization() {
         },
         claude_config: ClaudeConfig::default(),
         setup_commands: Vec::new(),
-        execution_mode: aca::executor::ExecutionMode::Host,
+        execution_mode: aca::executor::RuntimeMode::Host,
     };
 
     // Test serialization and deserialization of custom config
