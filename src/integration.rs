@@ -228,7 +228,9 @@ impl AgentSystem {
         // Execute setup commands using the initialized executor
         if !config.setup_commands.is_empty() {
             info!("Executing setup commands with configured executor...");
-            system.execute_setup_commands(&config.setup_commands).await?;
+            system
+                .execute_setup_commands(&config.setup_commands)
+                .await?;
         }
 
         Ok(system)
@@ -607,10 +609,9 @@ impl AgentSystem {
             working_dir: cmd.working_dir.clone(),
             env: HashMap::new(), // SetupCommand doesn't have env vars yet
             stdin: None,
-            timeout: cmd.timeout.map(|d| {
-                d.to_std()
-                    .unwrap_or(std::time::Duration::from_secs(300))
-            }),
+            timeout: cmd
+                .timeout
+                .map(|d| d.to_std().unwrap_or(std::time::Duration::from_secs(300))),
         };
 
         // Execute through the executor abstraction
