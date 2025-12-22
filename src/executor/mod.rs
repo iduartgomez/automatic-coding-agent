@@ -148,9 +148,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-/// Execution mode configuration and runtime settings.
+/// Runtime mode configuration and settings.
 ///
-/// Defines the [`ExecutionMode`] enum and [`ContainerExecutionConfig`]
+/// Defines the [`RuntimeMode`] enum and [`ContainerExecutionConfig`]
 /// for configuring how commands are executed (host vs container).
 pub mod config;
 
