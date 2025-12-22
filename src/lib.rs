@@ -150,8 +150,8 @@ pub use container::{
 
 // Re-export executor types
 pub use executor::{
-    CommandExecutor, ContainerExecutionConfig, ExecutionCommand, ExecutionMode, ExecutionResult,
-    ExecutorError, HostExecutor, ResourceAllocation, SystemResources,
+    CommandExecutor, ContainerExecutionConfig, ExecutionCommand, ExecutionResult, ExecutorError,
+    HostExecutor, ResourceAllocation, RuntimeMode, SystemResources,
 };
 
 #[cfg(feature = "containers")]

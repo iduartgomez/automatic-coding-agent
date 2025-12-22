@@ -48,7 +48,7 @@ pub struct SessionInitOptions {
     pub recovery_config: RecoveryConfig,
     pub enable_auto_save: bool,
     pub restore_from_checkpoint: Option<String>,
-    pub execution_mode: Option<crate::executor::ExecutionMode>,
+    pub execution_mode: Option<crate::executor::RuntimeMode>,
 }
 
 /// Session status information
