@@ -19,7 +19,11 @@ aca interactive                     # Run in interactive mode
 aca checkpoint list                 # List checkpoints
 aca checkpoint create "desc"        # Create checkpoint
 aca checkpoint resume <id>          # Resume from specific checkpoint
-aca checkpoint resume <id> --latest # Resume from latest
+aca checkpoint resume --latest      # Resume from latest
+
+# Container execution (Docker/Podman)
+aca run tasks.md --use-containers                    # Run in container
+aca run tasks.md --use-containers --container-image ubuntu:22.04
 
 # Verbose Mode (Real-time Output)
 aca run tasks.md --verbose          # See Claude Code's JSONL stream in real-time
@@ -154,16 +158,17 @@ Parser automatically reads and includes `db-setup.md` content.
 5. ✅ Use conventional commits (`feat:`, `fix:`, `docs:`, etc.)
 
 ### Documentation Requirements
-- Update module docstrings when changing behavior
-- Keep CLAUDE.md current with architecture changes
-- Add examples for new features
-- Document breaking changes in commit messages
+- **Keep docs in sync with CLI**: When changing CLI arguments, update README.md, docs/usage-guide.md, and examples/README.md
+- **Update CLAUDE.md**: Keep this file current with architecture and CLI changes
+- **Module docstrings**: Update when changing behavior
+- **Conventional commits**: Use `feat:`, `fix:`, `docs:`, `refactor:`, etc.
 
-### Session Logs (Optional)
-For major features, create `docs/sessions/YYYY-MM-DD-topic.md` documenting:
-- Objectives and approach
-- Implementation details
-- Outcomes and learnings
+### Key Documentation Files
+- `README.md` - Main project documentation, CLI examples, feature list
+- `CLAUDE.md` - Developer reference (this file)
+- `docs/usage-guide.md` - Comprehensive CLI usage guide
+- `examples/README.md` - Example file documentation
+- `docs/design/` - Architecture design documents (historical reference)
 
 ## Testing
 
@@ -179,14 +184,19 @@ cargo test --test claude_integration                # Claude interface
 cargo test test_name -- --nocapture
 ```
 
-## Docker Integration (Planned)
+## Container Execution (Beta)
 
-Docker containerization is a planned feature for isolated execution:
-- `/repos` (RO): Source repositories
-- `/workspace` (RW): Working directory
-- `/session` (RW): Persistent state (maps to `.aca/`)
+Docker/Podman container support is available for isolated task execution:
 
-Current implementation uses direct CLI/API execution without containers.
+```bash
+# Run tasks in container
+aca run tasks.md --use-containers
+
+# Use custom image
+aca run tasks.md --use-containers --container-image ubuntu:22.04
+```
+
+See `docs/CONTAINER_TESTING_GUIDE.md` for full documentation.
 
 ## Troubleshooting
 

@@ -18,33 +18,36 @@ examples/
 
 ```bash
 # Single task from file
-aca --task-file examples/task-inputs/single_task.md
+aca run examples/task-inputs/single_task.md
 
 # Multiple tasks from list
-aca --tasks examples/task-inputs/task_list.md
+aca run examples/task-inputs/task_list.md
 
-# Structured configuration with setup
-aca --config examples/configurations/default-config.toml
+# With configuration file
+aca run examples/task-inputs/task_list.md -c examples/configurations/default-config.toml
 
 # Dry run to see what would happen
-aca --task-file examples/task-inputs/single_task.md --dry-run
+aca run examples/task-inputs/single_task.md --dry-run
 
 # Verbose output for debugging
-aca --tasks examples/task-inputs/task_list.md --verbose
+aca run examples/task-inputs/task_list.md --verbose
+
+# Run in container
+aca run examples/task-inputs/task_list.md --use-containers
 ```
 
 ## 📋 Task Input Examples
 
-### Single Task Files (`--task-file`)
+### Single Task Files
 
 Single task files contain one complete task description that becomes a single execution unit.
 
 **Example:** [`task-inputs/single_task.md`](task-inputs/single_task.md)
 - **Use case**: Complex feature implementation
 - **Format**: Any UTF-8 text file (Markdown, plain text, etc.)
-- **Command**: `aca --task-file examples/task-inputs/single_task.md`
+- **Command**: `aca run examples/task-inputs/single_task.md`
 
-### Task List Files (`--tasks`)
+### Task List Files
 
 Task list files contain multiple tasks that are processed sequentially. Supports various formats:
 
@@ -56,7 +59,7 @@ Task list files contain multiple tasks that are processed sequentially. Supports
   - Numbered: `1. Task description`
   - Plain text: One task per line
   - With references: `Task description -> reference_file.md`
-- **Command**: `aca --tasks examples/task-inputs/task_list.md`
+- **Command**: `aca run examples/task-inputs/task_list.md`
 
 #### Task References
 
@@ -75,14 +78,8 @@ When ACA processes these tasks, it automatically includes the referenced file co
 **Example:** [`configurations/default-config.toml`](configurations/default-config.toml)
 - **Use case**: Standard ACA configuration
 - **Features**: Session management, task settings, Claude integration
-- **Command**: `aca --config examples/configurations/default-config.toml`
+- **Command**: `aca run task.md -c examples/configurations/default-config.toml`
 
-### Simple Tasks Configuration (Legacy)
-
-**Example:** [`configurations/simple-tasks.toml`](configurations/simple-tasks.toml)
-- **Use case**: Shows older task configuration format
-- **Note**: This format may be outdated after recent ExecutionPlan refactoring
-- **Features**: Embedded task definitions in TOML
 
 #### Key Configuration Sections
 
@@ -116,13 +113,13 @@ Reference files provide additional context for tasks. They're automatically incl
 vim my_tasks.md
 
 # 2. Run with dry-run to validate
-aca --tasks my_tasks.md --dry-run --verbose
+aca run my_tasks.md --dry-run --verbose
 
 # 3. Execute the tasks
-aca --tasks my_tasks.md
+aca run my_tasks.md
 
 # 4. Resume if needed
-aca --continue
+aca checkpoint resume --latest
 ```
 
 ### Configuration-Driven Automation
@@ -130,11 +127,11 @@ aca --continue
 # 1. Create configuration with setup commands
 vim project-config.toml
 
-# 2. Run structured configuration
-aca --config project-config.toml
+# 2. Run with configuration
+aca run task.md -c project-config.toml
 
 # 3. Monitor progress
-aca --list-checkpoints
+aca checkpoint list
 ```
 
 ### Complex Feature Implementation
@@ -143,10 +140,10 @@ aca --list-checkpoints
 vim feature_spec.md
 
 # 2. Execute as single comprehensive task
-aca --task-file feature_spec.md --verbose
+aca run feature_spec.md --verbose
 
 # 3. Create checkpoint manually if needed
-aca --create-checkpoint "Feature implementation milestone"
+aca checkpoint create "Feature implementation milestone"
 ```
 
 ## 📝 Creating Your Own Examples
@@ -227,16 +224,16 @@ All examples support ACA's session management features:
 
 ```bash
 # List available checkpoints
-aca --list-checkpoints
+aca checkpoint list
 
 # Resume from latest checkpoint
-aca --continue
+aca checkpoint resume --latest
 
 # Resume from specific checkpoint
-aca --resume checkpoint-id
+aca checkpoint resume checkpoint-id
 
 # Create manual checkpoint
-aca --create-checkpoint "Important milestone"
+aca checkpoint create "Important milestone"
 ```
 
 ### Workspace Integration

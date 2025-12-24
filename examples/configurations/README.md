@@ -2,7 +2,7 @@
 
 This directory contains example configuration files for running ACA in structured configuration mode.
 
-## 📁 Configuration Files (`--config`)
+## 📁 Configuration Files
 
 ### `default-config.toml`
 **Use case:** Standard ACA configuration template
@@ -12,20 +12,13 @@ A clean, well-documented configuration showing all available settings with sensi
 - Creating custom configurations
 - Production deployments
 
-**Command:** `aca --config examples/configurations/default-config.toml`
+**Command:** `aca run task.md -c examples/configurations/default-config.toml`
 
 **Key features:**
 - Session management settings (auto-save, checkpoints)
 - Task execution configuration (retries, concurrency)
 - Claude Code integration settings (rate limits, context)
 - Comprehensive error handling configuration
-
-### `simple-tasks.toml` ⚠️
-**Use case:** Legacy task configuration format (may be outdated)
-
-This file shows an older approach where tasks were defined directly in the TOML configuration. After the recent ExecutionPlan refactoring, this format may no longer be fully supported.
-
-**Note:** Consider this file for historical reference or migration purposes only.
 
 ## 🔧 Configuration Structure
 
