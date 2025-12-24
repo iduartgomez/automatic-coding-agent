@@ -423,12 +423,9 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
     let default_config = ConfigDiscovery::discover_config()?;
     let agent_config = default_config.to_agent_config(Some(workspace.clone()));
 
-    // Initialize agent system with restore
+    // Initialize agent system with session restore from checkpoint
     info!("Initializing agent system with checkpoint restore...");
-    // TODO: We need to modify AgentSystem to support session restore
-    // For now, we'll use the regular initialization and these variables are placeholders for future use
-    let _session_config = SessionManagerConfig::default();
-    let _init_options = SessionInitOptions {
+    let init_options = SessionInitOptions {
         name: "Resumed Session".to_string(),
         description: Some("Session resumed from checkpoint".to_string()),
         workspace_root: workspace.clone(),
@@ -440,7 +437,7 @@ async fn run_resume_mode(config: ResumeConfig) -> Result<(), Box<dyn std::error:
         execution_mode: None,
     };
 
-    let agent = AgentSystem::new(agent_config).await?;
+    let agent = AgentSystem::with_session_init(agent_config, init_options).await?;
 
     if config.verbose {
         println!("✅ Successfully resumed from checkpoint: {}", checkpoint_id);
