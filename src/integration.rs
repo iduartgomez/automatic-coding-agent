@@ -245,6 +245,158 @@ impl AgentSystem {
         Ok(system)
     }
 
+    /// Create a new agent system with custom session initialization options
+    ///
+    /// This method allows specifying session restore options, including restoring
+    /// from a specific checkpoint.
+    ///
+    /// # Arguments
+    /// * `config` - Agent configuration
+    /// * `session_init` - Custom session initialization options (overrides config defaults)
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use aca::{AgentSystem, AgentConfig, SessionInitOptions};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> anyhow::Result<()> {
+    ///     let config = AgentConfig::default();
+    ///     let mut init_options = SessionInitOptions::default();
+    ///     init_options.restore_from_checkpoint = Some("checkpoint_abc123".to_string());
+    ///
+    ///     let agent = AgentSystem::with_session_init(config, init_options).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn with_session_init(
+        config: AgentConfig,
+        mut session_init: SessionInitOptions,
+    ) -> Result<Self> {
+        // Extract workspace path and execution mode before moving config
+        let workspace_path = config.workspace_path.clone();
+        let execution_mode = Some(config.execution_mode.clone());
+
+        // Update session init options with workspace and execution mode from config
+        session_init.workspace_root = workspace_path.clone();
+        if session_init.execution_mode.is_none() {
+            session_init.execution_mode = execution_mode;
+        }
+
+        info!(
+            "Creating AgentSystem with session restore: {:?}",
+            session_init.restore_from_checkpoint
+        );
+
+        // Initialize session manager with custom init options
+        let session_manager = Arc::new(
+            SessionManager::new(
+                config.workspace_path.clone(),
+                config.session_config.clone(),
+                session_init,
+            )
+            .await?,
+        );
+
+        // Initialize task manager - will be populated by session restore if applicable
+        let task_manager = session_manager.task_manager().clone();
+
+        // Initialize executor based on execution mode
+        let executor = match &config.execution_mode {
+            crate::executor::RuntimeMode::Host => {
+                info!("Using host executor");
+                crate::executor::CommandExecutor::Host(crate::executor::HostExecutor::new())
+            }
+            crate::executor::RuntimeMode::Container(container_config) => {
+                #[cfg(feature = "containers")]
+                {
+                    use crate::executor::container::ContainerExecutorConfig;
+                    use crate::executor::{ContainerExecutor, SystemResources};
+
+                    info!(
+                        "Initializing container executor with image: {}",
+                        container_config.image
+                    );
+
+                    // Only detect system resources if needed
+                    let (memory_bytes, cpu_quota) = match (
+                        container_config.memory_limit_bytes,
+                        container_config.cpu_quota,
+                    ) {
+                        (Some(mem), Some(cpu)) => {
+                            // Both limits explicitly provided, skip resource detection
+                            (Some(mem), Some(cpu))
+                        }
+                        _ => {
+                            // At least one limit missing, detect resources and calculate
+                            let resources = SystemResources::detect().map_err(|e| {
+                                anyhow::anyhow!("Failed to detect system resources: {}", e)
+                            })?;
+                            let allocation =
+                                resources.allocate_percentage(container_config.resource_percentage);
+                            (
+                                container_config
+                                    .memory_limit_bytes
+                                    .or(Some(allocation.memory_bytes)),
+                                container_config.cpu_quota.or(Some(allocation.cpu_quota)),
+                            )
+                        }
+                    };
+
+                    let exec_config = ContainerExecutorConfig {
+                        image: container_config.image.clone(),
+                        workspace_mount: workspace_path.clone(),
+                        aca_mount: crate::env::aca_dir_path(&workspace_path),
+                        memory_bytes,
+                        cpu_quota,
+                        auto_remove: true,
+                    };
+
+                    let container_executor = ContainerExecutor::new(exec_config)
+                        .await
+                        .map_err(|e| {
+                            anyhow::anyhow!(
+                                "Container runtime unavailable. --use-containers requires Docker or Podman: {}",
+                                e
+                            )
+                        })?;
+
+                    crate::executor::CommandExecutor::Container(container_executor)
+                }
+
+                #[cfg(not(feature = "containers"))]
+                {
+                    return Err(anyhow::anyhow!(
+                        "Container support not compiled. Enable 'containers' feature."
+                    ));
+                }
+            }
+        };
+
+        // Initialize Claude interface
+        let claude_interface = Arc::new(
+            ClaudeCodeInterface::new(config.claude_config, workspace_path)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to initialize Claude interface: {}", e))?,
+        );
+
+        let system = Self {
+            task_manager,
+            session_manager,
+            claude_interface,
+            executor,
+        };
+
+        // Execute setup commands using the initialized executor
+        if !config.setup_commands.is_empty() {
+            info!("Executing setup commands with configured executor...");
+            system
+                .execute_setup_commands(&config.setup_commands)
+                .await?;
+        }
+
+        Ok(system)
+    }
+
     /// Process a single task with Claude integration and full persistence
     pub async fn process_task(&self, task_id: Uuid) -> Result<()> {
         // Get task from task manager
