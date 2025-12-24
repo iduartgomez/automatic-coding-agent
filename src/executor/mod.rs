@@ -350,4 +350,24 @@ impl CommandExecutor {
             Self::Container(executor) => executor.shutdown().await,
         }
     }
+
+    /// Get container info if running in container mode
+    ///
+    /// Returns `None` for host executors or if no container has been created yet.
+    #[cfg(feature = "containers")]
+    pub async fn container_info(&self) -> Option<crate::session::SessionContainerInfo> {
+        match self {
+            Self::Host(_) => None,
+            Self::Container(executor) => executor.container_info().await,
+        }
+    }
+
+    /// Check if this executor is container-based
+    pub fn is_container_executor(&self) -> bool {
+        match self {
+            Self::Host(_) => false,
+            #[cfg(feature = "containers")]
+            Self::Container(_) => true,
+        }
+    }
 }
