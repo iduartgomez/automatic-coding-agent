@@ -22,11 +22,11 @@ Execute any text file as a coding task:
 
 ```bash
 # Execute a task from any text file
-aca --task-file examples/task-inputs/single_task.md --workspace /path/to/project
+aca run examples/task-inputs/single_task.md -w /path/to/project
 
 # Works with any file extension
-aca --task-file bug_report.txt --workspace .
-aca --task-file requirements --workspace .
+aca run bug_report.txt -w .
+aca run requirements -w .
 ```
 
 ### Intelligent Task Parsing
@@ -35,32 +35,27 @@ Analyze complex task files with LLM-powered understanding:
 
 ```bash
 # Auto-detect intelligent parsing for task lists
-aca --task-file .claude/tasks.md
+aca run .claude/tasks.md
 
 # Explicit intelligent parsing with context
-aca --task-file project-tasks.md --use-intelligent-parser \
+aca run project-tasks.md --use-intelligent-parser \
     --context "full-stack web application" \
-    --context "React + Node.js stack" \
-    --context "6 month timeline"
-
-# Add custom system prompt for specialized domains
-aca --task-file tasks.md --use-intelligent-parser \
-    --append-system-prompt "Focus on security best practices"
+    --context "React + Node.js stack"
 
 # Analyze, review, and execute workflow
-aca --task-file tasks.md --dry-run --dump-plan plan.json  # Step 1: Analyze
-cat plan.json                                              # Step 2: Review
-aca --execution-plan plan.json                             # Step 3: Execute
+aca run tasks.md --dry-run --dump-plan plan.json  # Step 1: Analyze
+cat plan.json                                      # Step 2: Review
+aca run plan.json                                  # Step 3: Execute
 ```
 
 ### Selecting Providers
 
 ```bash
 # Use Claude Code CLI (default)
-aca --provider claude-code --task-file tasks.md --use-intelligent-parser
+aca --provider claude-code run tasks.md --use-intelligent-parser
 
 # Use OpenAI Codex CLI with explicit model override
-aca --provider openai-codex --model gpt-5 --task-file main-tasks.md --use-intelligent-parser
+aca --provider openai-codex --model gpt-5 run main-tasks.md --use-intelligent-parser
 ```
 
 ### Multi-Task Execution
@@ -69,7 +64,19 @@ Create a task list file with multiple tasks:
 
 ```bash
 # Execute multiple tasks from a list
-aca --tasks examples/task-inputs/task_list.md --workspace .
+aca run examples/task-inputs/task_list.md -w .
+```
+
+### Container Execution
+
+Run tasks inside isolated Docker/Podman containers:
+
+```bash
+# Execute in default container
+aca run tasks.md --use-containers
+
+# Use custom container image
+aca run tasks.md --use-containers --container-image ubuntu:22.04
 ```
 
 ### Structured Configuration
@@ -78,36 +85,40 @@ Use configuration files with setup commands:
 
 ```bash
 # Execute using structured TOML configuration
-aca --config examples/configurations/default-config.toml
+aca run file.md -c examples/configurations/default-config.toml
 ```
 
 ## Command Line Options
 
-### Task Input (choose one)
+### Commands
 
-- `--task-file <FILE>` - Execute a single task from any UTF-8 file
-- `--tasks <FILE>` - Execute multiple tasks from a task list file
-- `--config <FILE>` - Load tasks from TOML configuration file
+- `aca run <FILE>` - Execute a file (auto-detects task, task list, or execution plan)
+- `aca interactive` - Run in interactive mode
+- `aca checkpoint list` - List available checkpoints
+- `aca checkpoint create <DESC>` - Create manual checkpoint
+- `aca checkpoint resume <ID>` - Resume from specific checkpoint
+- `aca checkpoint resume --latest` - Resume from latest checkpoint
+- `aca show-config` - Show configuration discovery information
 
-### Execution Options
+### Run Options
 
-- `--workspace <DIR>` - Override workspace directory (default: current directory)
-- `--interactive` - Run in interactive mode
-- `--verbose` - Enable detailed logging output
-- `--dry-run` - Show what would be executed without running
+- `-w, --workspace <DIR>` - Override workspace directory (default: current directory)
+- `-c, --config <FILE>` - Configuration file path
+- `-v, --verbose` - Enable detailed logging output
+- `-n, --dry-run` - Show what would be executed without running
+- `--use-intelligent-parser` - Use LLM-based task parser
+- `--force-naive-parser` - Force naive parser even for complex files
+- `--context <HINT>` - Context hints for intelligent parser (repeatable)
+- `--dump-plan <FILE>` - Dump execution plan to file (JSON or TOML)
+- `--use-containers` - Execute tasks inside a container (Docker/Podman)
+- `--container-image <IMAGE>` - Container image to use (default: alpine:latest)
 
-### Session Management
+### Global Options
 
-- `--resume <CHECKPOINT_ID>` - Resume from specific checkpoint
-- `--continue` - Resume from latest checkpoint
-- `--list-checkpoints` - Show available checkpoints
-- `--create-checkpoint <DESCRIPTION>` - Create manual checkpoint
-
-### Information Options
-
-- `--help` - Show help message
-- `--version` - Show version information
-- `--show-config` - Show configuration discovery information
+- `--provider <PROVIDER>` - Override LLM provider (claude-code, openai-codex, anthropic, local-model)
+- `--model <MODEL>` - Override model for selected provider
+- `-h, --help` - Show help message
+- `-V, --version` - Show version information
 
 ## Example Files
 
@@ -130,13 +141,13 @@ examples/
 
 ```bash
 # Single comprehensive task
-aca --task-file examples/task-inputs/single_task.md --dry-run
+aca run examples/task-inputs/single_task.md --dry-run
 
 # Multiple tasks with references
-aca --tasks examples/task-inputs/task_list.md --dry-run
+aca run examples/task-inputs/task_list.md --dry-run
 
 # Structured configuration
-aca --config examples/configurations/default-config.toml --dry-run
+aca run task.md -c examples/configurations/default-config.toml --dry-run
 ```
 
 See the [examples README](../examples/README.md) for detailed documentation.
@@ -161,14 +172,14 @@ This means:
 
 ```bash
 echo "Create a hello.txt file with 'Hello World'" > task.md
-aca --task-file task.md --workspace .
+aca run task.md -w .
 ```
 
 **Generate documentation:**
 
 ```bash
 echo "Create a comprehensive README.md for a weather app called WeatherWiz" > task.md
-aca --task-file task.md --workspace .
+aca run task.md -w .
 ```
 
 ### Multi-Task Projects
@@ -188,7 +199,7 @@ Create a `tasks.md` file with multiple tasks:
 Execute all tasks:
 
 ```bash
-aca --tasks tasks.md --workspace ./my-project
+aca run tasks.md -w ./my-project
 ```
 
 ### Supported Task List Formats
@@ -310,7 +321,7 @@ Create `tasks.md`:
 3. Execute with full context:
 
 ```bash
-aca --tasks tasks.md --workspace ./my-project
+aca run tasks.md -w ./my-project
 ```
 
 The tool will automatically include the entire content of `auth_requirements.md` in the task description, providing Claude with comprehensive context for implementation.
@@ -347,7 +358,7 @@ cat > tasks.md << 'EOF'
 EOF
 
 # Parse with intelligent analysis
-aca --task-file tasks.md --use-intelligent-parser \
+aca run tasks.md --use-intelligent-parser \
     --context "security-focused implementation"
 ```
 
@@ -443,11 +454,11 @@ max_requests_per_minute = 50
 ### Usage
 
 ```bash
-# Execute structured configuration
-aca --config project-config.toml
+# Execute with structured configuration
+aca run task.md -c project-config.toml
 
 # Test configuration without execution
-aca --config project-config.toml --dry-run --verbose
+aca run task.md -c project-config.toml --dry-run --verbose
 ```
 
 See [`examples/configurations/`](../examples/configurations/) for complete examples.
@@ -496,16 +507,16 @@ ACA provides comprehensive session management with automatic recovery:
 
 ```bash
 # List available checkpoints
-aca --list-checkpoints
+aca checkpoint list
 
 # Create a manual checkpoint
-aca --create-checkpoint "Feature implementation complete"
+aca checkpoint create "Feature implementation complete"
 
 # Resume from latest checkpoint
-aca --continue
+aca checkpoint resume --latest
 
 # Resume from specific checkpoint
-aca --resume checkpoint-abc-123
+aca checkpoint resume checkpoint-abc-123
 ```
 
 ### Session Storage
@@ -527,7 +538,7 @@ Sessions can be safely interrupted and resumed across system restarts.
 Use `--verbose` for detailed execution logs:
 
 ```bash
-aca --task-file task.md --workspace . --verbose
+aca run task.md -w . --verbose
 ```
 
 This shows:
@@ -543,7 +554,7 @@ This shows:
 Test your tasks without execution:
 
 ```bash
-aca --tasks project_setup.md --workspace . --dry-run
+aca run project_setup.md -w . --dry-run
 ```
 
 This will:
@@ -625,14 +636,14 @@ This will:
 - Check workspace write permissions for `.aca/` directory
 - Ensure sufficient disk space for session data
 - Verify session files aren't corrupted
-- Try `aca --list-checkpoints` to see available recovery points
+- Try `aca checkpoint list` to see available recovery points
 
 **Multi-task interruption:**
 
 - Use `--verbose` to see detailed progress
 - Check `.aca/sessions/` for partial completion status
-- Resume with `aca --continue` for latest checkpoint
-- Use `aca --resume <checkpoint-id>` for specific recovery point
+- Resume with `aca checkpoint resume --latest` for latest checkpoint
+- Use `aca checkpoint resume <checkpoint-id>` for specific recovery point
 
 **Configuration issues:**
 
@@ -646,18 +657,19 @@ This will:
 ```bash
 # Show detailed help
 aca --help
+aca run --help
 
 # Check configuration discovery
-aca --show-config
+aca show-config
 
 # List available checkpoints
-aca --list-checkpoints
+aca checkpoint list
 
 # Enable verbose logging for debugging
-aca --task-file task.md --verbose
+aca run task.md --verbose
 
 # Test commands without execution
-aca --tasks my_tasks.md --dry-run --verbose
+aca run my_tasks.md --dry-run --verbose
 ```
 
 ## Integration with Development Workflow
@@ -671,10 +683,10 @@ ACA works seamlessly with Git workflows:
 git checkout -b automated-tasks
 
 # Run your tasks with checkpointing
-aca --tasks feature_implementation.md --workspace .
+aca run feature_implementation.md -w .
 
 # Create checkpoint before review
-aca --create-checkpoint "Implementation complete, ready for review"
+aca checkpoint create "Implementation complete, ready for review"
 
 # Review changes
 git diff
@@ -688,31 +700,31 @@ git commit -m "Automated implementation of feature tasks"
 
 ```bash
 # Phase 1: Initial implementation
-aca --tasks phase1_tasks.md
-aca --create-checkpoint "Phase 1 complete"
+aca run phase1_tasks.md
+aca checkpoint create "Phase 1 complete"
 
 # Phase 2: Add features
-aca --tasks phase2_tasks.md
-aca --create-checkpoint "Phase 2 complete"
+aca run phase2_tasks.md
+aca checkpoint create "Phase 2 complete"
 
 # Phase 3: Testing and refinement
-aca --tasks phase3_tasks.md
+aca run phase3_tasks.md
 
 # View progress
-aca --list-checkpoints
+aca checkpoint list
 ```
 
 ### Team Collaboration
 
 ```bash
 # Share configuration for consistent environments
-aca --config team-config.toml
+aca run task.md -c team-config.toml
 
 # Resume colleague's work from checkpoint
-aca --resume checkpoint-shared-123
+aca checkpoint resume checkpoint-shared-123
 
 # Create structured task assignments
-aca --tasks team-assignments.md --verbose
+aca run team-assignments.md --verbose
 ```
 
 ### CI/CD Integration
@@ -721,7 +733,7 @@ Use in automated environments:
 
 ```bash
 # In CI pipeline
-aca --tasks deployment_tasks.md --workspace . --verbose
+aca run deployment_tasks.md -w . --verbose
 ```
 
 The tool's session management ensures reliable execution even in containerized environments.
@@ -765,13 +777,13 @@ The intelligent parser uses LLM (Claude) to semantically understand task structu
 
 ```bash
 # Auto-enable for task lists
-aca --tasks project.md
+aca run project.md
 
 # Explicit intelligent parsing
-aca --task-file tasks.md --use-intelligent-parser
+aca run tasks.md --use-intelligent-parser
 
 # Add context hints for better analysis
-aca --tasks tasks.md --use-intelligent-parser \
+aca run tasks.md --use-intelligent-parser \
     --context "microservices architecture" \
     --context "Python + FastAPI backend" \
     --context "team of 3 developers"
@@ -781,7 +793,7 @@ aca --tasks tasks.md --use-intelligent-parser \
 
 **Step 1: Analyze and dump plan**
 ```bash
-aca --task-file .claude/tasks.md \
+aca run .claude/tasks.md \
     --use-intelligent-parser \
     --dry-run \
     --dump-plan execution-plan.json \
@@ -805,7 +817,7 @@ vim execution-plan.json
 
 **Step 4: Execute the approved plan**
 ```bash
-aca --execution-plan execution-plan.json --verbose
+aca run execution-plan.json --verbose
 ```
 
 ### Plan Formats
@@ -814,12 +826,12 @@ Plans can be dumped and loaded in two formats:
 
 ```bash
 # JSON format (recommended for readability)
-aca --tasks tasks.md --dry-run --dump-plan plan.json
-aca --execution-plan plan.json
+aca run tasks.md --dry-run --dump-plan plan.json
+aca run plan.json
 
 # TOML format
-aca --tasks tasks.md --dry-run --dump-plan plan.toml
-aca --execution-plan plan.toml
+aca run tasks.md --dry-run --dump-plan plan.toml
+aca run plan.toml
 ```
 
 ### When to Use Intelligent Parser
@@ -843,7 +855,7 @@ aca --execution-plan plan.toml
 ```bash
 export ANTHROPIC_API_KEY=your_key
 
-aca --task-file /path/to/eu-products/app/.claude/tasks.md \
+aca run /path/to/eu-products/app/.claude/tasks.md \
     --use-intelligent-parser \
     --context "full-stack Flutter + Rust app" \
     --context "data-intensive, 6 months" \
@@ -854,13 +866,13 @@ aca --task-file /path/to/eu-products/app/.claude/tasks.md \
 cat eu-products-plan.json
 
 # Execute
-aca --execution-plan eu-products-plan.json
+aca run eu-products-plan.json
 ```
 
 **Example 2: Team Review Workflow**
 ```bash
 # Developer: Analyze and commit plan
-aca --tasks sprint-tasks.md --dry-run --dump-plan sprint-plan.json
+aca run sprint-tasks.md --dry-run --dump-plan sprint-plan.json
 git add sprint-plan.json
 git commit -m "Add sprint execution plan for review"
 git push
@@ -869,7 +881,7 @@ git push
 
 # Execute approved plan
 git pull
-aca --execution-plan sprint-plan.json
+aca run sprint-plan.json
 ```
 
 **See full documentation**: [Intelligent Task Parsing Guide](user-guide/intelligent-task-parsing.md)

@@ -130,12 +130,16 @@ aca checkpoint list                    # List available checkpoints
 aca checkpoint create "description"    # Create manual checkpoint
 aca checkpoint resume <checkpoint-id>  # Resume from specific checkpoint
 aca checkpoint resume --latest         # Resume from latest checkpoint
+
+# Container execution (Docker/Podman)
+aca run tasks.md --use-containers                        # Run in container
+aca run tasks.md --use-containers --container-image ubuntu:22.04  # Custom image
 ```
 
 #### Library Interface
 
 ```rust
-use automatic_coding_agent::{AgentSystem, AgentConfig};
+use aca::{AgentSystem, AgentConfig};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -304,11 +308,11 @@ See [Testing Guide](docs/testing.md) for detailed information about test setup, 
 ## Documentation
 
 - **[Architecture Design](docs/design/)**: Detailed system design documents
-- **[Session Logs](docs/sessions/)**: Development progress and implementation notes
 - **[Testing Guide](docs/testing.md)**: Test categories, setup, and CI configuration
 - **[Usage Guide](docs/usage-guide.md)**: Comprehensive usage examples and best practices
 - **[Session Management](docs/session-management.md)**: Session persistence and checkpoint system
-- **[API Documentation](https://docs.rs/automatic-coding-agent)**: Generated API docs
+- **[Container Guide](docs/CONTAINER_TESTING_GUIDE.md)**: Docker/Podman container execution
+- **[API Documentation](https://docs.rs/aca)**: Generated API docs
 
 ## License
 
