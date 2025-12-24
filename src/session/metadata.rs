@@ -6,6 +6,79 @@ use std::path::PathBuf;
 /// Unique session identifier
 pub type SessionId = uuid::Uuid;
 
+/// Container information bound to a session
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionContainerInfo {
+    /// Container ID from Docker/Podman
+    pub container_id: String,
+    /// Container name (typically aca-{session_id})
+    pub container_name: String,
+    /// Container image used
+    pub image: String,
+    /// When the container was created
+    pub created_at: DateTime<Utc>,
+    /// Current container status
+    pub status: ContainerStatus,
+    /// Resource limits applied
+    pub resource_limits: Option<ContainerResourceLimits>,
+}
+
+/// Container lifecycle status
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ContainerStatus {
+    /// Container is running
+    Running,
+    /// Container is stopped
+    Stopped,
+    /// Container has been removed
+    Removed,
+    /// Container status is unknown
+    Unknown,
+}
+
+/// Resource limits applied to a container
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContainerResourceLimits {
+    /// Memory limit in bytes
+    pub memory_bytes: Option<i64>,
+    /// CPU quota (microseconds per period)
+    pub cpu_quota: Option<i64>,
+}
+
+impl SessionContainerInfo {
+    /// Create new container info
+    pub fn new(
+        container_id: String,
+        container_name: String,
+        image: String,
+        resource_limits: Option<ContainerResourceLimits>,
+    ) -> Self {
+        Self {
+            container_id,
+            container_name,
+            image,
+            created_at: Utc::now(),
+            status: ContainerStatus::Running,
+            resource_limits,
+        }
+    }
+
+    /// Mark container as stopped
+    pub fn mark_stopped(&mut self) {
+        self.status = ContainerStatus::Stopped;
+    }
+
+    /// Mark container as removed
+    pub fn mark_removed(&mut self) {
+        self.status = ContainerStatus::Removed;
+    }
+
+    /// Check if container is running
+    pub fn is_running(&self) -> bool {
+        self.status == ContainerStatus::Running
+    }
+}
+
 /// Session metadata and versioning information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionMetadata {
@@ -25,6 +98,9 @@ pub struct SessionMetadata {
     /// Execution mode used for this session (host or container)
     #[serde(default)]
     pub execution_mode: Option<crate::executor::RuntimeMode>,
+    /// Container information if running in container mode
+    #[serde(default)]
+    pub container_info: Option<SessionContainerInfo>,
 }
 
 /// Session version information for compatibility tracking
@@ -107,7 +183,34 @@ impl SessionMetadata {
             workspace_root,
             custom_properties: HashMap::new(),
             execution_mode: None,
+            container_info: None,
         }
+    }
+
+    /// Set container information for this session
+    pub fn set_container_info(&mut self, container_info: SessionContainerInfo) {
+        self.container_info = Some(container_info);
+        self.last_updated = Utc::now();
+    }
+
+    /// Clear container information (e.g., when container is removed)
+    pub fn clear_container_info(&mut self) {
+        if let Some(ref mut info) = self.container_info {
+            info.mark_removed();
+        }
+        self.last_updated = Utc::now();
+    }
+
+    /// Get container ID if available
+    pub fn container_id(&self) -> Option<&str> {
+        self.container_info
+            .as_ref()
+            .map(|c| c.container_id.as_str())
+    }
+
+    /// Check if this session has an active container
+    pub fn has_active_container(&self) -> bool {
+        self.container_info.as_ref().is_some_and(|c| c.is_running())
     }
 
     /// Update session statistics

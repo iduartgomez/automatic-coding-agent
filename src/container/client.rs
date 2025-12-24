@@ -213,6 +213,96 @@ impl ContainerClient {
             Err(e) => Err(ContainerError::ApiError(e)),
         }
     }
+
+    /// Get container ID by name.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if container is not found or inspection fails.
+    pub async fn get_container_id(&self, name: &str) -> Result<String> {
+        let inspect = self
+            .docker
+            .inspect_container(
+                name,
+                None::<bollard::query_parameters::InspectContainerOptions>,
+            )
+            .await
+            .map_err(|e| match e {
+                bollard::errors::Error::DockerResponseServerError {
+                    status_code: 404, ..
+                } => ContainerError::NotFound(name.to_string()),
+                e => ContainerError::ApiError(e),
+            })?;
+
+        inspect
+            .id
+            .ok_or_else(|| ContainerError::Other(format!("Container {} has no ID", name)))
+    }
+
+    /// Check if a container exists by name.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if inspection fails for reasons other than not found.
+    pub async fn container_exists(&self, name: &str) -> Result<bool> {
+        match self.get_container_id(name).await {
+            Ok(_) => Ok(true),
+            Err(ContainerError::NotFound(_)) => Ok(false),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Get container state (running, stopped, etc.) by name or ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if container is not found or inspection fails.
+    pub async fn container_state(&self, name_or_id: &str) -> Result<ContainerState> {
+        let inspect = self
+            .docker
+            .inspect_container(
+                name_or_id,
+                None::<bollard::query_parameters::InspectContainerOptions>,
+            )
+            .await
+            .map_err(|e| match e {
+                bollard::errors::Error::DockerResponseServerError {
+                    status_code: 404, ..
+                } => ContainerError::NotFound(name_or_id.to_string()),
+                e => ContainerError::ApiError(e),
+            })?;
+
+        let state = inspect.state.ok_or_else(|| {
+            ContainerError::Other(format!("Container {} has no state", name_or_id))
+        })?;
+
+        if state.running.unwrap_or(false) {
+            Ok(ContainerState::Running)
+        } else if state.paused.unwrap_or(false) {
+            Ok(ContainerState::Paused)
+        } else if state.restarting.unwrap_or(false) {
+            Ok(ContainerState::Restarting)
+        } else if state.dead.unwrap_or(false) {
+            Ok(ContainerState::Dead)
+        } else {
+            Ok(ContainerState::Stopped)
+        }
+    }
+}
+
+/// Container state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContainerState {
+    /// Container is running
+    Running,
+    /// Container is paused
+    Paused,
+    /// Container is restarting
+    Restarting,
+    /// Container is stopped
+    Stopped,
+    /// Container is dead
+    Dead,
 }
 
 /// Type of container runtime.

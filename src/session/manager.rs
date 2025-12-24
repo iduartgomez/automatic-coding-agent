@@ -68,6 +68,29 @@ pub struct SessionStatus {
 }
 
 impl SessionManager {
+    /// Get the session ID
+    pub fn session_id(&self) -> SessionId {
+        self.session_id
+    }
+
+    /// Update container info in session metadata
+    pub async fn set_container_info(&self, container_info: SessionContainerInfo) {
+        let mut metadata = self.metadata.write().await;
+        metadata.set_container_info(container_info);
+    }
+
+    /// Clear container info in session metadata
+    pub async fn clear_container_info(&self) {
+        let mut metadata = self.metadata.write().await;
+        metadata.clear_container_info();
+    }
+
+    /// Get container info from session metadata
+    pub async fn container_info(&self) -> Option<SessionContainerInfo> {
+        let metadata = self.metadata.read().await;
+        metadata.container_info.clone()
+    }
+
     /// Create a new session manager
     pub async fn new(
         session_dir: PathBuf,
@@ -462,13 +485,18 @@ impl SessionManager {
         let task_tree_json = serde_json::to_string(&state.task_tree)?;
         self.task_manager.import_from_json(&task_tree_json).await?;
 
-        // Update metadata
+        // Update metadata (includes container_info if present)
         {
             let mut metadata = self.metadata.write().await;
             *metadata = state.metadata;
         }
 
-        // Note: In a real implementation, we'd also restore:
+        // Note: Container reconnection is handled separately by AgentSystem.
+        // If state.metadata.container_info is present, the AgentSystem's
+        // ContainerLifecycleManager can reconnect to the existing container
+        // using the stored container_id and container_name.
+        //
+        // Additional restoration that would be done in a full implementation:
         // - Execution context (working directory, environment variables)
         // - File system state (file watchers, tracked files)
         // - Resource allocations

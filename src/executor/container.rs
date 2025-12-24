@@ -1,10 +1,14 @@
 //! Container-based command execution.
 //!
 //! Executes commands inside Docker/Podman containers for isolated execution.
+//! Supports session-bound container lifecycle management.
 
 use super::{ExecutionCommand, ExecutionResult, ExecutorError};
-use crate::container::{ContainerConfig, ContainerOrchestrator, ExecConfig};
+use crate::container::{
+    ContainerConfig, ContainerLifecycleManager, ContainerOrchestrator, ExecConfig, LifecycleConfig,
+};
 use crate::executor::config::DEFAULT_CONTAINER_IMAGE;
+use crate::session::metadata::{SessionContainerInfo, SessionId};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -26,6 +30,8 @@ pub struct ContainerExecutorConfig {
     pub cpu_quota: Option<i64>,
     /// Auto-remove container on shutdown
     pub auto_remove: bool,
+    /// Session ID to bind the container to (optional for legacy support)
+    pub session_id: Option<SessionId>,
 }
 
 impl Default for ContainerExecutorConfig {
@@ -37,16 +43,27 @@ impl Default for ContainerExecutorConfig {
             memory_bytes: None,
             cpu_quota: None,
             auto_remove: true,
+            session_id: None,
         }
     }
 }
 
-/// Executes commands inside a container
+impl ContainerExecutorConfig {
+    /// Set the session ID for container naming
+    pub fn with_session_id(mut self, session_id: SessionId) -> Self {
+        self.session_id = Some(session_id);
+        self
+    }
+}
+
+/// Executes commands inside a container with session-bound lifecycle management.
 #[derive(Clone)]
 pub struct ContainerExecutor {
     orchestrator: Arc<ContainerOrchestrator>,
     config: ContainerExecutorConfig,
     container_id: Arc<RwLock<Option<String>>>,
+    /// Lifecycle manager for session-bound container management
+    lifecycle_manager: Option<Arc<ContainerLifecycleManager>>,
 }
 
 impl ContainerExecutor {
@@ -60,15 +77,65 @@ impl ContainerExecutor {
             .await
             .map_err(|e| ExecutorError::ContainerUnavailable(e.to_string()))?;
 
+        let orchestrator = Arc::new(orchestrator);
+
+        // Create lifecycle manager if session_id is provided
+        let lifecycle_manager = if let Some(session_id) = config.session_id {
+            let lifecycle_config = LifecycleConfig {
+                image: config.image.clone(),
+                workspace_path: config.workspace_mount.clone(),
+                aca_path: config.aca_mount.clone(),
+                memory_bytes: config.memory_bytes,
+                cpu_quota: config.cpu_quota,
+                auto_remove: config.auto_remove,
+            };
+
+            Some(Arc::new(ContainerLifecycleManager::with_orchestrator(
+                session_id,
+                orchestrator.clone(),
+                lifecycle_config,
+            )))
+        } else {
+            None
+        };
+
         Ok(Self {
-            orchestrator: Arc::new(orchestrator),
+            orchestrator,
             config,
             container_id: Arc::new(RwLock::new(None)),
+            lifecycle_manager,
         })
+    }
+
+    /// Create a new container executor with an existing lifecycle manager
+    ///
+    /// This is useful when the lifecycle manager is created externally
+    /// and shared with other components.
+    pub fn with_lifecycle_manager(
+        config: ContainerExecutorConfig,
+        lifecycle_manager: Arc<ContainerLifecycleManager>,
+    ) -> Self {
+        Self {
+            orchestrator: lifecycle_manager.orchestrator().clone(),
+            config,
+            container_id: Arc::new(RwLock::new(None)),
+            lifecycle_manager: Some(lifecycle_manager),
+        }
     }
 
     /// Ensure container is running, creating if necessary
     async fn ensure_container(&self) -> Result<String, ExecutorError> {
+        // Use lifecycle manager if available
+        if let Some(ref lifecycle) = self.lifecycle_manager {
+            let container_id = lifecycle
+                .ensure_container()
+                .await
+                .map_err(|e| ExecutorError::ContainerUnavailable(e.to_string()))?;
+            *self.container_id.write().await = Some(container_id.clone());
+            return Ok(container_id);
+        }
+
+        // Fallback to direct container creation (legacy behavior)
         let mut id_guard = self.container_id.write().await;
 
         if let Some(ref id) = *id_guard {
@@ -113,16 +180,24 @@ impl ContainerExecutor {
             .build()
             .map_err(|e| ExecutorError::Other(format!("Container config error: {}", e)))?;
 
+        // Generate container name (use session ID if available, otherwise default)
+        let container_name = if let Some(session_id) = self.config.session_id {
+            ContainerLifecycleManager::container_name_for_session(&session_id)
+        } else {
+            "aca-session".to_string()
+        };
+
         // Create and start container
         let container_id = self
             .orchestrator
-            .create_container(&container_config, Some("aca-session"))
+            .create_container(&container_config, Some(&container_name))
             .await?;
 
         self.orchestrator.start_container(&container_id).await?;
 
         info!(
-            "Container started: {}",
+            "Container started: {} ({})",
+            container_name,
             container_id.get(..12).unwrap_or(&container_id)
         );
 
@@ -133,6 +208,20 @@ impl ContainerExecutor {
     /// Get the container ID if it exists
     pub async fn container_id(&self) -> Option<String> {
         self.container_id.read().await.clone()
+    }
+
+    /// Get the lifecycle manager if available
+    pub fn lifecycle_manager(&self) -> Option<&Arc<ContainerLifecycleManager>> {
+        self.lifecycle_manager.as_ref()
+    }
+
+    /// Get container info for session metadata
+    pub async fn container_info(&self) -> Option<SessionContainerInfo> {
+        if let Some(ref lifecycle) = self.lifecycle_manager {
+            lifecycle.container_info().await
+        } else {
+            None
+        }
     }
 }
 
@@ -214,6 +303,17 @@ impl ContainerExecutor {
     }
 
     pub async fn shutdown(&self) -> Result<(), ExecutorError> {
+        // Use lifecycle manager if available
+        if let Some(ref lifecycle) = self.lifecycle_manager {
+            lifecycle
+                .shutdown()
+                .await
+                .map_err(|e| ExecutorError::Other(format!("Lifecycle shutdown failed: {}", e)))?;
+            *self.container_id.write().await = None;
+            return Ok(());
+        }
+
+        // Fallback to direct shutdown (legacy behavior)
         let mut id_guard = self.container_id.write().await;
         if let Some(ref id) = *id_guard {
             info!(

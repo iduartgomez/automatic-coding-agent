@@ -376,16 +376,34 @@ COPY --from=builder /build/target/.../claude-code-agent /usr/local/bin/
 
 ---
 
-### 7. Integration with Session Management ❌
+### 7. Integration with Session Management ✅
 
-**Not implemented**:
-- Automatic container launch for sessions
-- Session-to-container lifecycle binding
-- Container cleanup on session end
-- Session state persistence in containers
-- Session checkpoint restoration in containers
+**Implemented**:
+- **Session-to-container lifecycle binding**: `ContainerLifecycleManager` binds containers to sessions
+- **Session-aware container naming**: Containers named `aca-session-{session_id}` for identification
+- **Container info in session metadata**: `SessionContainerInfo` stored in `SessionMetadata`
+- **Container cleanup on session end**: `AgentSystem.shutdown()` cleans up containers
+- **Container labels**: Containers labeled with `aca.session.id` and `aca.managed=true`
+- **Session state persistence**: Container info persisted with session checkpoints
+- **Container reconnection support**: `ContainerLifecycleManager.reconnect()` for session restore
 
-**Impact**: Container and session systems operate independently.
+**Key Components**:
+- `SessionContainerInfo`: Stores container_id, container_name, image, status, resource limits
+- `ContainerLifecycleManager`: Manages container lifecycle bound to session ID
+- `ContainerExecutor`: Updated to use lifecycle manager when session_id is provided
+
+**Usage**:
+```rust
+// Container is automatically bound to session when using AgentSystem
+let config = AgentConfig {
+    execution_mode: RuntimeMode::Container(container_config),
+    ..Default::default()
+};
+let agent = AgentSystem::new(config).await?;
+// Container created with name: aca-session-{session_id}
+// Container info synced to session metadata after first command
+agent.shutdown().await?;  // Container automatically cleaned up
+```
 
 ---
 
@@ -457,7 +475,7 @@ Created comprehensive integration test suite (`tests/container_orchestration.rs`
 4. **Volume cleanup**: Add session-based volume cleanup
 
 ### Priority 2 (High Value, Medium Effort)
-5. **Session integration**: Bind container lifecycle to sessions
+5. ~~**Session integration**: Bind container lifecycle to sessions~~ ✅ DONE
 6. **Alert manager**: Implement resource alert notifications
 7. **Cleanup scheduler**: Time-based volume cleanup
 8. **Network policies**: Bandwidth limits and isolation levels
@@ -482,6 +500,7 @@ src/container/
 ├── executor.rs         # Command execution
 ├── image.rs            # Image building and management
 ├── interactive.rs      # Interactive shells
+├── lifecycle.rs        # Session-to-container lifecycle binding (NEW)
 ├── monitor.rs          # Resource monitoring (standalone)
 ├── network.rs          # Network management (standalone)
 └── volume.rs           # Volume management (standalone)

@@ -136,6 +136,9 @@ impl AgentSystem {
             SessionManager::new(config.workspace_path, config.session_config, init_options).await?,
         );
 
+        // Get session ID for container naming
+        let session_id = session_manager.session_id();
+
         // Initialize task manager
         let task_manager = Arc::new(TaskManager::new(config.task_config.clone()));
 
@@ -152,8 +155,8 @@ impl AgentSystem {
                     use crate::executor::{ContainerExecutor, SystemResources};
 
                     info!(
-                        "Initializing container executor with image: {}",
-                        container_config.image
+                        "Initializing container executor with image: {} for session {}",
+                        container_config.image, session_id
                     );
 
                     // Only detect system resources if needed
@@ -181,6 +184,7 @@ impl AgentSystem {
                         }
                     };
 
+                    // Create executor config with session ID for lifecycle binding
                     let exec_config = ContainerExecutorConfig {
                         image: container_config.image.clone(),
                         workspace_mount: workspace_path.clone(),
@@ -188,6 +192,7 @@ impl AgentSystem {
                         memory_bytes,
                         cpu_quota,
                         auto_remove: true,
+                        session_id: Some(session_id),
                     };
 
                     let container_executor = ContainerExecutor::new(exec_config)
@@ -231,6 +236,10 @@ impl AgentSystem {
             system
                 .execute_setup_commands(&config.setup_commands)
                 .await?;
+
+            // Sync container info with session after first commands execute
+            #[cfg(feature = "containers")]
+            system.sync_container_info().await;
         }
 
         Ok(system)
@@ -532,6 +541,12 @@ impl AgentSystem {
             .await
             .map_err(|e| anyhow::anyhow!("Executor shutdown failed: {}", e))?;
 
+        // Clear container info in session metadata since container is now removed
+        #[cfg(feature = "containers")]
+        if self.executor.is_container_executor() {
+            self.session_manager.clear_container_info().await;
+        }
+
         tracing::info!("Agent system shutdown complete");
         Ok(())
     }
@@ -792,6 +807,20 @@ impl AgentSystem {
 
     pub fn claude_interface(&self) -> Arc<ClaudeCodeInterface> {
         self.claude_interface.clone()
+    }
+
+    /// Sync container info with session metadata
+    ///
+    /// This should be called after the container is first created (e.g., after setup commands)
+    /// to store container metadata in the session for persistence and recovery.
+    #[cfg(feature = "containers")]
+    pub async fn sync_container_info(&self) {
+        if let Some(container_info) = self.executor.container_info().await {
+            self.session_manager
+                .set_container_info(container_info)
+                .await;
+            info!("Container info synced with session metadata");
+        }
     }
 }
 
