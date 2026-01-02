@@ -58,10 +58,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m pip install --upgrade pip setuptools wheel
 
-# Install Rust toolchain
+# Install Rust toolchain (must complete all rustup commands as root)
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
     && . "$HOME/.cargo/env" \
-    && rustup component add clippy rustfmt
+    && rustup component add clippy rustfmt rust-analyzer
 
 # Add Rust to PATH for all users
 ENV PATH="/root/.cargo/bin:${PATH}"
@@ -87,6 +87,16 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 RUN curl -fsSL https://claude.ai/install.sh | bash || \
     echo "Claude CLI installation requires manual setup - see https://claude.ai/code"
 
+# Install common npm packages (must run as root for global install)
+RUN npm install -g \
+    typescript \
+    ts-node \
+    eslint \
+    prettier \
+    jest \
+    webpack \
+    vite
+
 # Create workspace directory
 RUN mkdir -p /workspace
 WORKDIR /workspace
@@ -108,19 +118,9 @@ RUN useradd -m -s /bin/bash -u 1000 aca-user \
 ENV HOME=/home/aca-user
 ENV USER=aca-user
 
-# Install common language-specific tools
+# Install common language-specific tools (user-local installs)
 USER aca-user
 WORKDIR /home/aca-user
-
-# Install common npm packages
-RUN npm install -g \
-    typescript \
-    ts-node \
-    eslint \
-    prettier \
-    jest \
-    webpack \
-    vite
 
 # Install common Python packages
 RUN python3 -m pip install --user \
@@ -132,9 +132,6 @@ RUN python3 -m pip install --user \
     requests \
     numpy \
     pandas
-
-# Install Rust dev tools
-RUN rustup component add rust-analyzer
 
 # Back to root for final setup
 USER root
