@@ -31,10 +31,10 @@ RUN apk add --no-cache \
     bind-tools
 
 # Install Node.js 20.x LTS
+# Note: Don't upgrade npm to latest as Alpine's Node.js version may be incompatible
 RUN apk add --no-cache \
     nodejs \
     npm \
-    && npm install -g npm@latest \
     && npm install -g yarn pnpm
 
 # Install Python 3.11+
