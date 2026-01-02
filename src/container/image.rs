@@ -34,7 +34,10 @@ impl ImageBuilder {
     /// # Arguments
     ///
     /// * `dockerfile_path` - Path to the directory containing Dockerfile
-    /// * `tag` - Tag for the built image (default: "aca-dev:latest")
+    /// * `tag` - Tag variant for the built image:
+    ///   - `None` - Uses `Dockerfile` and tags as "aca-dev:latest"
+    ///   - `Some("alpine")` - Uses `Dockerfile.alpine` and tags as "aca-dev:alpine"
+    ///   - `Some(custom)` - Uses `Dockerfile` and tags with the custom value
     ///
     /// # Errors
     ///
@@ -44,7 +47,12 @@ impl ImageBuilder {
         dockerfile_path: &Path,
         tag: Option<&str>,
     ) -> Result<String> {
-        let image_tag = tag.unwrap_or(ACA_BASE_IMAGE);
+        // Handle Alpine variant: when tag is "alpine", use Dockerfile.alpine and proper image tag
+        let (image_tag, dockerfile_name) = match tag {
+            Some("alpine") => (ACA_BASE_IMAGE_ALPINE, "Dockerfile.alpine"),
+            Some(custom_tag) => (custom_tag, "Dockerfile"),
+            None => (ACA_BASE_IMAGE, "Dockerfile"),
+        };
         info!("Building ACA base image: {} using Docker CLI", image_tag);
 
         // Use Docker CLI for building
@@ -55,7 +63,7 @@ impl ImageBuilder {
             .arg("-t")
             .arg(image_tag)
             .arg("-f")
-            .arg(dockerfile_path.join("Dockerfile"))
+            .arg(dockerfile_path.join(dockerfile_name))
             .arg(dockerfile_path)
             .output()
             .await
