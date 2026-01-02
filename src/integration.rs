@@ -297,6 +297,9 @@ impl AgentSystem {
             .await?,
         );
 
+        // Get session ID for container naming
+        let session_id = session_manager.session_id();
+
         // Initialize task manager - will be populated by session restore if applicable
         let task_manager = session_manager.task_manager().clone();
 
@@ -313,8 +316,8 @@ impl AgentSystem {
                     use crate::executor::{ContainerExecutor, SystemResources};
 
                     info!(
-                        "Initializing container executor with image: {}",
-                        container_config.image
+                        "Initializing container executor with image: {} for session {}",
+                        container_config.image, session_id
                     );
 
                     // Only detect system resources if needed
@@ -342,6 +345,7 @@ impl AgentSystem {
                         }
                     };
 
+                    // Create executor config with session ID for lifecycle binding
                     let exec_config = ContainerExecutorConfig {
                         image: container_config.image.clone(),
                         workspace_mount: workspace_path.clone(),
@@ -349,6 +353,7 @@ impl AgentSystem {
                         memory_bytes,
                         cpu_quota,
                         auto_remove: true,
+                        session_id: Some(session_id),
                     };
 
                     let container_executor = ContainerExecutor::new(exec_config)
